@@ -1,0 +1,11 @@
+<div>
+  With this option, Hudson authenticates the username and the password through Active Directory.
+  For this to work, Hudson must be running on a Windows machine that belongs to the domain.
+  (To run Hudson on a Unix system and have it authenticate against Active Directory, use LDAP.)
+
+  <p>
+  Hudson recognizes all the groups in Active Directory that the user belongs to, so you can
+  use those to make authorization decisions (for example, you can choose the matrix-based
+  security as the authorization strategy and perhaps allow "Domain Admins" to administer
+  Hudson.)
+</div>
