@@ -3,6 +3,7 @@
 */
 import org.acegisecurity.providers.ProviderManager
 import org.acegisecurity.providers.anonymous.AnonymousAuthenticationProvider
+import hudson.plugins.active_directory.ActiveDirectoryAuthenticationProvider
 
 authenticationManager(ProviderManager) {
     providers = [
