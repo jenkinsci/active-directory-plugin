@@ -12,8 +12,7 @@ import org.kohsuke.stapler.StaplerRequest;
  */
 public class ActiveDirectorySecurityRealm extends SecurityRealm {
     public AuthenticationManager createAuthenticationManager() {
-
-        BeanBuilder builder = new BeanBuilder();
+        BeanBuilder builder = new BeanBuilder(getClass().getClassLoader());
         builder.parse(getClass().getResourceAsStream("ActiveDirectory.groovy"));
         return findBean(AuthenticationManager.class,builder.createApplicationContext());
     }
