@@ -10,7 +10,7 @@
 
   <artifactId>active-directory</artifactId>
   <packaging>hpi</packaging>
-  <version>1.1-SNAPSHOT</version>
+  <version>1.1</version>
   <name>Hudson Active Directory plugin</name>
   <url>http://hudson.gotdns.com/wiki/display/HUDSON/Active+Directory+Plugin</url>
 
@@ -31,4 +31,8 @@
       <version>20080107</version>
     </dependency>
   </dependencies>
+
+  <scm>
+    <tag>active-directory-1_1</tag>
+  </scm>
 </project>
