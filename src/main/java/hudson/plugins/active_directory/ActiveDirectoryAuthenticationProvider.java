@@ -2,12 +2,15 @@ package hudson.plugins.active_directory;
 
 import org.acegisecurity.providers.dao.AbstractUserDetailsAuthenticationProvider;
 import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
+import org.acegisecurity.providers.AuthenticationProvider;
 import org.acegisecurity.userdetails.UserDetails;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
+import org.acegisecurity.userdetails.UserDetailsService;
 import org.acegisecurity.AuthenticationException;
 import org.acegisecurity.BadCredentialsException;
 import org.acegisecurity.GrantedAuthority;
 import org.acegisecurity.GrantedAuthorityImpl;
+import org.springframework.dao.DataAccessException;
 import com4j.typelibs.ado20.ClassFactory;
 import com4j.typelibs.ado20._Connection;
 import com4j.typelibs.ado20._Command;
@@ -26,9 +29,12 @@ import java.util.List;
 import java.util.ArrayList;
 
 /**
+ * {@link AuthenticationProvider} with Active Directory, plus {@link UserDetailsService}
+ *
  * @author Kohsuke Kawaguchi
  */
-public class ActiveDirectoryAuthenticationProvider extends AbstractUserDetailsAuthenticationProvider {
+public class ActiveDirectoryAuthenticationProvider extends AbstractUserDetailsAuthenticationProvider
+    implements UserDetailsService {
     private final String defaultNamingContext;
     /**
      * ADO connection for searching Active Directory.
@@ -51,8 +57,14 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractUserDetailsAu
         // so there's nothing to do here.
     }
 
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException, DataAccessException {
+        return retrieveUser(username,null);
+    }
+
     protected UserDetails retrieveUser(String username, UsernamePasswordAuthenticationToken authentication) throws AuthenticationException {
-        String password = (String) authentication.getCredentials();
+        String password = null;
+        if(authentication!=null)
+            password = (String) authentication.getCredentials();
 
 
         _Command cmd = ClassFactory.createCommand();
@@ -76,7 +88,10 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractUserDetailsAu
         // to do bind with DN as the user name, the flag must be 0
         IADsUser usr;
         try {
-            usr = dso.openDSObject("LDAP://"+dn, dn, password, 0).queryInterface(IADsUser.class);
+            usr = (authentication==null
+                ? dso.openDSObject("LDAP://"+dn, null, null, 0)
+                : dso.openDSObject("LDAP://"+dn, dn, password, 0))
+                    .queryInterface(IADsUser.class);
         } catch (ComException e) {
             throw new BadCredentialsException("Incorrect password for "+username);
         }

@@ -5,16 +5,21 @@ import hudson.security.SecurityRealm;
 import hudson.util.spring.BeanBuilder;
 import net.sf.json.JSONObject;
 import org.acegisecurity.AuthenticationManager;
+import org.acegisecurity.userdetails.UserDetailsService;
 import org.kohsuke.stapler.StaplerRequest;
+import org.springframework.web.context.WebApplicationContext;
 
 /**
  * @author Kohsuke Kawaguchi
  */
 public class ActiveDirectorySecurityRealm extends SecurityRealm {
-    public AuthenticationManager createAuthenticationManager() {
+    public SecurityComponents createSecurityComponents() {
         BeanBuilder builder = new BeanBuilder(getClass().getClassLoader());
         builder.parse(getClass().getResourceAsStream("ActiveDirectory.groovy"));
-        return findBean(AuthenticationManager.class,builder.createApplicationContext());
+        WebApplicationContext context = builder.createApplicationContext();
+        return new SecurityComponents(
+            findBean(AuthenticationManager.class, context),
+            findBean(UserDetailsService.class, context));
     }
 
     public Descriptor<SecurityRealm> getDescriptor() {
