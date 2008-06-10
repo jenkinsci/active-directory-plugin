@@ -4,11 +4,15 @@
 import org.acegisecurity.providers.ProviderManager
 import org.acegisecurity.providers.anonymous.AnonymousAuthenticationProvider
 import hudson.plugins.active_directory.ActiveDirectoryAuthenticationProvider
+import hudson.plugins.active_directory.ActiveDirectoryUnixAuthenticationProvider
 import org.acegisecurity.providers.rememberme.RememberMeAuthenticationProvider
 import hudson.model.Hudson
 
 // global so that this bean can be retrieved as UserDetailsService
-activeDirectory(ActiveDirectoryAuthenticationProvider) {}
+if(Hudson.isWindows())
+    activeDirectory(ActiveDirectoryAuthenticationProvider)
+else
+    activeDirectory(ActiveDirectoryUnixAuthenticationProvider,domain) {}
 
 authenticationManager(ProviderManager) {
     providers = [

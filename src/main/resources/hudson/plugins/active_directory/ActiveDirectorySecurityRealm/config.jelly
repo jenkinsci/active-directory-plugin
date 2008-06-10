@@ -1,0 +1,8 @@
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+  <j:if test="${!h.isWindows()}">
+    <f:entry title="${%Domain Name}" help="/plugin/active-directory/help/domain-name.html">
+      <f:textbox name="activeDirectory.domain" value="${instance.domain}"
+              checkUrl="'${rootURL}/securityRealms/ActiveDirectorySecurityRealm/domainCheck?value='+escape(this.value)"/>
+    </f:entry>
+  </j:if>
+</j:jelly>
