@@ -1,36 +1,31 @@
 package hudson.plugins.active_directory;
 
-import hudson.model.Descriptor;
-import hudson.model.Hudson;
-import hudson.security.SecurityRealm;
-import hudson.util.spring.BeanBuilder;
-import hudson.util.FormFieldValidator;
-import hudson.Functions;
+import groovy.lang.Binding;
 import hudson.Util;
-import net.sf.json.JSONObject;
+import hudson.model.Descriptor;
+import hudson.security.SecurityRealm;
+import hudson.util.FormFieldValidator;
+import hudson.util.spring.BeanBuilder;
 import org.acegisecurity.AuthenticationManager;
 import org.acegisecurity.userdetails.UserDetailsService;
-import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
 import org.springframework.web.context.WebApplicationContext;
 
-import javax.servlet.ServletException;
 import javax.naming.Context;
 import javax.naming.NamingException;
+import javax.naming.directory.Attribute;
+import javax.naming.directory.Attributes;
 import javax.naming.directory.DirContext;
 import javax.naming.directory.InitialDirContext;
-import javax.naming.directory.Attributes;
-import javax.naming.directory.Attribute;
+import javax.servlet.ServletException;
 import java.io.IOException;
-import java.util.Hashtable;
-import java.util.logging.Logger;
-import java.util.logging.Level;
 import java.net.Socket;
-
-import com.sun.jndi.dns.DnsContextFactory;
-import groovy.lang.Binding;
+import java.util.Hashtable;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * @author Kohsuke Kawaguchi
