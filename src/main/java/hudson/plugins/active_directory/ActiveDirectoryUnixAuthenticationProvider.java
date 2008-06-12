@@ -19,9 +19,9 @@ import javax.naming.NamingEnumeration;
 import javax.naming.NamingException;
 import javax.naming.directory.Attribute;
 import javax.naming.directory.Attributes;
-import javax.naming.directory.BasicAttribute;
-import javax.naming.directory.BasicAttributes;
 import javax.naming.directory.DirContext;
+import javax.naming.directory.SearchControls;
+import static javax.naming.directory.SearchControls.SUBTREE_SCOPE;
 import javax.naming.directory.SearchResult;
 import java.util.ArrayList;
 import java.util.Hashtable;
@@ -64,7 +64,8 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
 
         // bind by using the specified username/password
         Hashtable props = new Hashtable();
-        props.put(Context.SECURITY_PRINCIPAL,username+'@'+domainName);
+        String principalName = username + '@' + domainName;
+        props.put(Context.SECURITY_PRINCIPAL, principalName);
         props.put(Context.SECURITY_CREDENTIALS,password);
         DirContext context;
         try {
@@ -78,22 +79,22 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
 
         try {
             // locate this user's record
-            Attributes matchAttrs = new BasicAttributes(true); // ignore attribute name case
-            matchAttrs.put(new BasicAttribute("sAMAccountName", username)); // TODO: should we check against 'userPrincipalName'?
-            NamingEnumeration<SearchResult> renum = context.search("CN=Users,"+toDC(domainName),matchAttrs);
+            SearchControls controls = new SearchControls();
+            controls.setSearchScope(SUBTREE_SCOPE);
+            NamingEnumeration<SearchResult> renum = context.search(toDC(domainName),"(& (userPrincipalName="+principalName+")(objectClass=user))", controls);
             if(!renum.hasMore())
                 throw new BadCredentialsException("Authentication was successful but cannot locate the user information for "+username);
             SearchResult result = renum.next();
-            if(renum.hasMore())
-                throw new BadCredentialsException("Authentication was successful but more than one users in the directory matches the user name: "+username);
 
 
             List<GrantedAuthority> groups = new ArrayList<GrantedAuthority>();
             Attribute memberOf = result.getAttributes().get("memberOf");
-            for(int i=0; i<memberOf.size(); i++) {
-                Attributes atts = context.getAttributes(memberOf.get(i).toString(), new String[]{"CN"});
-                Attribute att = atts.get("CN");
-                groups.add(new GrantedAuthorityImpl(att.get().toString()));
+            if(memberOf!=null) {// null if this user belongs to no group at all
+                for(int i=0; i<memberOf.size(); i++) {
+                    Attributes atts = context.getAttributes(memberOf.get(i).toString(), new String[]{"CN"});
+                    Attribute att = atts.get("CN");
+                    groups.add(new GrantedAuthorityImpl(att.get().toString()));
+                }
             }
 
             context.close();
