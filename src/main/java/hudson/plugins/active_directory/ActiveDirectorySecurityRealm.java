@@ -47,7 +47,7 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
      * OTOH, when this plugin runs on non-Windows, this field
      * must be non-null, and we'll use LDAP for authentication.
      */
-    private final String domain;
+    public final String domain;
 
     @DataBoundConstructor
     public ActiveDirectorySecurityRealm(String domain) {
