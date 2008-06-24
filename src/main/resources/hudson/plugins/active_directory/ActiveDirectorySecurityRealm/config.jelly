@@ -1,8 +1,20 @@
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
-  <j:if test="${!h.isWindows()}">
-    <f:entry title="${%Domain Name}" help="/plugin/active-directory/help/domain-name.html">
-      <f:textbox name="activeDirectory.domain" value="${instance.domain}"
-              checkUrl="'${rootURL}/securityRealms/ActiveDirectorySecurityRealm/domainCheck?value='+escape(this.value)"/>
-    </f:entry>
-  </j:if>
+  <d:taglib uri="local">
+    <d:tag name="config">
+      <f:entry title="${%Domain Name}" help="/plugin/active-directory/help/domain-name.html">
+        <f:textbox name="activeDirectory.domain" value="${instance.domain}"
+                checkUrl="'${rootURL}/securityRealms/ActiveDirectorySecurityRealm/domainCheck?value='+escape(this.value)"/>
+      </f:entry>
+    </d:tag>
+  </d:taglib>
+  <j:choose xmlns:local="local">
+    <j:when test="${!h.isWindows()}">
+      <local:config />
+    </j:when>
+    <j:otherwise>
+      <f:advanced>
+        <local:config />
+      </f:advanced>
+    </j:otherwise>
+  </j:choose>
 </j:jelly>
