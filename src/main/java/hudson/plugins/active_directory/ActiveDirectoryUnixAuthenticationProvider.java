@@ -74,7 +74,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
                     props);
         } catch (NamingException e) {
             LOGGER.log(Level.WARNING,"Failed to bind to LDAP",e);
-            throw new BadCredentialsException("Either no such user '"+username+"' or incorrect password",e);
+            throw new BadCredentialsException("Either no such user '"+principalName+"' or incorrect password",e);
         }
 
         try {
