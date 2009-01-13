@@ -67,6 +67,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
         String principalName = username + '@' + domainName;
         props.put(Context.SECURITY_PRINCIPAL, principalName);
         props.put(Context.SECURITY_CREDENTIALS,password);
+        props.put(Context.REFERRAL, "follow");
         DirContext context;
         try {
             context = LdapCtxFactory.getLdapCtxInstance(
