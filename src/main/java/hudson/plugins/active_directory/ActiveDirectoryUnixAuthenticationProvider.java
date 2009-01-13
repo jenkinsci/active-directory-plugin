@@ -105,8 +105,8 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
                 groups.toArray(new GrantedAuthority[groups.size()])
             );
         } catch (NamingException e) {
-            LOGGER.log(Level.WARNING,"Failed to retrieve user information",e);
-            throw new BadCredentialsException("Authentication was successful but more than one users in the directory matches the user name: "+username,e);
+            LOGGER.log(Level.WARNING,"Failed to retrieve user information for "+username,e);
+            throw new BadCredentialsException("Failed to retrieve user information for "+username,e);
         }
     }
 
