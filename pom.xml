@@ -10,7 +10,7 @@
 
   <artifactId>active-directory</artifactId>
   <packaging>hpi</packaging>
-  <version>1.8-SNAPSHOT</version>
+  <version>1.8</version>
   <name>Hudson Active Directory plugin</name>
   <url>http://hudson.gotdns.com/wiki/display/HUDSON/Active+Directory+Plugin</url>
 
@@ -31,4 +31,10 @@
       <version>20080107</version>
     </dependency>
   </dependencies>
+
+  <scm>
+    <connection>scm:svn:https://guest@svn.dev.java.net/svn/hudson/tags/active-directory-1.8</connection>
+    <developerConnection>scm:svn:https://svn.dev.java.net/svn/hudson/tags/active-directory-1.8</developerConnection>
+    <url>https://hudson.dev.java.net/source/browse/hudson/hudson/plugins/active-directory/tags/active-directory-1.8</url>
+  </scm>
 </project>
