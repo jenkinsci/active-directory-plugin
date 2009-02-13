@@ -16,6 +16,7 @@ import org.springframework.web.context.WebApplicationContext;
 
 import javax.naming.Context;
 import javax.naming.NamingException;
+import javax.naming.NamingEnumeration;
 import javax.naming.directory.Attribute;
 import javax.naming.directory.Attributes;
 import javax.naming.directory.DirContext;
@@ -155,9 +156,19 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
             Attributes attributes = ictx.getAttributes(ldapServer, new String[]{"SRV"});
             Attribute a = attributes.get("SRV");
             if(a==null) throw new NamingException();
-            LOGGER.fine(ldapServer+" resolved to "+ a.get());
 
-            return a.get().toString().split(" ")[3];
+            int priority = -1;
+            String result = null;
+            for (NamingEnumeration ne = a.getAll(); ne.hasMoreElements(); ) {
+                String[] fields = ne.next().toString().split(" ");
+                int p = Integer.parseInt(fields[0]);
+                if (priority == -1 || p < priority) {
+                    priority = p;
+                    result = fields[3];
+                }
+            }
+            LOGGER.fine(ldapServer+" resolved to "+ result);
+            return result;
         }
     }
 
