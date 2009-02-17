@@ -9,7 +9,8 @@ import org.acegisecurity.providers.rememberme.RememberMeAuthenticationProvider
 import hudson.model.Hudson
 
 // global so that this bean can be retrieved as UserDetailsService
-if(Hudson.isWindows())
+if(Hudson.isWindows() && "32".equals(System.getProperty("sun.arch.data.model")))
+    // Windows path requires com4j, which is currently only supported on Win32
     activeDirectory(ActiveDirectoryAuthenticationProvider)
 else
     activeDirectory(ActiveDirectoryUnixAuthenticationProvider,domain) {}
