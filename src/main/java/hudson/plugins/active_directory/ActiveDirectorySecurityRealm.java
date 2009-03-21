@@ -47,7 +47,7 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
 
     @DataBoundConstructor
     public ActiveDirectorySecurityRealm(String domain) {
-        this.domain = domain;
+        this.domain = Util.fixEmpty(domain);
     }
 
     public SecurityComponents createSecurityComponents() {
