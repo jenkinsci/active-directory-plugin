@@ -95,6 +95,8 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractUserDetailsAu
         } catch (ComException e) {
             throw new BadCredentialsException("Incorrect password for "+username);
         }
+        if (usr == null)    // the user name was in fact a group
+        	throw new UsernameNotFoundException("User not found: "+username);
 
         List<GrantedAuthority> groups = new ArrayList<GrantedAuthority>();
         for( Com4jObject g : usr.groups() ) {
