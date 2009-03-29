@@ -97,7 +97,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
             Attribute memberOf = result.getAttributes().get("memberOf");
             if(memberOf!=null) {// null if this user belongs to no group at all
                 for(int i=0; i<memberOf.size(); i++) {
-                    Attributes atts = context.getAttributes(memberOf.get(i).toString(), new String[]{"CN"});
+                    Attributes atts = context.getAttributes("\"" + memberOf.get(i) + '"', new String[]{"CN"});
                     Attribute att = atts.get("CN");
                     groups.add(new GrantedAuthorityImpl(att.get().toString()));
                 }
