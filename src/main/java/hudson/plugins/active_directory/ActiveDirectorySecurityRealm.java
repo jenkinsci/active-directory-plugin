@@ -165,6 +165,8 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
                 if (priority == -1 || p < priority) {
                     priority = p;
                     result = fields[3];
+                    // cut off trailing ".". HUDSON-2647
+                    result = result.replace("\\.$","");
                 }
             }
             LOGGER.fine(ldapServer+" resolved to "+ result);
