@@ -1,0 +1,14 @@
+<div>
+  Spezifiziert optional das Active Directory, gegen das authentifiziert werden soll.
+
+  <p>
+  Ohne Angabe nutzt Hudson <a  href="http://msdn.microsoft.com/en-us/library/aa772170.aspx">ADSI</a>
+  um mit dem Active Directory Kontakt aufzunehmen. Dieses ben&ouml;tigt keinen konfigurierten
+  Dom&auml;nennamen.
+
+  <p>
+  Es wurden allerdings Probleme gemeldet, wenn Hudson unter einem Benutzerkonto l&auml;uft, das
+  nicht Mitglied der Dom&auml;ne ist. (Dies ist h&auml;ufig der Fall, wenn Hudson als Dienst
+  installiert wird.) In solchen F&auml;llen, muss der Dom&auml;nenname hier eingetragen werden.
+  Hudson nutzt dann LDAP fur die Kommunikation mit dem Active Directory.
+</div>
