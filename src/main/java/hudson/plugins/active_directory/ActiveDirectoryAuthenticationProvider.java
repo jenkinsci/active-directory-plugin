@@ -24,6 +24,8 @@ import org.acegisecurity.userdetails.UserDetailsService;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
 import org.springframework.dao.DataAccessException;
 
+import hudson.security.GroupDetails;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
@@ -34,7 +36,7 @@ import java.util.logging.Logger;
  * @author Kohsuke Kawaguchi
  */
 public class ActiveDirectoryAuthenticationProvider extends AbstractUserDetailsAuthenticationProvider
-    implements UserDetailsService {
+    implements UserDetailsService, GroupDetailsService {
     private final String defaultNamingContext;
     /**
      * ADO connection for searching Active Directory.
@@ -67,15 +69,7 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractUserDetailsAu
             password = (String) authentication.getCredentials();
 
 
-        _Command cmd = ClassFactory.createCommand();
-        cmd.activeConnection(con);
-
-        cmd.commandText("<LDAP://"+defaultNamingContext+">;(sAMAccountName="+username+");distinguishedName;subTree");
-        _Recordset rs = cmd.execute(null, Variant.MISSING, -1/*default*/);
-        if(rs.eof())
-            throw new UsernameNotFoundException("No such user: "+username);
-
-        String dn = rs.fields().item("distinguishedName").value().toString();
+        String dn = getDnOfUserOrGroup(username);
 
 
         // now we got the DN of the user
@@ -113,5 +107,32 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractUserDetailsAu
         );
     }
 
+	protected String getDnOfUserOrGroup(String userOrGroupname) {
+		_Command cmd = ClassFactory.createCommand();
+        cmd.activeConnection(con);
+
+        cmd.commandText("<LDAP://"+defaultNamingContext+">;(sAMAccountName="+userOrGroupname+");distinguishedName;subTree");
+        _Recordset rs = cmd.execute(null, Variant.MISSING, -1/*default*/);
+        if(rs.eof())
+            throw new UsernameNotFoundException("No such user or group: "+userOrGroupname);
+
+        String dn = rs.fields().item("distinguishedName").value().toString();
+		return dn;
+	}
+
     private static final Logger LOGGER = Logger.getLogger(ActiveDirectoryAuthenticationProvider.class.getName());
+
+	public GroupDetails loadGroupByGroupname(String groupname) {
+		// First get the distinguishedName
+		String dn = getDnOfUserOrGroup(groupname);
+		IADsOpenDSObject dso = COM4J.getObject(IADsOpenDSObject.class, "LDAP:",
+				null);
+		IADsGroup group = dso.openDSObject("LDAP://" + dn, null, null, 0)
+				.queryInterface(IADsGroup.class);
+		// If not a group will return null
+		if (group == null) {
+			throw new UsernameNotFoundException("Group not found: " + groupname);
+		}
+		return new ActiveDirectoryGroupDetails(groupname);
+	}
 }

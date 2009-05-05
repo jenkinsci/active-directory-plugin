@@ -3,15 +3,18 @@ package hudson.plugins.active_directory;
 import groovy.lang.Binding;
 import hudson.Util;
 import hudson.model.Descriptor;
+import hudson.security.GroupDetails;
 import hudson.security.SecurityRealm;
 import hudson.util.FormFieldValidator;
 import hudson.util.spring.BeanBuilder;
 import org.acegisecurity.AuthenticationManager;
 import org.acegisecurity.userdetails.UserDetailsService;
+import org.acegisecurity.userdetails.UsernameNotFoundException;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
+import org.springframework.dao.DataAccessException;
 import org.springframework.web.context.WebApplicationContext;
 
 import javax.naming.Context;
@@ -172,6 +175,13 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
             LOGGER.fine(ldapServer+" resolved to "+ result);
             return result;
         }
+    }
+    
+    @Override
+    public GroupDetails loadGroupByGroupname(String groupname)
+    		throws UsernameNotFoundException, DataAccessException {
+    	GroupDetailsService groupDetailsService = (GroupDetailsService) getSecurityComponents().userDetails;
+    	return groupDetailsService.loadGroupByGroupname(groupname);
     }
 
     private static final Logger LOGGER = Logger.getLogger(ActiveDirectorySecurityRealm.class.getName());
