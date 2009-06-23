@@ -86,50 +86,54 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
         public void doDomainCheck(StaplerRequest req, StaplerResponse rsp, @QueryParameter("value") final String value) throws IOException, ServletException {
             new FormFieldValidator(req,rsp,true) {
                 protected void check() throws IOException, ServletException {
-                    String name = Util.fixEmptyAndTrim(value);
-                    if(name==null) {// no value given yet
+                    String n = Util.fixEmptyAndTrim(value);
+                    if(n==null) {// no value given yet
                         ok();
                         return;
                     }
-                    if(!name.endsWith(".")) name+='.';
+                    
+                    String[] names = n.split(",");
+                    for (String name : names) {
+                    
+                        if(!name.endsWith(".")) name+='.';
 
-                    DirContext ictx;
+                        DirContext ictx;
 
-                    // first test the sanity of the domain name itself
-                    try {
-                        LOGGER.fine("Attempting to resolve "+name+" to A record");
-                        ictx = createDNSLookupContext();
-                        Attributes attributes = ictx.getAttributes(name, new String[]{"A"});
-                        Attribute a = attributes.get("A");
-                        if(a==null) throw new NamingException();
-                        LOGGER.fine(name+" resolved to "+ a.get());
-                    } catch (NamingException e) {
-                        LOGGER.log(Level.WARNING,"Failed to resolve "+name+" to A record",e);
-                        error(name+" doesn't look like a valid domain name");
-                        return;
+                        // first test the sanity of the domain name itself
+                        try {
+                            LOGGER.fine("Attempting to resolve "+name+" to A record");
+                            ictx = createDNSLookupContext();
+                            Attributes attributes = ictx.getAttributes(name, new String[]{"A"});
+                            Attribute a = attributes.get("A");
+                            if(a==null) throw new NamingException();
+                            LOGGER.fine(name+" resolved to "+ a.get());
+                        } catch (NamingException e) {
+                            LOGGER.log(Level.WARNING,"Failed to resolve "+name+" to A record",e);
+                            error(name+" doesn't look like a valid domain name");
+                            return;
+                        }
+
+                        // then look for the LDAP server
+                        final String ldapServer = "_ldap._tcp."+name;
+                        String serverHostName;
+                        try {
+                            serverHostName = obtainLDAPServer(ictx,name);
+                        } catch (NamingException e) {
+                            LOGGER.log(Level.WARNING,"Failed to resolve "+ldapServer+" to SRV record",e);
+                            error("No LDAP server was found in "+name);
+                            return;
+                        }
+
+                        // try to connect to LDAP port to make sure this machine has LDAP service
+                        // TODO: honor the port number in SRV record
+                        try {
+                            new Socket(serverHostName,389).close();
+                        } catch (IOException e) {
+                            LOGGER.log(Level.WARNING,"Failed to connect to LDAP port",e);
+                            error("Failed to connect to the LDAP port (389) of "+serverHostName);
+                            return;
+                        }
                     }
-
-                    // then look for the LDAP server
-                    final String ldapServer = "_ldap._tcp."+name;
-                    String serverHostName;
-                    try {
-                        serverHostName = obtainLDAPServer(ictx,name);
-                    } catch (NamingException e) {
-                        LOGGER.log(Level.WARNING,"Failed to resolve "+ldapServer+" to SRV record",e);
-                        error("No LDAP server was found in "+name);
-                        return;
-                    }
-
-                    // try to connect to LDAP port to make sure this machine has LDAP service
-                    // TODO: honor the port number in SRV record
-                    try {
-                        new Socket(serverHostName,389).close();
-                    } catch (IOException e) {
-                        LOGGER.log(Level.WARNING,"Failed to connect to LDAP port",e);
-                        error("Failed to connect to the LDAP port (389) of "+serverHostName);
-                        return;
-                    }
-
                     // looks good
                     ok();
                 }

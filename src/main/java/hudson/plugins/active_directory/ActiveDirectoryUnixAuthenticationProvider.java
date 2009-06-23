@@ -40,10 +40,10 @@ import java.util.logging.Logger;
 public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetailsAuthenticationProvider
     implements UserDetailsService, GroupDetailsService {
 
-    private final String domainName;
+    private final String[] domainNames;
 
     public ActiveDirectoryUnixAuthenticationProvider(String domainName) {
-        this.domainName = domainName;
+        this.domainNames = domainName.split(",");
     }
 
     /**
@@ -61,6 +61,26 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
     }
 
     protected UserDetails retrieveUser(String username, UsernamePasswordAuthenticationToken authentication) throws AuthenticationException {
+        UserDetails userDetails = null;
+        for (String domainName : domainNames) {
+            try {
+                userDetails = retrieveUser(username, authentication, domainName);
+            }
+            catch (BadCredentialsException bce) {
+                LOGGER.log(Level.WARNING,"Credential exception tying to authenticate against " + domainName + " domain",bce);
+            }
+            if (userDetails != null) {
+                break;
+            }
+        }
+        if (userDetails == null) {
+            LOGGER.log(Level.WARNING,"Exhausted all configured domains and could not authenticat against any.");
+            throw new BadCredentialsException("Either no such user '"+username+"' or incorrect password");
+        }
+        return userDetails;
+    }
+    
+    private UserDetails retrieveUser(String username, UsernamePasswordAuthenticationToken authentication, String domainName) throws AuthenticationException {
         String password = null;
         if(authentication!=null)
             password = (String) authentication.getCredentials();
@@ -90,8 +110,9 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
                 // failed to find it. Fall back to sAMAccountName.
                 // see http://www.nabble.com/Re%3A-Hudson-AD-plug-in-td21428668.html
                 renum = context.search(toDC(domainName),"(& (sAMAccountName="+username+")(objectClass=user))", controls);
-                if(!renum.hasMore())
+                if(!renum.hasMore()) {
                     throw new BadCredentialsException("Authentication was successful but cannot locate the user information for "+username);
+                }
             }
             SearchResult result = renum.next();
 
