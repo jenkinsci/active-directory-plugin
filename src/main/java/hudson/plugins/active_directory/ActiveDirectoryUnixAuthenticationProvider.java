@@ -3,6 +3,7 @@ package hudson.plugins.active_directory;
 import com.sun.jndi.ldap.LdapCtxFactory;
 import hudson.plugins.active_directory.ActiveDirectorySecurityRealm.DesciprotrImpl;
 import hudson.security.GroupDetails;
+import hudson.security.SecurityRealm;
 import hudson.security.UserMayOrMayNotExistException;
 
 import org.acegisecurity.AuthenticationException;
@@ -121,12 +122,16 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
             Attribute memberOf = result.getAttributes().get("memberOf");
             if(memberOf!=null) {// null if this user belongs to no group at all
                 for(int i=0; i<memberOf.size(); i++) {
+                    // In windows we just strip off the CN=
+                    // yet here we hit LDAP again which causes another round trip
+                    // is this needed?
                     Attributes atts = context.getAttributes("\"" + memberOf.get(i) + '"', new String[]{"CN"});
                     Attribute att = atts.get("CN");
                     groups.add(new GrantedAuthorityImpl(att.get().toString()));
                 }
             }
-
+            groups.add(SecurityRealm.AUTHENTICATED_AUTHORITY);
+            
             context.close();
 
             return new ActiveDirectoryUserDetail(

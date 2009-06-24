@@ -25,6 +25,7 @@ import org.acegisecurity.userdetails.UsernameNotFoundException;
 import org.springframework.dao.DataAccessException;
 
 import hudson.security.GroupDetails;
+import hudson.security.SecurityRealm;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -98,7 +99,8 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractUserDetailsAu
             // cut "CN=" and make that the role name
             groups.add(new GrantedAuthorityImpl(grp.name().substring(3)));
         }
-
+        groups.add(SecurityRealm.AUTHENTICATED_AUTHORITY);
+        
         return new ActiveDirectoryUserDetail(
             username, password,
             !usr.accountDisabled(),
