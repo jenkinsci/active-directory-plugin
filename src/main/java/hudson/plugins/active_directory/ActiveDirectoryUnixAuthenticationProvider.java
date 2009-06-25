@@ -27,9 +27,9 @@ import javax.naming.directory.DirContext;
 import javax.naming.directory.SearchControls;
 import static javax.naming.directory.SearchControls.SUBTREE_SCOPE;
 import javax.naming.directory.SearchResult;
-import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Hashtable;
-import java.util.List;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -37,6 +37,7 @@ import java.util.logging.Logger;
  * {@link AuthenticationProvider} with Active Directory, through LDAP.
  *
  * @author Kohsuke Kawaguchi
+ * @author James Nord
  */
 public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetailsAuthenticationProvider
     implements UserDetailsService, GroupDetailsService {
@@ -118,18 +119,8 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
             SearchResult result = renum.next();
 
 
-            List<GrantedAuthority> groups = new ArrayList<GrantedAuthority>();
             Attribute memberOf = result.getAttributes().get("memberOf");
-            if(memberOf!=null) {// null if this user belongs to no group at all
-                for(int i=0; i<memberOf.size(); i++) {
-                    // In windows we just strip off the CN=
-                    // yet here we hit LDAP again which causes another round trip
-                    // is this needed?
-                    Attributes atts = context.getAttributes("\"" + memberOf.get(i) + '"', new String[]{"CN"});
-                    Attribute att = atts.get("CN");
-                    groups.add(new GrantedAuthorityImpl(att.get().toString()));
-                }
-            }
+            Set<GrantedAuthority> groups = resolveGroups(memberOf, context);
             groups.add(SecurityRealm.AUTHENTICATED_AUTHORITY);
             
             context.close();
@@ -145,6 +136,23 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
         }
     }
 
+    private Set<GrantedAuthority> resolveGroups(Attribute memberOf, DirContext context) throws NamingException {
+      Set<GrantedAuthority> groups = new HashSet<GrantedAuthority>();
+      if (memberOf != null) {
+          for (int i = 0; i < memberOf.size(); i++) {
+              Attributes atts = context.getAttributes("\"" + memberOf.get(i) + '"', 
+                                                      new String[] {"CN", "memberOf"});
+              Attribute cn = atts.get("CN");
+              if (groups.add(new GrantedAuthorityImpl(cn.get().toString()))) {
+                  // if this was a group it can be a member of another group so go searching
+                  // only if we didn't already know about the group (prevent circular recursion)
+                  groups.addAll(resolveGroups(atts.get("memberOf"), context));
+              }
+           }
+        }
+        return groups;
+    }
+    
     private static String toDC(String domainName) {
         StringBuilder buf = new StringBuilder();
         for (String token : domainName.split("\\.")) {
