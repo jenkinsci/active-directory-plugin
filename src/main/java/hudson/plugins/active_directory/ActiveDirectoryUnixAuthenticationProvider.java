@@ -1,10 +1,27 @@
 package hudson.plugins.active_directory;
 
-import com.sun.jndi.ldap.LdapCtxFactory;
+import static javax.naming.directory.SearchControls.SUBTREE_SCOPE;
 import hudson.plugins.active_directory.ActiveDirectorySecurityRealm.DesciprotrImpl;
 import hudson.security.GroupDetails;
 import hudson.security.SecurityRealm;
 import hudson.security.UserMayOrMayNotExistException;
+
+import java.util.HashSet;
+import java.util.Hashtable;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import javax.naming.Context;
+import javax.naming.NamingEnumeration;
+import javax.naming.NamingException;
+import javax.naming.directory.Attribute;
+import javax.naming.directory.Attributes;
+import javax.naming.directory.DirContext;
+import javax.naming.directory.SearchControls;
+import javax.naming.directory.SearchResult;
 
 import org.acegisecurity.AuthenticationException;
 import org.acegisecurity.BadCredentialsException;
@@ -18,20 +35,7 @@ import org.acegisecurity.userdetails.UserDetailsService;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
 import org.springframework.dao.DataAccessException;
 
-import javax.naming.Context;
-import javax.naming.NamingEnumeration;
-import javax.naming.NamingException;
-import javax.naming.directory.Attribute;
-import javax.naming.directory.Attributes;
-import javax.naming.directory.DirContext;
-import javax.naming.directory.SearchControls;
-import static javax.naming.directory.SearchControls.SUBTREE_SCOPE;
-import javax.naming.directory.SearchResult;
-import java.util.HashSet;
-import java.util.Hashtable;
-import java.util.Set;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import com.sun.jndi.ldap.LdapCtxFactory;
 
 /**
  * {@link AuthenticationProvider} with Active Directory, through LDAP.
@@ -137,18 +141,24 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
     }
 
     private Set<GrantedAuthority> resolveGroups(Attribute memberOf, DirContext context) throws NamingException {
-      Set<GrantedAuthority> groups = new HashSet<GrantedAuthority>();
-      if (memberOf != null) {
-          for (int i = 0; i < memberOf.size(); i++) {
-              Attributes atts = context.getAttributes("\"" + memberOf.get(i) + '"', 
-                                                      new String[] {"CN", "memberOf"});
-              Attribute cn = atts.get("CN");
-              if (groups.add(new GrantedAuthorityImpl(cn.get().toString()))) {
-                  // if this was a group it can be a member of another group so go searching
-                  // only if we didn't already know about the group (prevent circular recursion)
-                  groups.addAll(resolveGroups(atts.get("memberOf"), context));
-              }
-           }
+        Set<GrantedAuthority> groups = new HashSet<GrantedAuthority>();
+        LinkedList<Attribute> membershipList = new LinkedList<Attribute>();
+        membershipList.add(memberOf);
+        while (!membershipList.isEmpty()) {
+            Attribute memberships = membershipList.removeFirst();
+            if (memberships != null) {
+                for (int i=0; i < memberships.size() ; i++) {
+                    Attributes atts = context.getAttributes("\"" + memberships.get(i) + '"', 
+                                                            new String[] {"CN", "memberOf"});
+                    Attribute cn = atts.get("CN");
+                    if (groups.add(new GrantedAuthorityImpl(cn.get().toString()))) {
+                        Attribute members = atts.get("memberOf");
+                        if (members != null) {
+                            membershipList.add(members);
+                        }
+                    }
+                }
+            }
         }
         return groups;
     }
