@@ -1,19 +1,20 @@
 package hudson.plugins.active_directory;
 
 import groovy.lang.Binding;
+import hudson.Extension;
+import hudson.Functions;
 import hudson.Util;
 import hudson.model.Descriptor;
+import hudson.model.Hudson;
 import hudson.security.GroupDetails;
 import hudson.security.SecurityRealm;
-import hudson.util.FormFieldValidator;
+import hudson.util.FormValidation;
 import hudson.util.spring.BeanBuilder;
 import org.acegisecurity.AuthenticationManager;
 import org.acegisecurity.userdetails.UserDetailsService;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.StaplerRequest;
-import org.kohsuke.stapler.StaplerResponse;
 import org.springframework.dao.DataAccessException;
 import org.springframework.web.context.WebApplicationContext;
 
@@ -64,11 +65,13 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
             findBean(UserDetailsService.class, context));
     }
 
+    @Override
     public Descriptor<SecurityRealm> getDescriptor() {
         return DesciprotrImpl.INSTANCE;
     }
 
     public static final class DesciprotrImpl extends Descriptor<SecurityRealm> {
+        @Extension
         public static final DesciprotrImpl INSTANCE = new DesciprotrImpl();
 
         public DesciprotrImpl() {
@@ -79,65 +82,59 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
             return Messages.DisplayName();
         }
         
+        @Override
         public String getHelpFile() {
             return "/plugin/active-directory/help/realm.html";
         }
 
-        public void doDomainCheck(StaplerRequest req, StaplerResponse rsp, @QueryParameter("value") final String value) throws IOException, ServletException {
-            new FormFieldValidator(req,rsp,true) {
-                protected void check() throws IOException, ServletException {
-                    String n = Util.fixEmptyAndTrim(value);
-                    if(n==null) {// no value given yet
-                        ok();
-                        return;
-                    }
-                    
-                    String[] names = n.split(",");
-                    for (String name : names) {
-                    
-                        if(!name.endsWith(".")) name+='.';
+        public FormValidation doDomainCheck(@QueryParameter final String value) throws IOException, ServletException {
+            Functions.checkPermission(Hudson.ADMINISTER);
+            String n = Util.fixEmptyAndTrim(value);
+            if(n==null) {// no value given yet
+                return FormValidation.ok();
+            }
+            
+            String[] names = n.split(",");
+            for (String name : names) {
+            
+                if(!name.endsWith(".")) name+='.';
 
-                        DirContext ictx;
+                DirContext ictx;
 
-                        // first test the sanity of the domain name itself
-                        try {
-                            LOGGER.fine("Attempting to resolve "+name+" to A record");
-                            ictx = createDNSLookupContext();
-                            Attributes attributes = ictx.getAttributes(name, new String[]{"A"});
-                            Attribute a = attributes.get("A");
-                            if(a==null) throw new NamingException();
-                            LOGGER.fine(name+" resolved to "+ a.get());
-                        } catch (NamingException e) {
-                            LOGGER.log(Level.WARNING,"Failed to resolve "+name+" to A record",e);
-                            error(name+" doesn't look like a valid domain name");
-                            return;
-                        }
-
-                        // then look for the LDAP server
-                        final String ldapServer = "_ldap._tcp."+name;
-                        String serverHostName;
-                        try {
-                            serverHostName = obtainLDAPServer(ictx,name);
-                        } catch (NamingException e) {
-                            LOGGER.log(Level.WARNING,"Failed to resolve "+ldapServer+" to SRV record",e);
-                            error("No LDAP server was found in "+name);
-                            return;
-                        }
-
-                        // try to connect to LDAP port to make sure this machine has LDAP service
-                        // TODO: honor the port number in SRV record
-                        try {
-                            new Socket(serverHostName,389).close();
-                        } catch (IOException e) {
-                            LOGGER.log(Level.WARNING,"Failed to connect to LDAP port",e);
-                            error("Failed to connect to the LDAP port (389) of "+serverHostName);
-                            return;
-                        }
-                    }
-                    // looks good
-                    ok();
+                // first test the sanity of the domain name itself
+                try {
+                    LOGGER.fine("Attempting to resolve "+name+" to A record");
+                    ictx = createDNSLookupContext();
+                    Attributes attributes = ictx.getAttributes(name, new String[]{"A"});
+                    Attribute a = attributes.get("A");
+                    if(a==null) throw new NamingException();
+                    LOGGER.fine(name+" resolved to "+ a.get());
+                } catch (NamingException e) {
+                    LOGGER.log(Level.WARNING,"Failed to resolve "+name+" to A record",e);
+                    return FormValidation.error(name+" doesn't look like a valid domain name");
                 }
-            }.process();
+
+                // then look for the LDAP server
+                final String ldapServer = "_ldap._tcp."+name;
+                String serverHostName;
+                try {
+                    serverHostName = obtainLDAPServer(ictx,name);
+                } catch (NamingException e) {
+                    LOGGER.log(Level.WARNING,"Failed to resolve "+ldapServer+" to SRV record",e);
+                    return FormValidation.error("No LDAP server was found in "+name);
+                }
+
+                // try to connect to LDAP port to make sure this machine has LDAP service
+                // TODO: honor the port number in SRV record
+                try {
+                    new Socket(serverHostName,389).close();
+                } catch (IOException e) {
+                    LOGGER.log(Level.WARNING,"Failed to connect to LDAP port",e);
+                    return FormValidation.error("Failed to connect to the LDAP port (389) of "+serverHostName);
+                }
+            }
+            // looks good
+            return FormValidation.ok();
         }
 
         /**
