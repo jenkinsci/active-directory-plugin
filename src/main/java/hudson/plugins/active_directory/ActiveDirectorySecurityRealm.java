@@ -143,6 +143,7 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
         public DirContext createDNSLookupContext() throws NamingException {
             Hashtable env = new Hashtable();
             env.put(Context.INITIAL_CONTEXT_FACTORY, "com.sun.jndi.dns.DnsContextFactory");
+            env.put("java.naming.provider.url", "dns:");
             return new InitialDirContext(env);
         }
 
