@@ -1,14 +1,12 @@
 <div>
-  Wenn diese Option aktiviert ist, authentifiziert Hudson die angegebenen Userkennungen und
-  Passw&ouml;rter gegen das Active Directory. Die Voraussetzung ist, dass Hudson auf einem
-  Windows-Rechner l&auml;uft, der zu dieser Dom&auml;ne geh&ouml;rt.
-  (Um Hudson auf einem Unix System laufen zu lassen, dass gegen ein Active Directory
-  authentifiziert, wird LDAP empfohlen.)
+  Wenn diese Option aktiviert ist, authentifiziert Hudson die angegebenen Benutzernamen und
+  Passwörter gegen das Active Directory. Die Voraussetzung ist, dass Hudson auf einem
+  Windows-Rechner läuft, der zu dieser Domäne gehört. (Um Hudson auf einem Unix-System
+  zu betreiben, das gegen ein Active Directory authentifiziert, wird LDAP empfohlen.)
 
   <p>
-  Hudson erkennt alle Gruppen im Active Directory, bei denen der User Mitglied ist. Daher k&ouml;nnen
-  auch Gruppenzugeh&ouml;rigkeiten f�r die Authorisierung eingesetzt werden. (Beispielsweise kann
-  bei Matrix-basierter Security als Authorisierungsstrategie jedem &quot;Dom&auml;nen Administrator&quot;
-  die Adminsitration von Hudson erlaubt werden.)
-
+  Hudson erkennt alle Gruppen im Active Directory, in denen der Benutzer Mitglied ist. Daher können
+  auch Gruppenzugehörigkeiten für die Authorisierung eingesetzt werden. Beispielsweise kann
+  mit der Authorisierungsstrategie "Matrix-basierte Sicherheit" jedem 'Domänen Administrator'
+  die Administration von Hudson erlaubt werden.
 </div>
