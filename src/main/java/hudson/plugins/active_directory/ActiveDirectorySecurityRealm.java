@@ -1,5 +1,6 @@
 package hudson.plugins.active_directory;
 
+import com.sun.jndi.ldap.LdapCtxFactory;
 import groovy.lang.Binding;
 import hudson.Extension;
 import hudson.Functions;
@@ -9,9 +10,10 @@ import hudson.model.Hudson;
 import hudson.security.GroupDetails;
 import hudson.security.SecurityRealm;
 import hudson.util.FormValidation;
-import hudson.util.FormValidation.Kind;
+import hudson.util.Secret;
 import hudson.util.spring.BeanBuilder;
 import org.acegisecurity.AuthenticationManager;
+import org.acegisecurity.BadCredentialsException;
 import org.acegisecurity.userdetails.UserDetailsService;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -63,18 +65,27 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
      */
     public final String site;
 
+    /**
+     * If non-null, use this name and password to bind to LDAP to obtain the DN of the user trying to login.
+     * This is unnecessary in a sigle-domain mode, where we can just bind with the user name and password
+     * provided during the login, but in a forest mode, without some known credential, we cannot figure out
+     * which domain in the forest the user belongs to.
+     */
+    public final String bindName;
+    public final Secret bindPassword;
+
     @DataBoundConstructor
-    public ActiveDirectorySecurityRealm(String domain, String site) {
+    public ActiveDirectorySecurityRealm(String domain, String site, String bindName, String bindPassword) {
         this.domain = fixEmpty(domain);
         this.site = fixEmpty(site);
+        this.bindName = fixEmpty(bindName);
+        this.bindPassword = Secret.fromString(fixEmpty(bindPassword));
     }
 
     public SecurityComponents createSecurityComponents() {
         BeanBuilder builder = new BeanBuilder(getClass().getClassLoader());
         Binding binding = new Binding();
-        binding.setVariable("domain",domain);
-        binding.setVariable("site",site);
-        binding.setVariable("descriptor",getDescriptor());
+        binding.setVariable("realm",this);
         builder.parse(getClass().getResourceAsStream("ActiveDirectory.groovy"),binding);
         WebApplicationContext context = builder.createApplicationContext();
         return new SecurityComponents(
@@ -83,18 +94,12 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
     }
 
     @Override
-    public Descriptor<SecurityRealm> getDescriptor() {
-        return DesciprotrImpl.INSTANCE;
+    public DesciprotrImpl getDescriptor() {
+        return (DesciprotrImpl)super.getDescriptor();
     }
 
+    @Extension
     public static final class DesciprotrImpl extends Descriptor<SecurityRealm> {
-        @Extension
-        public static final DesciprotrImpl INSTANCE = new DesciprotrImpl();
-
-        public DesciprotrImpl() {
-            super(ActiveDirectorySecurityRealm.class);
-        }
-
         public String getDisplayName() {
             return Messages.DisplayName();
         }
@@ -112,69 +117,117 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
             return Hudson.isWindows() && "32".equals(System.getProperty("sun.arch.data.model"));
         }
 
-        public FormValidation doCombo(@QueryParameter String domain, @QueryParameter String site) throws IOException, ServletException {
-            FormValidation r = doCheckDomain(domain, site);
-            if (r.kind== Kind.OK)       return FormValidation.ok("Success");
-            return r;
-        }
-
-        public FormValidation doCheckDomain(@QueryParameter final String value, @QueryParameter String site) throws IOException, ServletException {
-            Functions.checkPermission(Hudson.ADMINISTER);
-            String n = Util.fixEmptyAndTrim(value);
-            if(n==null) {// no value given yet
-                return FormValidation.ok();
-            }
-            
-            String[] names = n.split(",");
-            for (String name : names) {
-            
-                if(!name.endsWith(".")) name+='.';
-
-                DirContext ictx;
-
-                // first test the sanity of the domain name itself
-                try {
-                    LOGGER.fine("Attempting to resolve "+name+" to A record");
-                    ictx = createDNSLookupContext();
-                    Attributes attributes = ictx.getAttributes(name, new String[]{"A"});
-                    Attribute a = attributes.get("A");
-                    if(a==null) throw new NamingException();
-                    LOGGER.fine(name+" resolved to "+ a.get());
-                } catch (NamingException e) {
-                    LOGGER.log(Level.WARNING,"Failed to resolve "+name+" to A record",e);
-                    return FormValidation.error(name+" doesn't look like a valid domain name");
+        public FormValidation doValidate(@QueryParameter String domain, @QueryParameter String site, @QueryParameter String bindName, @QueryParameter String bindPassword) throws IOException, ServletException, NamingException {
+            ClassLoader ccl = Thread.currentThread().getContextClassLoader();
+            Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
+            try {
+                Functions.checkPermission(Hudson.ADMINISTER);
+                String n = Util.fixEmptyAndTrim(domain);
+                if(n==null) {// no value given yet
+                    return FormValidation.error("No domain name set");
                 }
 
-                // then look for the LDAP server
-                List<SocketInfo> servers;
-                try {
-                    servers = obtainLDAPServer(ictx,name,site);
-                } catch (NamingException e) {
-                    String msg = site==null ? "No LDAP server was found in " + name : "No LDAP server was found in the "+site+" site of "+name;
-                    LOGGER.log(Level.WARNING, msg,e);
-                    return FormValidation.error(msg);
-                }
+                bindName = fixEmpty(bindName);
+                Secret password = Secret.fromString(fixEmpty(bindPassword));
+                if (bindName!=null && password==null)
+                    return FormValidation.error("DN is specified but not password");
 
-                // try to connect to LDAP port to make sure this machine has LDAP service
-                IOException error = null;
-                for (SocketInfo si : servers) {
+                String[] names = n.split(",");
+                for (String name : names) {
+
+                    if(!name.endsWith(".")) name+='.';
+
+                    DirContext ictx;
+
+                    // first test the sanity of the domain name itself
                     try {
-                        si.connect().close();
-                        break; // looks good
-                    } catch (IOException e) {
-                        LOGGER.log(Level.FINE,"Failed to connect to "+si,e);
-                        error = e;
-                        // try the next server in the list
+                        LOGGER.fine("Attempting to resolve "+name+" to A record");
+                        ictx = createDNSLookupContext();
+                        Attributes attributes = ictx.getAttributes(name, new String[]{"A"});
+                        Attribute a = attributes.get("A");
+                        if(a==null) throw new NamingException();
+                        LOGGER.fine(name+" resolved to "+ a.get());
+                    } catch (NamingException e) {
+                        LOGGER.log(Level.WARNING,"Failed to resolve "+name+" to A record",e);
+                        return FormValidation.error(name+" doesn't look like a valid domain name");
+                    }
+
+                    // then look for the LDAP server
+                    List<SocketInfo> servers;
+                    try {
+                        servers = obtainLDAPServer(ictx,name,site);
+                    } catch (NamingException e) {
+                        String msg = site==null ? "No LDAP server was found in " + name : "No LDAP server was found in the "+site+" site of "+name;
+                        LOGGER.log(Level.WARNING, msg,e);
+                        return FormValidation.error(msg);
+                    }
+
+                    if (bindName!=null) {
+                        // make sure the bind actually works
+                        try {
+                            bind(bindName,password.toString(),servers).close();
+                        } catch (BadCredentialsException e) {
+                            return FormValidation.error("Bad bind username or password");
+                        } catch (Exception e) {
+                            return FormValidation.error(e.getMessage());
+                        }
+                    } else {
+                        // just some connection test
+                        // try to connect to LDAP port to make sure this machine has LDAP service
+                        IOException error = null;
+                        for (SocketInfo si : servers) {
+                            try {
+                                si.connect().close();
+                                break; // looks good
+                            } catch (IOException e) {
+                                LOGGER.log(Level.FINE,"Failed to connect to "+si,e);
+                                error = e;
+                                // try the next server in the list
+                            }
+                        }
+                        if (error!=null) {
+                            LOGGER.log(Level.WARNING,"Failed to connect to "+servers,error);
+                            return FormValidation.error("Failed to connect to "+servers);
+                        }
                     }
                 }
-                if (error!=null) {
-                    LOGGER.log(Level.WARNING,"Failed to connect to "+servers,error);
-                    return FormValidation.error("Failed to connect to "+servers);
+
+                // looks good
+                return FormValidation.ok("Success");
+            } finally {
+                Thread.currentThread().setContextClassLoader(ccl);
+            }
+        }
+
+        /**
+         * Binds to the server using the specified username/password.
+         * <p>
+         * In a real deployment, often there are servers that don't respond or otherwise broken,
+         * so try all the servers.
+         */
+        public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers) {
+            // in a AD forest, it'd be mighty nice to be able to login as "joe" as opposed to "joe@europe",
+            // but the bind operation doesn't appear to allow me to do so.
+            Hashtable<String,String> props = new Hashtable<String,String>();
+            props.put(Context.SECURITY_PRINCIPAL, principalName);
+            props.put(Context.SECURITY_CREDENTIALS,password);
+            props.put(Context.REFERRAL, "follow");
+            // specifying custom socket factory requires a custom classloader.
+            props.put("java.naming.ldap.factory.socket", TrustAllSocketFactory.class.getName());
+
+
+            NamingException error = null;
+            for (SocketInfo ldapServer : ldapServers) {
+                try {
+                    return LdapCtxFactory.getLdapCtxInstance("ldaps://" + ldapServer + '/', props); // worked
+                } catch (NamingException e) {
+                    LOGGER.log(Level.WARNING,"Failed to bind to "+ldapServer,e);
+                    error = e; // retry
                 }
             }
-            
-            // looks good
-            return FormValidation.ok();
+
+            // if all the attempts failed
+            throw new BadCredentialsException("Either no such user '"+principalName+"' or incorrect password",error);
         }
 
         /**

@@ -10,13 +10,19 @@
     <j:when test="${!descriptor.canDoNativeAuth()}">
       <local:config />
       <f:advanced>
-        <f:entry field="site" title="Site">
+        <f:entry field="site" title="${%Site}">
           <f:textbox />
         </f:entry>
-        <f:nested>
-          <f:validateButton with="domain,site" title="${%Test Domain/Site Combination}" method="combo"/>
-        </f:nested>
+        <f:entry field="bindName" title="${%Bind DN}">
+          <f:textbox />
+        </f:entry>
+        <f:entry field="bindPassword" title="${%Bind Password}">
+          <f:password />
+        </f:entry>
       </f:advanced>
+      <f:nested>
+        <f:validateButton with="domain,site,bindName,bindPassword" title="${%Test}" method="validate"/>
+      </f:nested>
     </j:when>
     <j:otherwise>
       <f:advanced>

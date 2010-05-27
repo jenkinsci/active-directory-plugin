@@ -1,6 +1,5 @@
 package hudson.plugins.active_directory;
 
-import com.sun.jndi.ldap.LdapCtxFactory;
 import hudson.plugins.active_directory.ActiveDirectorySecurityRealm.DesciprotrImpl;
 import hudson.security.GroupDetails;
 import hudson.security.SecurityRealm;
@@ -18,7 +17,6 @@ import org.acegisecurity.userdetails.UserDetailsService;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
 import org.springframework.dao.DataAccessException;
 
-import javax.naming.Context;
 import javax.naming.NamingEnumeration;
 import javax.naming.NamingException;
 import javax.naming.directory.Attribute;
@@ -27,7 +25,6 @@ import javax.naming.directory.DirContext;
 import javax.naming.directory.SearchControls;
 import javax.naming.directory.SearchResult;
 import java.util.HashSet;
-import java.util.Hashtable;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
@@ -47,10 +44,15 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
 
     private final String[] domainNames;
     private final String site;
+    private final String bindName, bindPassword;
+    private final ActiveDirectorySecurityRealm.DesciprotrImpl descriptor;
 
-    public ActiveDirectoryUnixAuthenticationProvider(String domainName, String site) {
-        this.domainNames = domainName.split(",");
-        this.site = site;
+    public ActiveDirectoryUnixAuthenticationProvider(ActiveDirectorySecurityRealm realm) {
+        this.domainNames = realm.domain.split(",");
+        this.site = realm.site;
+        this.bindName = realm.bindName;
+        this.bindPassword = realm.bindPassword==null ? null : realm.bindPassword.toString();
+        this.descriptor = realm.getDescriptor();
     }
 
     /**
@@ -97,18 +99,30 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
             if(authentication!=null)
                 password = (String) authentication.getCredentials();
 
-            String principalName = getPrincipalName(username, domainName);
-            String id = principalName.substring(0, principalName.indexOf('@'));
-
             List<SocketInfo> ldapServers;
             try {
-                ldapServers = DesciprotrImpl.INSTANCE.obtainLDAPServer(domainName,site);
+                ldapServers = descriptor.obtainLDAPServer(domainName,site);
             } catch (NamingException e) {
                 LOGGER.log(Level.WARNING,"Failed to find the LDAP service",e);
                 throw new AuthenticationServiceException("Failed to find the LDAP service for the domain "+domainName,e);
             }
 
-            DirContext context = bind(principalName, password, ldapServers);
+            DirContext context;
+            String id;
+            if (bindName!=null) {
+                // two step approach. Use a special credential to obtain DN for the user trying to login,
+                // then authenticate.
+                try {
+                    id = username;
+                    context = descriptor.bind(bindName, bindPassword, ldapServers);
+                } catch (BadCredentialsException e) {
+                    throw new AuthenticationServiceException("Failed to bind to LDAP server with the bind name/password",e);
+                }
+            } else {
+                String principalName = getPrincipalName(username, domainName);
+                id = principalName.substring(0, principalName.indexOf('@'));
+                context = descriptor.bind(principalName, password, ldapServers);
+            }
 
             try {
                 // locate this user's record
@@ -127,6 +141,15 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
                 }
                 SearchResult result = renum.next();
 
+                if (bindName!=null) {
+                    // if we've used the credential specifically for the bind, we need to verify the provided password.
+                    Object dn = result.getAttributes().get("distinguishedName").get();
+                    if (dn==null)
+                        throw new BadCredentialsException("No distinguished name for "+username);
+                    LOGGER.fine("Attempting to validate password for DN="+dn);
+                    DirContext test = descriptor.bind(dn.toString(), password, ldapServers);
+                    test.close();
+                }
 
                 Attribute memberOf = result.getAttributes().get("memberOf");
                 Set<GrantedAuthority> groups = resolveGroups(memberOf, context);
@@ -146,37 +169,6 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
         } finally {
             Thread.currentThread().setContextClassLoader(ccl);
         }
-    }
-
-    /**
-     * Binds to the server using the specified username/password.
-     * <p>
-     * In a real deployment, often there are servers that don't respond or otherwise broken,
-     * so try all the servers.
-     */
-    private DirContext bind(String principalName, String password, List<SocketInfo> ldapServers) {
-        // in a AD forest, it'd be mighty nice to be able to login as "joe" as opposed to "joe@europe",
-        // but the bind operation doesn't appear to allow me to do so.
-        Hashtable<String,String> props = new Hashtable<String,String>();
-        props.put(Context.SECURITY_PRINCIPAL, principalName);
-        props.put(Context.SECURITY_CREDENTIALS,password);
-        props.put(Context.REFERRAL, "follow");
-        // specifying custom socket factory requires a custom classloader.
-        props.put("java.naming.ldap.factory.socket", TrustAllSocketFactory.class.getName());
-
-
-        NamingException error = null;
-        for (SocketInfo ldapServer : ldapServers) {
-            try {
-                return LdapCtxFactory.getLdapCtxInstance("ldaps://" + ldapServer + '/', props); // worked
-            } catch (NamingException e) {
-                LOGGER.log(Level.WARNING,"Failed to bind to "+ldapServer,e);
-                error = e; // retry
-            }
-        }
-
-        // if all the attempts failed
-        throw new BadCredentialsException("Either no such user '"+principalName+"' or incorrect password",error);
     }
 
     /**
