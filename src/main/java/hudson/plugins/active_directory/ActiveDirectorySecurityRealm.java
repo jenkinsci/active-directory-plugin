@@ -9,6 +9,7 @@ import hudson.model.Hudson;
 import hudson.security.GroupDetails;
 import hudson.security.SecurityRealm;
 import hudson.util.FormValidation;
+import hudson.util.FormValidation.Kind;
 import hudson.util.spring.BeanBuilder;
 import org.acegisecurity.AuthenticationManager;
 import org.acegisecurity.userdetails.UserDetailsService;
@@ -34,6 +35,8 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import static hudson.Util.fixEmpty;
+
 /**
  * @author Kohsuke Kawaguchi
  */
@@ -51,15 +54,27 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
      */
     public final String domain;
 
+    /**
+     * Active directory site (which specifies the physical concentration of the servers),
+     * if any. If the value is non-null, we'll only contact servers in this site.
+     *
+     * <p>
+     * On Windows, I'm assuming ADSI takes care of everything automatically.
+     */
+    public final String site;
+
     @DataBoundConstructor
-    public ActiveDirectorySecurityRealm(String domain) {
-        this.domain = Util.fixEmpty(domain);
+    public ActiveDirectorySecurityRealm(String domain, String site) {
+        this.domain = fixEmpty(domain);
+        this.site = fixEmpty(site);
     }
 
     public SecurityComponents createSecurityComponents() {
         BeanBuilder builder = new BeanBuilder(getClass().getClassLoader());
         Binding binding = new Binding();
         binding.setVariable("domain",domain);
+        binding.setVariable("site",site);
+        binding.setVariable("descriptor",getDescriptor());
         builder.parse(getClass().getResourceAsStream("ActiveDirectory.groovy"),binding);
         WebApplicationContext context = builder.createApplicationContext();
         return new SecurityComponents(
@@ -89,7 +104,21 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
             return "/plugin/active-directory/help/realm.html";
         }
 
-        public FormValidation doDomainCheck(@QueryParameter final String value) throws IOException, ServletException {
+        /**
+         * If true, we can do ADSI/COM based look up that's far more reliable.
+         * False if we need to do the authentication in pure Java via {@link ActiveDirectoryUnixAuthenticationProvider}
+         */
+        public boolean canDoNativeAuth() {
+            return Hudson.isWindows() && "32".equals(System.getProperty("sun.arch.data.model"));
+        }
+
+        public FormValidation doCombo(@QueryParameter String domain, @QueryParameter String site) throws IOException, ServletException {
+            FormValidation r = doCheckDomain(domain, site);
+            if (r.kind== Kind.OK)       return FormValidation.ok("Success");
+            return r;
+        }
+
+        public FormValidation doCheckDomain(@QueryParameter final String value, @QueryParameter String site) throws IOException, ServletException {
             Functions.checkPermission(Hudson.ADMINISTER);
             String n = Util.fixEmptyAndTrim(value);
             if(n==null) {// no value given yet
@@ -119,10 +148,11 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
                 // then look for the LDAP server
                 List<SocketInfo> servers;
                 try {
-                    servers = obtainLDAPServer(ictx,name);
+                    servers = obtainLDAPServer(ictx,name,site);
                 } catch (NamingException e) {
-                    LOGGER.log(Level.WARNING,"No LDAP server was found in "+name,e);
-                    return FormValidation.error("No LDAP server was found in "+name);
+                    String msg = site==null ? "No LDAP server was found in " + name : "No LDAP server was found in the "+site+" site of "+name;
+                    LOGGER.log(Level.WARNING, msg,e);
+                    return FormValidation.error(msg);
                 }
 
                 // try to connect to LDAP port to make sure this machine has LDAP service
@@ -157,8 +187,8 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
             return new InitialDirContext(env);
         }
 
-        public List<SocketInfo> obtainLDAPServer(String domainName) throws NamingException {
-            return obtainLDAPServer(createDNSLookupContext(),domainName);
+        public List<SocketInfo> obtainLDAPServer(String domainName, String site) throws NamingException {
+            return obtainLDAPServer(createDNSLookupContext(),domainName,site);
         }
 
         private static final List<SocketInfo> CANDIDATES = Arrays.asList(
@@ -172,7 +202,7 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
          * @return
          *      A list with at least one item.
          */
-        public List<SocketInfo> obtainLDAPServer(DirContext ictx, String domainName) throws NamingException {
+        public List<SocketInfo> obtainLDAPServer(DirContext ictx, String domainName, String site) throws NamingException {
             String ldapServer=null;
             Attribute a=null;
             SocketInfo mode = null;
@@ -181,7 +211,7 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
             // try global catalog if it exists first, then the particular domain
             for (SocketInfo candidate : CANDIDATES) {
                 mode = candidate;
-                ldapServer = candidate.host/*used as a prefix*/+domainName;
+                ldapServer = candidate.host/*used as a prefix*/+(site!=null?site+"._sites.":"")+domainName;
                 LOGGER.fine("Attempting to resolve "+ldapServer+" to SRV record");
                 try {
                     Attributes attributes = ictx.getAttributes(ldapServer, new String[]{"SRV"});

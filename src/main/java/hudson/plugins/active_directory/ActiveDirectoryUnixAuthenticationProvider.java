@@ -46,9 +46,11 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
     implements UserDetailsService, GroupDetailsService {
 
     private final String[] domainNames;
+    private final String site;
 
-    public ActiveDirectoryUnixAuthenticationProvider(String domainName) {
+    public ActiveDirectoryUnixAuthenticationProvider(String domainName, String site) {
         this.domainNames = domainName.split(",");
+        this.site = site;
     }
 
     /**
@@ -100,7 +102,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
 
             List<SocketInfo> ldapServers;
             try {
-                ldapServers = DesciprotrImpl.INSTANCE.obtainLDAPServer(domainName);
+                ldapServers = DesciprotrImpl.INSTANCE.obtainLDAPServer(domainName,site);
             } catch (NamingException e) {
                 LOGGER.log(Level.WARNING,"Failed to find the LDAP service",e);
                 throw new AuthenticationServiceException("Failed to find the LDAP service for the domain "+domainName,e);

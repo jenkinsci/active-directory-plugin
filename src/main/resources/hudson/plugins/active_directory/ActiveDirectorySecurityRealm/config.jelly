@@ -1,15 +1,22 @@
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
   <d:taglib uri="local">
     <d:tag name="config">
-      <f:entry title="${%Domain Name}" help="/plugin/active-directory/help/domain-name-${h.ifThenElse(h.isWindows(),'windows','unix')}.html">
-        <f:textbox name="activeDirectory.domain" value="${instance.domain}"
-                checkUrl="'${rootURL}/securityRealms/ActiveDirectorySecurityRealm/domainCheck?value='+escape(this.value)"/>
+      <f:entry title="${%Domain Name}" field="domain" help="/plugin/active-directory/help/domain-name-${descriptor.canDoNativeAuth()?'windows':'unix'}.html">
+        <f:textbox />
       </f:entry>
     </d:tag>
   </d:taglib>
   <j:choose xmlns:local="local">
-    <j:when test="${!h.isWindows()}">
+    <j:when test="${!descriptor.canDoNativeAuth()}">
       <local:config />
+      <f:advanced>
+        <f:entry field="site" title="Site">
+          <f:textbox />
+        </f:entry>
+        <f:nested>
+          <f:validateButton with="domain,site" title="${%Test Domain/Site Combination}" method="combo"/>
+        </f:nested>
+      </f:advanced>
     </j:when>
     <j:otherwise>
       <f:advanced>
