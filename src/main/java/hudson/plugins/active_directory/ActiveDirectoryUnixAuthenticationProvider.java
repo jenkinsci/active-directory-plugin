@@ -125,11 +125,13 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
                 // locate this user's record
                 SearchControls controls = new SearchControls();
                 controls.setSearchScope(SUBTREE_SCOPE);
-                NamingEnumeration<SearchResult> renum = context.search(toDC(domainName),"(& (userPrincipalName="+principalName+")(objectClass=user))", controls);
+                NamingEnumeration<SearchResult> renum = context.search(toDC(domainName),"(& (userPrincipalName={0})(objectClass=user))",
+                        new Object[]{principalName}, controls);
                 if(!renum.hasMore()) {
                     // failed to find it. Fall back to sAMAccountName.
                     // see http://www.nabble.com/Re%3A-Hudson-AD-plug-in-td21428668.html
-                    renum = context.search(toDC(domainName),"(& (sAMAccountName="+username+")(objectClass=user))", controls);
+                    renum = context.search(toDC(domainName),"(& (sAMAccountName="+username+")(objectClass=user))",
+                            new Object[]{username},controls);
                     if(!renum.hasMore()) {
                         throw new BadCredentialsException("Authentication was successful but cannot locate the user information for "+username);
                     }
