@@ -130,7 +130,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
                 if(!renum.hasMore()) {
                     // failed to find it. Fall back to sAMAccountName.
                     // see http://www.nabble.com/Re%3A-Hudson-AD-plug-in-td21428668.html
-                    renum = context.search(toDC(domainName),"(& (sAMAccountName="+username+")(objectClass=user))",
+                    renum = context.search(toDC(domainName),"(& (sAMAccountName={0})(objectClass=user))",
                             new Object[]{username},controls);
                     if(!renum.hasMore()) {
                         throw new BadCredentialsException("Authentication was successful but cannot locate the user information for "+username);
