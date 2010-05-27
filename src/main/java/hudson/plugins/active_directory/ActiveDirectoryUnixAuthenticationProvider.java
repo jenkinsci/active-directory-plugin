@@ -9,7 +9,6 @@ import hudson.security.UserMayOrMayNotExistException;
 import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -24,6 +23,7 @@ import javax.naming.directory.SearchControls;
 import javax.naming.directory.SearchResult;
 
 import org.acegisecurity.AuthenticationException;
+import org.acegisecurity.AuthenticationServiceException;
 import org.acegisecurity.BadCredentialsException;
 import org.acegisecurity.GrantedAuthority;
 import org.acegisecurity.GrantedAuthorityImpl;
@@ -87,56 +87,73 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
     }
     
     private UserDetails retrieveUser(String username, UsernamePasswordAuthenticationToken authentication, String domainName) throws AuthenticationException {
-        String password = null;
-        if(authentication!=null)
-            password = (String) authentication.getCredentials();
-
-        // bind by using the specified username/password
-        Hashtable props = new Hashtable();
-        String principalName = username + '@' + domainName;
-        props.put(Context.SECURITY_PRINCIPAL, principalName);
-        props.put(Context.SECURITY_CREDENTIALS,password);
-        props.put(Context.REFERRAL, "follow");
-        DirContext context;
+        // when we use custom socket factory below, every LDAP operations result in a classloading via context classloader,
+        // so we need it to resolve.
+        ClassLoader ccl = Thread.currentThread().getContextClassLoader();
+        Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
         try {
-            context = LdapCtxFactory.getLdapCtxInstance(
-                    "ldap://" + DesciprotrImpl.INSTANCE.obtainLDAPServer(domainName) + '/',
-                    props);
-        } catch (NamingException e) {
-            LOGGER.log(Level.WARNING,"Failed to bind to LDAP",e);
-            throw new BadCredentialsException("Either no such user '"+principalName+"' or incorrect password",e);
-        }
+            String password = null;
+            if(authentication!=null)
+                password = (String) authentication.getCredentials();
 
-        try {
-            // locate this user's record
-            SearchControls controls = new SearchControls();
-            controls.setSearchScope(SUBTREE_SCOPE);
-            NamingEnumeration<SearchResult> renum = context.search(toDC(domainName),"(& (userPrincipalName="+principalName+")(objectClass=user))", controls);
-            if(!renum.hasMore()) {
-                // failed to find it. Fall back to sAMAccountName.
-                // see http://www.nabble.com/Re%3A-Hudson-AD-plug-in-td21428668.html
-                renum = context.search(toDC(domainName),"(& (sAMAccountName="+username+")(objectClass=user))", controls);
-                if(!renum.hasMore()) {
-                    throw new BadCredentialsException("Authentication was successful but cannot locate the user information for "+username);
-                }
+            // bind by using the specified username/password
+            Hashtable props = new Hashtable();
+            String principalName = username + '@' + domainName;
+            props.put(Context.SECURITY_PRINCIPAL, principalName);
+            props.put(Context.SECURITY_CREDENTIALS,password);
+            props.put(Context.REFERRAL, "follow");
+            // specifying custom socket factory requires a custom classloader.
+            props.put("java.naming.ldap.factory.socket", TrustAllSocketFactory.class.getName());
+
+            SocketInfo ldapServer;
+            try {
+                ldapServer = DesciprotrImpl.INSTANCE.obtainLDAPServer(domainName);
+            } catch (NamingException e) {
+                LOGGER.log(Level.WARNING,"Failed to find the LDAP service",e);
+                throw new AuthenticationServiceException("Failed to find the LDAP service for the domain "+domainName,e);
             }
-            SearchResult result = renum.next();
+
+            DirContext context;
+            try {
+                context = LdapCtxFactory.getLdapCtxInstance("ldaps://" + ldapServer + '/', props);
+            } catch (NamingException e) {
+                LOGGER.log(Level.WARNING,"Failed to bind to "+ldapServer,e);
+                throw new BadCredentialsException("Either no such user '"+principalName+"' or incorrect password",e);
+            }
+
+            try {
+                // locate this user's record
+                SearchControls controls = new SearchControls();
+                controls.setSearchScope(SUBTREE_SCOPE);
+                NamingEnumeration<SearchResult> renum = context.search(toDC(domainName),"(& (userPrincipalName="+principalName+")(objectClass=user))", controls);
+                if(!renum.hasMore()) {
+                    // failed to find it. Fall back to sAMAccountName.
+                    // see http://www.nabble.com/Re%3A-Hudson-AD-plug-in-td21428668.html
+                    renum = context.search(toDC(domainName),"(& (sAMAccountName="+username+")(objectClass=user))", controls);
+                    if(!renum.hasMore()) {
+                        throw new BadCredentialsException("Authentication was successful but cannot locate the user information for "+username);
+                    }
+                }
+                SearchResult result = renum.next();
 
 
-            Attribute memberOf = result.getAttributes().get("memberOf");
-            Set<GrantedAuthority> groups = resolveGroups(memberOf, context);
-            groups.add(SecurityRealm.AUTHENTICATED_AUTHORITY);
-            
-            context.close();
+                Attribute memberOf = result.getAttributes().get("memberOf");
+                Set<GrantedAuthority> groups = resolveGroups(memberOf, context);
+                groups.add(SecurityRealm.AUTHENTICATED_AUTHORITY);
 
-            return new ActiveDirectoryUserDetail(
-                username, password,
-                true, true, true, true,
-                groups.toArray(new GrantedAuthority[groups.size()])
-            );
-        } catch (NamingException e) {
-            LOGGER.log(Level.WARNING,"Failed to retrieve user information for "+username,e);
-            throw new BadCredentialsException("Failed to retrieve user information for "+username,e);
+                context.close();
+
+                return new ActiveDirectoryUserDetail(
+                    username, password,
+                    true, true, true, true,
+                    groups.toArray(new GrantedAuthority[groups.size()])
+                );
+            } catch (NamingException e) {
+                LOGGER.log(Level.WARNING,"Failed to retrieve user information for "+username,e);
+                throw new BadCredentialsException("Failed to retrieve user information for "+username,e);
+            }
+        } finally {
+            Thread.currentThread().setContextClassLoader(ccl);
         }
     }
 

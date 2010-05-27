@@ -19,16 +19,17 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.web.context.WebApplicationContext;
 
 import javax.naming.Context;
-import javax.naming.NamingException;
 import javax.naming.NamingEnumeration;
+import javax.naming.NamingException;
 import javax.naming.directory.Attribute;
 import javax.naming.directory.Attributes;
 import javax.naming.directory.DirContext;
 import javax.naming.directory.InitialDirContext;
 import javax.servlet.ServletException;
 import java.io.IOException;
-import java.net.Socket;
+import java.util.Arrays;
 import java.util.Hashtable;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -115,22 +116,21 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
                 }
 
                 // then look for the LDAP server
-                final String ldapServer = "_ldap._tcp."+name;
-                String serverHostName;
+                SocketInfo server;
                 try {
-                    serverHostName = obtainLDAPServer(ictx,name);
+                    server = obtainLDAPServer(ictx,name);
                 } catch (NamingException e) {
-                    LOGGER.log(Level.WARNING,"Failed to resolve "+ldapServer+" to SRV record",e);
+                    LOGGER.log(Level.WARNING,"No LDAP server was found in "+name,e);
                     return FormValidation.error("No LDAP server was found in "+name);
                 }
 
                 // try to connect to LDAP port to make sure this machine has LDAP service
                 // TODO: honor the port number in SRV record
                 try {
-                    new Socket(serverHostName,389).close();
+                    server.connect().close();
                 } catch (IOException e) {
-                    LOGGER.log(Level.WARNING,"Failed to connect to LDAP port",e);
-                    return FormValidation.error("Failed to connect to the LDAP port (389) of "+serverHostName);
+                    LOGGER.log(Level.WARNING,"Failed to connect to "+server,e);
+                    return FormValidation.error("Failed to connect to "+server);
                 }
             }
             // looks good
@@ -147,20 +147,43 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
             return new InitialDirContext(env);
         }
 
-        public String obtainLDAPServer(String domainName) throws NamingException {
+        public SocketInfo obtainLDAPServer(String domainName) throws NamingException {
             return obtainLDAPServer(createDNSLookupContext(),domainName);
         }
+
+        private static final List<SocketInfo> CANDIDATES = Arrays.asList(
+                new SocketInfo("_gc._tcp.",3269),
+                new SocketInfo("_ldap._tcp.",636)  // LDAPS
+            );
 
         /**
          * Use DNS and obtains the LDAP server's host name.
          */
-        public String obtainLDAPServer(DirContext ictx, String domainName) throws NamingException {
-            final String ldapServer = "_ldap._tcp."+domainName;
+        public SocketInfo obtainLDAPServer(DirContext ictx, String domainName) throws NamingException {
+            String ldapServer=null;
+            Attribute a=null;
+            SocketInfo mode = null;
+            NamingException failure=null;
 
-            LOGGER.fine("Attempting to resolve "+ldapServer+" to SRV record");
-            Attributes attributes = ictx.getAttributes(ldapServer, new String[]{"SRV"});
-            Attribute a = attributes.get("SRV");
-            if(a==null) throw new NamingException();
+            // try global catalog if it exists first, then the particular domain
+            for (SocketInfo candidate : CANDIDATES) {
+                mode = candidate;
+                ldapServer = candidate.host/*used as a prefix*/+domainName;
+                LOGGER.fine("Attempting to resolve "+ldapServer+" to SRV record");
+                try {
+                    Attributes attributes = ictx.getAttributes(ldapServer, new String[]{"SRV"});
+                    a = attributes.get("SRV");
+                    if (a!=null)    break;
+                } catch (NamingException e) {
+                    // failed retrieval. try next option.
+                    failure = e;
+                }
+            }
+
+            if(a==null) {// all options failed
+                if (failure!=null)  throw failure;
+                throw new NamingException();
+            }
 
             int priority = -1;
             String result = null;
@@ -175,7 +198,7 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
                 }
             }
             LOGGER.fine(ldapServer+" resolved to "+ result);
-            return result;
+            return new SocketInfo(result,mode.port);
         }
     }
     
