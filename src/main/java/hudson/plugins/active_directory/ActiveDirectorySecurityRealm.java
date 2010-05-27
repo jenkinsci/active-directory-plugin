@@ -27,6 +27,7 @@ import javax.naming.directory.DirContext;
 import javax.naming.directory.InitialDirContext;
 import javax.servlet.ServletException;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Hashtable;
 import java.util.List;
@@ -116,23 +117,32 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
                 }
 
                 // then look for the LDAP server
-                SocketInfo server;
+                List<SocketInfo> servers;
                 try {
-                    server = obtainLDAPServer(ictx,name);
+                    servers = obtainLDAPServer(ictx,name);
                 } catch (NamingException e) {
                     LOGGER.log(Level.WARNING,"No LDAP server was found in "+name,e);
                     return FormValidation.error("No LDAP server was found in "+name);
                 }
 
                 // try to connect to LDAP port to make sure this machine has LDAP service
-                // TODO: honor the port number in SRV record
-                try {
-                    server.connect().close();
-                } catch (IOException e) {
-                    LOGGER.log(Level.WARNING,"Failed to connect to "+server,e);
-                    return FormValidation.error("Failed to connect to "+server);
+                IOException error = null;
+                for (SocketInfo si : servers) {
+                    try {
+                        si.connect().close();
+                        break; // looks good
+                    } catch (IOException e) {
+                        LOGGER.log(Level.FINE,"Failed to connect to "+si,e);
+                        error = e;
+                        // try the next server in the list
+                    }
+                }
+                if (error!=null) {
+                    LOGGER.log(Level.WARNING,"Failed to connect to "+servers,error);
+                    return FormValidation.error("Failed to connect to "+servers);
                 }
             }
+            
             // looks good
             return FormValidation.ok();
         }
@@ -147,7 +157,7 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
             return new InitialDirContext(env);
         }
 
-        public SocketInfo obtainLDAPServer(String domainName) throws NamingException {
+        public List<SocketInfo> obtainLDAPServer(String domainName) throws NamingException {
             return obtainLDAPServer(createDNSLookupContext(),domainName);
         }
 
@@ -157,9 +167,12 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
             );
 
         /**
-         * Use DNS and obtains the LDAP server's host name.
+         * Use DNS and obtains the LDAP servers that we should try.
+         *
+         * @return
+         *      A list with at least one item.
          */
-        public SocketInfo obtainLDAPServer(DirContext ictx, String domainName) throws NamingException {
+        public List<SocketInfo> obtainLDAPServer(DirContext ictx, String domainName) throws NamingException {
             String ldapServer=null;
             Attribute a=null;
             SocketInfo mode = null;
@@ -186,19 +199,29 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
             }
 
             int priority = -1;
-            String result = null;
+            List<SocketInfo> result = new ArrayList<SocketInfo>();
             for (NamingEnumeration ne = a.getAll(); ne.hasMoreElements(); ) {
                 String[] fields = ne.next().toString().split(" ");
                 int p = Integer.parseInt(fields[0]);
+                // fields[1]: weight
+                // fields[2]: port
+                // fields[3]: target host name
                 if (priority == -1 || p < priority) {
                     priority = p;
-                    result = fields[3];
+                    result.clear();
+                }
+                if (priority==p) {
+                    String hostName = fields[3];
                     // cut off trailing ".". HUDSON-2647
-                    if (result.endsWith("."))   result = result.substring(0,result.length()-1);
+                    if (hostName.endsWith("."))   hostName = hostName.substring(0,hostName.length()-1);
+                    result.add(new SocketInfo(hostName,mode.port));
                 }
             }
+            if (result.isEmpty())
+                throw new NamingException("No SRV record found for "+ldapServer);
+            
             LOGGER.fine(ldapServer+" resolved to "+ result);
-            return new SocketInfo(result,mode.port);
+            return result;
         }
     }
     

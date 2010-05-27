@@ -1,27 +1,10 @@
 package hudson.plugins.active_directory;
 
-import static javax.naming.directory.SearchControls.SUBTREE_SCOPE;
+import com.sun.jndi.ldap.LdapCtxFactory;
 import hudson.plugins.active_directory.ActiveDirectorySecurityRealm.DesciprotrImpl;
 import hudson.security.GroupDetails;
 import hudson.security.SecurityRealm;
 import hudson.security.UserMayOrMayNotExistException;
-
-import java.util.HashSet;
-import java.util.Hashtable;
-import java.util.LinkedList;
-import java.util.Set;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
-import javax.naming.Context;
-import javax.naming.NamingEnumeration;
-import javax.naming.NamingException;
-import javax.naming.directory.Attribute;
-import javax.naming.directory.Attributes;
-import javax.naming.directory.DirContext;
-import javax.naming.directory.SearchControls;
-import javax.naming.directory.SearchResult;
-
 import org.acegisecurity.AuthenticationException;
 import org.acegisecurity.AuthenticationServiceException;
 import org.acegisecurity.BadCredentialsException;
@@ -35,7 +18,23 @@ import org.acegisecurity.userdetails.UserDetailsService;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
 import org.springframework.dao.DataAccessException;
 
-import com.sun.jndi.ldap.LdapCtxFactory;
+import javax.naming.Context;
+import javax.naming.NamingEnumeration;
+import javax.naming.NamingException;
+import javax.naming.directory.Attribute;
+import javax.naming.directory.Attributes;
+import javax.naming.directory.DirContext;
+import javax.naming.directory.SearchControls;
+import javax.naming.directory.SearchResult;
+import java.util.HashSet;
+import java.util.Hashtable;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import static javax.naming.directory.SearchControls.SUBTREE_SCOPE;
 
 /**
  * {@link AuthenticationProvider} with Active Directory, through LDAP.
@@ -96,42 +95,30 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
             if(authentication!=null)
                 password = (String) authentication.getCredentials();
 
-            // bind by using the specified username/password
-            Hashtable props = new Hashtable();
-            String principalName = username + '@' + domainName;
-            props.put(Context.SECURITY_PRINCIPAL, principalName);
-            props.put(Context.SECURITY_CREDENTIALS,password);
-            props.put(Context.REFERRAL, "follow");
-            // specifying custom socket factory requires a custom classloader.
-            props.put("java.naming.ldap.factory.socket", TrustAllSocketFactory.class.getName());
+            String principalName = getPrincipalName(username, domainName);
+            String id = principalName.substring(0, principalName.indexOf('@'));
 
-            SocketInfo ldapServer;
+            List<SocketInfo> ldapServers;
             try {
-                ldapServer = DesciprotrImpl.INSTANCE.obtainLDAPServer(domainName);
+                ldapServers = DesciprotrImpl.INSTANCE.obtainLDAPServer(domainName);
             } catch (NamingException e) {
                 LOGGER.log(Level.WARNING,"Failed to find the LDAP service",e);
                 throw new AuthenticationServiceException("Failed to find the LDAP service for the domain "+domainName,e);
             }
 
-            DirContext context;
-            try {
-                context = LdapCtxFactory.getLdapCtxInstance("ldaps://" + ldapServer + '/', props);
-            } catch (NamingException e) {
-                LOGGER.log(Level.WARNING,"Failed to bind to "+ldapServer,e);
-                throw new BadCredentialsException("Either no such user '"+principalName+"' or incorrect password",e);
-            }
+            DirContext context = bind(principalName, password, ldapServers);
 
             try {
                 // locate this user's record
                 SearchControls controls = new SearchControls();
                 controls.setSearchScope(SUBTREE_SCOPE);
                 NamingEnumeration<SearchResult> renum = context.search(toDC(domainName),"(& (userPrincipalName={0})(objectClass=user))",
-                        new Object[]{principalName}, controls);
+                        new Object[]{id}, controls);
                 if(!renum.hasMore()) {
                     // failed to find it. Fall back to sAMAccountName.
                     // see http://www.nabble.com/Re%3A-Hudson-AD-plug-in-td21428668.html
                     renum = context.search(toDC(domainName),"(& (sAMAccountName={0})(objectClass=user))",
-                            new Object[]{username},controls);
+                            new Object[]{id},controls);
                     if(!renum.hasMore()) {
                         throw new BadCredentialsException("Authentication was successful but cannot locate the user information for "+username);
                     }
@@ -146,7 +133,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
                 context.close();
 
                 return new ActiveDirectoryUserDetail(
-                    username, password,
+                    id, password,
                     true, true, true, true,
                     groups.toArray(new GrantedAuthority[groups.size()])
                 );
@@ -157,6 +144,55 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
         } finally {
             Thread.currentThread().setContextClassLoader(ccl);
         }
+    }
+
+    /**
+     * Binds to the server using the specified username/password.
+     * <p>
+     * In a real deployment, often there are servers that don't respond or otherwise broken,
+     * so try all the servers.
+     */
+    private DirContext bind(String principalName, String password, List<SocketInfo> ldapServers) {
+        // in a AD forest, it'd be mighty nice to be able to login as "joe" as opposed to "joe@europe",
+        // but the bind operation doesn't appear to allow me to do so.
+        Hashtable<String,String> props = new Hashtable<String,String>();
+        props.put(Context.SECURITY_PRINCIPAL, principalName);
+        props.put(Context.SECURITY_CREDENTIALS,password);
+        props.put(Context.REFERRAL, "follow");
+        // specifying custom socket factory requires a custom classloader.
+        props.put("java.naming.ldap.factory.socket", TrustAllSocketFactory.class.getName());
+
+
+        NamingException error = null;
+        for (SocketInfo ldapServer : ldapServers) {
+            try {
+                return LdapCtxFactory.getLdapCtxInstance("ldaps://" + ldapServer + '/', props); // worked
+            } catch (NamingException e) {
+                LOGGER.log(Level.WARNING,"Failed to bind to "+ldapServer,e);
+                error = e; // retry
+            }
+        }
+
+        // if all the attempts failed
+        throw new BadCredentialsException("Either no such user '"+principalName+"' or incorrect password",error);
+    }
+
+    /**
+     * Returns the full user principal name of the form "joe@europe.contoso.com".
+     * 
+     * If people type in 'foo@bar' or 'bar\\foo', it should be treated as 'foo@bar.acme.org'
+     */
+    private String getPrincipalName(String username, String domainName) {
+        String principalName;
+        int slash = username.indexOf('\\');
+        if (slash>0) {
+            principalName = username.substring(slash+1)+'@'+username.substring(0,slash)+'.'+domainName;
+        } else
+        if (username.contains("@"))
+            principalName = username + '.' + domainName;
+        else
+            principalName = username + '@' + domainName;
+        return principalName;
     }
 
     private Set<GrantedAuthority> resolveGroups(Attribute memberOf, DirContext context) throws NamingException {
