@@ -2,4 +2,9 @@
     Specify the full domain name(s) of Active Directory. Hudson uses this information to locate the LDAP service
     and performs authentication. If you wish to attempt authentication against multiple Active Directory domains 
     the entries can be separated by a comma.
+
+    <p>
+    If you specify the forest name (say <tt>contoso.com</tt> instead of <tt>europe.contoso.com</tt>),
+    then the search will be done against the global catalog, and the user would have to login as
+    "europe\joe" or "joe@europe".
 </div>
