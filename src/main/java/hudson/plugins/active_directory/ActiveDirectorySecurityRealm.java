@@ -152,7 +152,7 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
                         LOGGER.fine(name+" resolved to "+ a.get());
                     } catch (NamingException e) {
                         LOGGER.log(Level.WARNING,"Failed to resolve "+name+" to A record",e);
-                        return FormValidation.error(name+" doesn't look like a valid domain name");
+                        return FormValidation.error(e,name+" doesn't look like a valid domain name");
                     }
 
                     // then look for the LDAP server
@@ -162,7 +162,7 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
                     } catch (NamingException e) {
                         String msg = site==null ? "No LDAP server was found in " + name : "No LDAP server was found in the "+site+" site of "+name;
                         LOGGER.log(Level.WARNING, msg,e);
-                        return FormValidation.error(msg);
+                        return FormValidation.error(e,msg);
                     }
 
                     if (bindName!=null) {
@@ -170,9 +170,9 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
                         try {
                             bind(bindName,password.toString(),servers).close();
                         } catch (BadCredentialsException e) {
-                            return FormValidation.error("Bad bind username or password");
+                            return FormValidation.error(e,"Bad bind username or password");
                         } catch (Exception e) {
-                            return FormValidation.error(e.getMessage());
+                            return FormValidation.error(e,e.getMessage());
                         }
                     } else {
                         // just some connection test
@@ -190,7 +190,7 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
                         }
                         if (error!=null) {
                             LOGGER.log(Level.WARNING,"Failed to connect to "+servers,error);
-                            return FormValidation.error("Failed to connect to "+servers);
+                            return FormValidation.error(error,"Failed to connect to "+servers);
                         }
                     }
                 }
