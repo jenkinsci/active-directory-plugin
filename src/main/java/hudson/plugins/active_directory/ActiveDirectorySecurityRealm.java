@@ -117,7 +117,11 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
             return Hudson.isWindows() && "32".equals(System.getProperty("sun.arch.data.model"));
         }
 
-        public FormValidation doValidate(@QueryParameter String domain, @QueryParameter String site, @QueryParameter String bindName, @QueryParameter String bindPassword) throws IOException, ServletException, NamingException {
+        public FormValidation doValidate(
+                @QueryParameter(fixEmpty=true) String domain,
+                @QueryParameter(fixEmpty=true) String site,
+                @QueryParameter(fixEmpty=true) String bindName,
+                @QueryParameter(fixEmpty=true) String bindPassword) throws IOException, ServletException, NamingException {
             ClassLoader ccl = Thread.currentThread().getContextClassLoader();
             Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
             try {
@@ -127,8 +131,7 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
                     return FormValidation.error("No domain name set");
                 }
 
-                bindName = fixEmpty(bindName);
-                Secret password = Secret.fromString(fixEmpty(bindPassword));
+                Secret password = Secret.fromString(bindPassword);
                 if (bindName!=null && password==null)
                     return FormValidation.error("DN is specified but not password");
 
