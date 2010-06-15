@@ -106,67 +106,76 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
                 throw new AuthenticationServiceException("Failed to find the LDAP service for the domain "+domainName,e);
             }
 
-            DirContext context;
-            String id;
-            if (bindName!=null) {
-                // two step approach. Use a special credential to obtain DN for the user trying to login,
-                // then authenticate.
-                try {
-                    id = username;
-                    context = descriptor.bind(bindName, bindPassword, ldapServers);
-                } catch (BadCredentialsException e) {
-                    throw new AuthenticationServiceException("Failed to bind to LDAP server with the bind name/password",e);
-                }
-            } else {
-                String principalName = getPrincipalName(username, domainName);
-                id = principalName.substring(0, principalName.indexOf('@'));
-                context = descriptor.bind(principalName, password, ldapServers);
-            }
-
-            try {
-                // locate this user's record
-                SearchControls controls = new SearchControls();
-                controls.setSearchScope(SUBTREE_SCOPE);
-                NamingEnumeration<SearchResult> renum = context.search(toDC(domainName),"(& (userPrincipalName={0})(objectClass=user))",
-                        new Object[]{id}, controls);
-                if(!renum.hasMore()) {
-                    // failed to find it. Fall back to sAMAccountName.
-                    // see http://www.nabble.com/Re%3A-Hudson-AD-plug-in-td21428668.html
-                    LOGGER.fine("Failed to find "+id+" in userPrincipalName. Trying sAMAccountName");
-                    renum = context.search(toDC(domainName),"(& (sAMAccountName={0})(objectClass=user))",
-                            new Object[]{id},controls);
-                    if(!renum.hasMore()) {
-                        throw new BadCredentialsException("Authentication was successful but cannot locate the user information for "+username);
-                    }
-                }
-                SearchResult result = renum.next();
-
-                if (bindName!=null) {
-                    // if we've used the credential specifically for the bind, we need to verify the provided password.
-                    Object dn = result.getAttributes().get("distinguishedName").get();
-                    if (dn==null)
-                        throw new BadCredentialsException("No distinguished name for "+username);
-                    LOGGER.fine("Attempting to validate password for DN="+dn);
-                    DirContext test = descriptor.bind(dn.toString(), password, ldapServers);
-                    test.close();
-                }
-
-                Set<GrantedAuthority> groups = resolveGroups(result.getAttributes(), context);
-                groups.add(SecurityRealm.AUTHENTICATED_AUTHORITY);
-
-                context.close();
-
-                return new ActiveDirectoryUserDetail(
-                    id, password,
-                    true, true, true, true,
-                    groups.toArray(new GrantedAuthority[groups.size()])
-                );
-            } catch (NamingException e) {
-                LOGGER.log(Level.WARNING,"Failed to retrieve user information for "+username,e);
-                throw new BadCredentialsException("Failed to retrieve user information for "+username,e);
-            }
+            return retrieveUser(username, password, domainName, ldapServers);
         } finally {
             Thread.currentThread().setContextClassLoader(ccl);
+        }
+    }
+
+    /**
+     * Retrieves the user by using the given list of available AD LDAP servers.
+     *
+     * @param domainName
+     */
+    public UserDetails retrieveUser(String username, String password, String domainName, List<SocketInfo> ldapServers) {
+        DirContext context;
+        String id;
+        if (bindName!=null) {
+            // two step approach. Use a special credential to obtain DN for the user trying to login,
+            // then authenticate.
+            try {
+                id = username;
+                context = descriptor.bind(bindName, bindPassword, ldapServers);
+            } catch (BadCredentialsException e) {
+                throw new AuthenticationServiceException("Failed to bind to LDAP server with the bind name/password",e);
+            }
+        } else {
+            String principalName = getPrincipalName(username, domainName);
+            id = principalName.substring(0, principalName.indexOf('@'));
+            context = descriptor.bind(principalName, password, ldapServers);
+        }
+
+        try {
+            // locate this user's record
+            SearchControls controls = new SearchControls();
+            controls.setSearchScope(SUBTREE_SCOPE);
+            NamingEnumeration<SearchResult> renum = context.search(toDC(domainName),"(& (userPrincipalName={0})(objectClass=user))",
+                    new Object[]{id}, controls);
+            if(!renum.hasMore()) {
+                // failed to find it. Fall back to sAMAccountName.
+                // see http://www.nabble.com/Re%3A-Hudson-AD-plug-in-td21428668.html
+                LOGGER.fine("Failed to find "+id+" in userPrincipalName. Trying sAMAccountName");
+                renum = context.search(toDC(domainName),"(& (sAMAccountName={0})(objectClass=user))",
+                        new Object[]{id},controls);
+                if(!renum.hasMore()) {
+                    throw new BadCredentialsException("Authentication was successful but cannot locate the user information for "+username);
+                }
+            }
+            SearchResult result = renum.next();
+
+            if (bindName!=null) {
+                // if we've used the credential specifically for the bind, we need to verify the provided password.
+                Object dn = result.getAttributes().get("distinguishedName").get();
+                if (dn==null)
+                    throw new BadCredentialsException("No distinguished name for "+username);
+                LOGGER.fine("Attempting to validate password for DN="+dn);
+                DirContext test = descriptor.bind(dn.toString(), password, ldapServers);
+                test.close();
+            }
+
+            Set<GrantedAuthority> groups = resolveGroups(result.getAttributes(), context);
+            groups.add(SecurityRealm.AUTHENTICATED_AUTHORITY);
+
+            context.close();
+
+            return new ActiveDirectoryUserDetail(
+                id, password,
+                true, true, true, true,
+                groups.toArray(new GrantedAuthority[groups.size()])
+            );
+        } catch (NamingException e) {
+            LOGGER.log(Level.WARNING,"Failed to retrieve user information for "+username,e);
+            throw new BadCredentialsException("Failed to retrieve user information for "+username,e);
         }
     }
 
@@ -188,6 +197,12 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
         return principalName;
     }
 
+    /**
+     * Recursively resolve group memberships of the given identity and returns them all as a set.
+     *
+     * @param context
+     *      Used for making queries.
+     */
     private Set<GrantedAuthority> resolveGroups(Attributes identity, DirContext context) throws NamingException {
         Set<GrantedAuthority> groups = new HashSet<GrantedAuthority>();
         LinkedList<Attributes> membershipList = new LinkedList<Attributes>();

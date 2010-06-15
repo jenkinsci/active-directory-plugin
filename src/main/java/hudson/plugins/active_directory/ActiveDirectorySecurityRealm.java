@@ -12,12 +12,16 @@ import hudson.security.SecurityRealm;
 import hudson.util.FormValidation;
 import hudson.util.Secret;
 import hudson.util.spring.BeanBuilder;
+import org.acegisecurity.AuthenticationException;
 import org.acegisecurity.AuthenticationManager;
 import org.acegisecurity.BadCredentialsException;
+import org.acegisecurity.userdetails.UserDetails;
 import org.acegisecurity.userdetails.UserDetailsService;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.StaplerRequest;
+import org.kohsuke.stapler.StaplerResponse;
 import org.springframework.dao.DataAccessException;
 import org.springframework.web.context.WebApplicationContext;
 
@@ -30,8 +34,11 @@ import javax.naming.directory.DirContext;
 import javax.naming.directory.InitialDirContext;
 import javax.servlet.ServletException;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.logging.Level;
@@ -96,6 +103,55 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
     @Override
     public DesciprotrImpl getDescriptor() {
         return (DesciprotrImpl)super.getDescriptor();
+    }
+
+    /**
+     * Authentication test.
+     */
+    public void doAuthTest(StaplerRequest req, StaplerResponse rsp, @QueryParameter String username, @QueryParameter String password) throws IOException, ServletException {
+        // require the administrator permission since this is full of debug info.
+        Hudson.getInstance().checkPermission(Hudson.ADMINISTER);
+
+        StringWriter out = new StringWriter();
+        PrintWriter pw = new PrintWriter(out);
+
+        ClassLoader ccl = Thread.currentThread().getContextClassLoader();
+        Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
+        try {
+            UserDetailsService uds = getSecurityComponents().userDetails;
+            if (uds instanceof ActiveDirectoryUnixAuthenticationProvider) {
+                ActiveDirectoryUnixAuthenticationProvider p = (ActiveDirectoryUnixAuthenticationProvider) uds;
+                DesciprotrImpl descriptor = getDescriptor();
+
+                try {
+                    pw.println("Domain="+domain+" site="+site);
+                    List<SocketInfo> ldapServers = descriptor.obtainLDAPServer(domain, site);
+                    pw.println("List of domain controllers: "+ldapServers);
+
+                    for (SocketInfo ldapServer : ldapServers) {
+                        pw.println("Trying a domain controller at "+ldapServer);
+                        try {
+                            UserDetails d = p.retrieveUser(username, password, domain, Collections.singletonList(ldapServer));
+                            pw.println("Authenticated as "+d);
+                        } catch (AuthenticationException e) {
+                            e.printStackTrace(pw);
+                        }
+                    }
+                } catch (NamingException e) {
+                    pw.println("Failing to resolve domain controllers");
+                    e.printStackTrace(pw);
+                }
+            } else {
+                pw.println("Using Windows ADSI. No diagnostics available.");
+            }
+        } catch (Exception e) {
+            e.printStackTrace(pw);
+        } finally {
+            Thread.currentThread().setContextClassLoader(ccl);
+        }
+
+        req.setAttribute("output",out.toString());
+        req.getView(this,"test.jelly").forward(req,rsp);
     }
 
     @Extension
