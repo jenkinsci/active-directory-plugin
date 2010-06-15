@@ -1,6 +1,5 @@
 package hudson.plugins.active_directory;
 
-import hudson.plugins.active_directory.ActiveDirectorySecurityRealm.DesciprotrImpl;
 import hudson.security.GroupDetails;
 import hudson.security.SecurityRealm;
 import hudson.security.UserMayOrMayNotExistException;
@@ -133,6 +132,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
                 if(!renum.hasMore()) {
                     // failed to find it. Fall back to sAMAccountName.
                     // see http://www.nabble.com/Re%3A-Hudson-AD-plug-in-td21428668.html
+                    LOGGER.fine("Failed to find "+id+" in userPrincipalName. Trying sAMAccountName");
                     renum = context.search(toDC(domainName),"(& (sAMAccountName={0})(objectClass=user))",
                             new Object[]{id},controls);
                     if(!renum.hasMore()) {
@@ -151,8 +151,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
                     test.close();
                 }
 
-                Attribute memberOf = result.getAttributes().get("memberOf");
-                Set<GrantedAuthority> groups = resolveGroups(memberOf, context);
+                Set<GrantedAuthority> groups = resolveGroups(result.getAttributes(), context);
                 groups.add(SecurityRealm.AUTHENTICATED_AUTHORITY);
 
                 context.close();
@@ -189,23 +188,25 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
         return principalName;
     }
 
-    private Set<GrantedAuthority> resolveGroups(Attribute memberOf, DirContext context) throws NamingException {
+    private Set<GrantedAuthority> resolveGroups(Attributes identity, DirContext context) throws NamingException {
         Set<GrantedAuthority> groups = new HashSet<GrantedAuthority>();
-        LinkedList<Attribute> membershipList = new LinkedList<Attribute>();
-        membershipList.add(memberOf);
+        LinkedList<Attributes> membershipList = new LinkedList<Attributes>();
+        membershipList.add(identity);
         while (!membershipList.isEmpty()) {
-            Attribute memberships = membershipList.removeFirst();
-            if (memberships != null) {
-                for (int i=0; i < memberships.size() ; i++) {
-                    Attributes atts = context.getAttributes("\"" + memberships.get(i) + '"', 
-                                                            new String[] {"CN", "memberOf"});
-                    Attribute cn = atts.get("CN");
-                    if (groups.add(new GrantedAuthorityImpl(cn.get().toString()))) {
-                        Attribute members = atts.get("memberOf");
-                        if (members != null) {
-                            membershipList.add(members);
-                        }
-                    }
+            identity = membershipList.removeFirst();
+
+            Attribute memberOf = identity.get("memberOf");
+            if (memberOf == null)    continue;
+
+            for (int i=0; i < memberOf.size() ; i++) {
+                if (LOGGER.isLoggable(Level.FINE))
+                    LOGGER.fine(identity.get("CN").get()+" is a member of "+memberOf.get(i));
+
+                Attributes group = context.getAttributes("\"" + memberOf.get(i) + '"',
+                                                        new String[] {"CN", "memberOf"});
+                Attribute cn = group.get("CN");
+                if (groups.add(new GrantedAuthorityImpl(cn.get().toString()))) {
+                    membershipList.add(group); // recursively look for groups that this group is a member of.
                 }
             }
         }

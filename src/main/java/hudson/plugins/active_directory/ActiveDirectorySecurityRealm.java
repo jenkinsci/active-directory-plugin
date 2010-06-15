@@ -222,7 +222,9 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
             NamingException error = null;
             for (SocketInfo ldapServer : ldapServers) {
                 try {
-                    return LdapCtxFactory.getLdapCtxInstance("ldaps://" + ldapServer + '/', props); // worked
+                    DirContext context = LdapCtxFactory.getLdapCtxInstance("ldaps://" + ldapServer + '/', props);
+                    LOGGER.fine("Bound to "+ldapServer);
+                    return context; // worked
                 } catch (NamingException e) {
                     LOGGER.log(Level.WARNING,"Failed to bind to "+ldapServer,e);
                     error = e; // retry
