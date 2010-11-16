@@ -317,6 +317,17 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
          *      A list with at least one item.
          */
         public List<SocketInfo> obtainLDAPServer(DirContext ictx, String domainName, String site) throws NamingException {
+            if (DOMAIN_CONTROLLERS!=null) {
+                List<SocketInfo> r = new ArrayList<SocketInfo>();
+                for (String token : DOMAIN_CONTROLLERS.split(",")) {
+                    String[] x = token.trim().split(":");
+                    if (x.length!=2)
+                        throw new NamingException("Invalid domain controller override: "+token);
+                    r.add(new SocketInfo(x[0],Integer.parseInt(x[1])));
+                }
+                return r;
+            }
+
             String ldapServer=null;
             Attribute a=null;
             SocketInfo mode = null;
@@ -377,4 +388,11 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
     }
 
     private static final Logger LOGGER = Logger.getLogger(ActiveDirectorySecurityRealm.class.getName());
+
+    /**
+     * If non-null, this value specifies the domain controllers and overrides all the lookups.
+     *
+     * The format is "host:port,host:port,..."
+     */
+    public static String DOMAIN_CONTROLLERS = System.getProperty(ActiveDirectorySecurityRealm.class.getName()+".domainControllers");
 }
