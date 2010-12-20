@@ -4,6 +4,9 @@
       <f:entry title="${%Domain Name}" field="domain" help="/plugin/active-directory/help/domain-name-${descriptor.canDoNativeAuth()?'windows':'unix'}.html">
         <f:textbox />
       </f:entry>
+	   <f:entry title="${%Server}" field="server">
+        <f:textbox />
+      </f:entry>
     </d:tag>
   </d:taglib>
   <j:choose xmlns:local="local">
@@ -21,7 +24,7 @@
         </f:entry>
       </f:advanced>
       <f:nested>
-        <f:validateButton with="domain,site,bindName,bindPassword" title="${%Test}" method="validate"/>
+        <f:validateButton with="domain,site,bindName,bindPassword,server" title="${%Test}" method="validate"/>
       </f:nested>
     </j:when>
     <j:otherwise>
