@@ -10,7 +10,7 @@
 
   <artifactId>active-directory</artifactId>
   <packaging>hpi</packaging>
-  <version>1.18-SNAPSHOT</version>
+  <version>1.18</version>
   <name>Jenkins Active Directory plugin</name>
   <url>http://wiki.jenkins-ci.org/display/JENKINS/Active+Directory+Plugin</url>
 
@@ -38,4 +38,10 @@
       <version>20080107</version>
     </dependency>
   </dependencies>
+
+  <scm>
+    <connection>scm:svn:https://svn.jenkins-ci.org/tags/active-directory-1.18</connection>
+    <developerConnection>scm:svn:https://svn.jenkins-ci.org/tags/active-directory-1.18</developerConnection>
+    <url>https://svn.jenkins-ci.org/tags/active-directory-1.18</url>
+  </scm>
 </project>
