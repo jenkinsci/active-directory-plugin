@@ -4,6 +4,7 @@ import static javax.naming.directory.SearchControls.SUBTREE_SCOPE;
 import hudson.security.GroupDetails;
 import hudson.security.UserMayOrMayNotExistException;
 import hudson.security.SecurityRealm;
+import hudson.util.Secret;
 
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -56,7 +57,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
         this.site = realm.site;
         this.bindName = realm.bindName;
         this.server = realm.server;
-        this.bindPassword = realm.bindPassword==null ? null : realm.bindPassword.toString();
+        this.bindPassword = Secret.toString(realm.bindPassword);
         this.descriptor = realm.getDescriptor();
     }
 

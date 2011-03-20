@@ -180,7 +180,8 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
          * {@link ActiveDirectoryUnixAuthenticationProvider}
          */
         public boolean canDoNativeAuth() {
-            return Hudson.isWindows()&&"32".equals(System.getProperty("sun.arch.data.model"));
+            return Functions.isWindows()
+                && "32".equals(System.getProperty("sun.arch.data.model"));
         }
 
         public FormValidation doValidate(@QueryParameter(fixEmpty = true) String domain, @QueryParameter(fixEmpty = true) String site, @QueryParameter(fixEmpty = true) String bindName,
@@ -195,7 +196,7 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
                 }
 
                 Secret password = Secret.fromString(bindPassword);
-                if (bindName!=null&&password==null)
+                if (bindName!=null && password==null)
                     return FormValidation.error("DN is specified but not password");
 
                 String[] names = n.split(",");
@@ -233,7 +234,7 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
                     if (bindName!=null) {
                         // make sure the bind actually works
                         try {
-                            bind(bindName, password.toString(), servers, server).close();
+                            bind(bindName, Secret.toString(password), servers, server).close();
                         } catch (BadCredentialsException e) {
                             return FormValidation.error(e, "Bad bind username or password");
                         } catch (Exception e) {
@@ -289,7 +290,6 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
             if (server!=null&&!server.equals("")) {
 
                 try {
-                    System.out.println("Trying to connect to "+server);
                     DirContext context = LdapCtxFactory.getLdapCtxInstance("ldaps://"+server+'/', props);
 
                     LOGGER.fine("Bound to "+server);
