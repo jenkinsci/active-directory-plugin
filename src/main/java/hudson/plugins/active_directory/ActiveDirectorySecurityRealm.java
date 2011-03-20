@@ -87,7 +87,7 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
     public final Secret bindPassword;
 
     /**
-     * If non-null, hudson will try to connect at this server.
+     * If non-null, Jenkins will try to connect at this server.
      */
     public final String server;
 
@@ -118,8 +118,7 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
      * Authentication test.
      */
     public void doAuthTest(StaplerRequest req, StaplerResponse rsp, @QueryParameter String username, @QueryParameter String password) throws IOException, ServletException {
-        // require the administrator permission since this is full of debug
-        // info.
+        // require the administrator permission since this is full of debug info.
         Hudson.getInstance().checkPermission(Hudson.ADMINISTER);
 
         StringWriter out = new StringWriter();
@@ -242,8 +241,7 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
                         }
                     } else {
                         // just some connection test
-                        // try to connect to LDAP port to make sure this machine
-                        // has LDAP service
+                        // try to connect to LDAP port to make sure this machine has LDAP service
                         IOException error = null;
                         for (SocketInfo si : servers) {
                             try {

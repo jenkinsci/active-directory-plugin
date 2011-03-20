@@ -4,15 +4,15 @@
   <parent>
     <groupId>org.jvnet.hudson.plugins</groupId>
     <artifactId>plugin</artifactId>
-    <version>1.356</version>
+    <version>1.377</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
   <artifactId>active-directory</artifactId>
   <packaging>hpi</packaging>
   <version>1.18-SNAPSHOT</version>
-  <name>Hudson Active Directory plugin</name>
-  <url>http://wiki.hudson-ci.org/display/HUDSON/Active+Directory+Plugin</url>
+  <name>Jenkins Active Directory plugin</name>
+  <url>http://wiki.jenkins-ci.org/display/JENKINS/Active+Directory+Plugin</url>
 
   <dependencies>
     <dependency>

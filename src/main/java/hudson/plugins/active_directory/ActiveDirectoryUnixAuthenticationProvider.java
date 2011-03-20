@@ -71,8 +71,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
     }
 
     protected void additionalAuthenticationChecks(UserDetails userDetails, UsernamePasswordAuthenticationToken authentication) throws AuthenticationException {
-        // active directory authentication is not by comparing clear text
-        // password,
+        // active directory authentication is not by comparing clear text password,
         // so there's nothing to do here.
     }
 
@@ -97,8 +96,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
 
     private UserDetails retrieveUser(String username, UsernamePasswordAuthenticationToken authentication, String domainName) throws AuthenticationException {
         // when we use custom socket factory below, every LDAP operations result
-        // in a classloading via context classloader,
-        // so we need it to resolve.
+        // in a classloading via context classloader, so we need it to resolve.
         ClassLoader ccl = Thread.currentThread().getContextClassLoader();
         Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
         try {
@@ -130,8 +128,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
         String id;
         if (bindName!=null) {
             // two step approach. Use a special credential to obtain DN for the
-            // user trying to login,
-            // then authenticate.
+            // user trying to login, then authenticate.
             try {
                 id = username;
                 context = descriptor.bind(bindName, bindPassword, ldapServers, server);
@@ -151,8 +148,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
             NamingEnumeration<SearchResult> renum = context.search(toDC(domainName), "(& (userPrincipalName={0})(objectClass=user))", new Object[] { id }, controls);
             if (!renum.hasMore()) {
                 // failed to find it. Fall back to sAMAccountName.
-                // see
-                // http://www.nabble.com/Re%3A-Hudson-AD-plug-in-td21428668.html
+                // see http://www.nabble.com/Re%3A-Hudson-AD-plug-in-td21428668.html
                 LOGGER.fine("Failed to find "+id+" in userPrincipalName. Trying sAMAccountName");
                 renum = context.search(toDC(domainName), "(& (sAMAccountName={0})(objectClass=user))", new Object[] { id }, controls);
                 if (!renum.hasMore()) {
@@ -185,8 +181,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
     }
 
     /**
-     * Returns the full user principal name of the form
-     * "joe@europe.contoso.com".
+     * Returns the full user principal name of the form "joe@europe.contoso.com".
      * 
      * If people type in 'foo@bar' or 'bar\\foo', it should be treated as
      * 'foo@bar.acme.org'
@@ -207,8 +202,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
      * Recursively resolve group memberships of the given identity and returns
      * them all as a set.
      * 
-     * @param context
-     *            Used for making queries.
+     * @param context Used for making queries.
      */
     private Set<GrantedAuthority> resolveGroups(Attributes identity, DirContext context) throws NamingException {
         Set<GrantedAuthority> groups = new HashSet<GrantedAuthority>();
@@ -229,8 +223,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
                 Attribute cn = group.get("CN");
                 if (groups.add(new GrantedAuthorityImpl(cn.get().toString()))) {
                     membershipList.add(group); // recursively look for groups
-                    // that this group is a member
-                    // of.
+                                               // that this group is a member of.
                 }
             }
         }
