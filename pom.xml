@@ -5,7 +5,6 @@
     <groupId>org.jenkins-ci.plugins</groupId>
     <artifactId>plugin</artifactId>
     <version>1.398</version>
-    <relativePath>../pom.xml</relativePath>
   </parent>
 
   <artifactId>active-directory</artifactId>
@@ -13,6 +12,12 @@
   <version>1.19-SNAPSHOT</version>
   <name>Jenkins Active Directory plugin</name>
   <url>http://wiki.jenkins-ci.org/display/JENKINS/Active+Directory+Plugin</url>
+
+  <scm>
+   <connection>scm:git:git://github.com/jenkinsci/active-directory-plugin.git</connection>
+   <developerConnection>scm:git:git@github.com:jenkinsci/active-directory-plugin.git</developerConnection>
+   <url>https://github.com/jenkinsci/active-directory-plugin</url>
+  </scm>
 
   <developers>
     <developer>
