@@ -1,18 +1,13 @@
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
-  <d:taglib uri="local">
-    <d:tag name="config">
-      <f:entry title="${%Domain Name}" field="domain" help="/plugin/active-directory/help/domain-name-${descriptor.canDoNativeAuth()?'windows':'unix'}.html">
-        <f:textbox />
-      </f:entry>
-	   <f:entry title="${%Server}" field="server">
-        <f:textbox />
-      </f:entry>
-    </d:tag>
-  </d:taglib>
-  <j:choose xmlns:local="local">
+  <j:choose>
     <j:when test="${!descriptor.canDoNativeAuth()}">
-      <local:config />
+      <f:entry title="${%Domain Name}" field="domain" help="/plugin/active-directory/help/domain-name-unix.html">
+        <f:textbox />
+      </f:entry>
       <f:advanced>
+        <f:entry title="${%Domain controller}" field="server">
+           <f:textbox />
+         </f:entry>
         <f:entry field="site" title="${%Site}">
           <f:textbox />
         </f:entry>
@@ -29,7 +24,12 @@
     </j:when>
     <j:otherwise>
       <f:advanced>
-        <local:config />
+        <f:entry title="${%Domain Name}" field="domain" help="/plugin/active-directory/help/domain-name-windows.html">
+          <f:textbox />
+        </f:entry>
+        <f:entry title="${%Domain controller}" field="server">
+           <f:textbox />
+         </f:entry>
       </f:advanced>
     </j:otherwise>
   </j:choose>

@@ -1,5 +1,8 @@
 <div>
-  If this field is not blank, Jenkins will try to connect to this server, instead of
-  connecting to a random one.  This is useful when multiple Active Directory servers
-  are active for the same Domain.
+  Normally, Jenkins will discover the Active Directory domain controllers via DNS, and connect them in the
+  order of priority specified in DNS. You can override this behavior by explicitly specifying the host name
+  of the domain controller (and optionally the LDAP port, by appending ":NNN".)
+
+  <p>
+  This is useful when the advertised list of domain controller priority is messed up.
 </div>
