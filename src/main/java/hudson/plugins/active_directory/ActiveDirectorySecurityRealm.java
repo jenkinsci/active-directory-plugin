@@ -31,6 +31,9 @@ import javax.naming.directory.Attribute;
 import javax.naming.directory.Attributes;
 import javax.naming.directory.DirContext;
 import javax.naming.directory.InitialDirContext;
+import javax.naming.ldap.LdapContext;
+import javax.naming.ldap.StartTlsRequest;
+import javax.naming.ldap.StartTlsResponse;
 import javax.servlet.ServletException;
 
 import org.acegisecurity.AuthenticationException;
@@ -290,8 +293,25 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
 
             for (SocketInfo ldapServer : ldapServers) {
                 try {
-                    DirContext context = LdapCtxFactory.getLdapCtxInstance("ldaps://"+ldapServer+'/', props);
+                    LdapContext context = (LdapContext)LdapCtxFactory.getLdapCtxInstance("ldap://"+ldapServer+'/', props);
                     LOGGER.fine("Bound to "+ldapServer);
+
+                    // try to upgrade to TLS if we can, but failing to do so isn't fatal
+                    // see http://download.oracle.com/javase/jndi/tutorial/ldap/ext/starttls.html
+                    try {
+                        StartTlsResponse rsp = (StartTlsResponse)context.extendedOperation(new StartTlsRequest());
+                        rsp.negotiate();
+                        LOGGER.fine("Connection upgraded to TLS");
+                    } catch (NamingException e) {
+                        LOGGER.log(Level.FINE, "Failed to start TLS", e);
+                    } catch (IOException e) {
+                        LOGGER.log(Level.FINE, "Failed to start TLS", e);
+                    }
+
+                    // authenticate after upgrading to TLS, so that the credential won't go in clear text
+                    context.addToEnvironment(Context.SECURITY_PRINCIPAL, principalName);
+                    context.addToEnvironment(Context.SECURITY_CREDENTIALS, password);
+
                     return context; // worked
                 } catch (NamingException e) {
                     LOGGER.log(Level.WARNING, "Failed to bind to "+ldapServer, e);
@@ -357,38 +377,40 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
                 }
             }
 
-            if (a==null) {// all options failed
-                if (failure!=null)
-                    throw failure;
-                throw new NamingException();
-            }
-
             int priority = -1;
             List<SocketInfo> result = new ArrayList<SocketInfo>();
             if (preferredServer!=null)
                 result.add(new SocketInfo(preferredServer));
-            for (NamingEnumeration ne = a.getAll(); ne.hasMoreElements();) {
-                String record = ne.next().toString();
-                LOGGER.fine("SRV record found: "+record);
-                String[] fields = record.split(" ");
-                int p = Integer.parseInt(fields[0]);
-                // fields[1]: weight
-                // fields[2]: port
-                // fields[3]: target host name
-                if (priority==-1||p<priority) {
-                    priority = p;
-                    result.clear();
-                }
-                if (priority==p) {
-                    String hostName = fields[3];
-                    // cut off trailing ".". HUDSON-2647
-                    if (hostName.endsWith("."))
-                        hostName = hostName.substring(0, hostName.length()-1);
-                    result.add(new SocketInfo(hostName, Integer.parseInt(fields[2])));
+
+            if (a!=null) {
+                // discover servers
+                for (NamingEnumeration ne = a.getAll(); ne.hasMoreElements();) {
+                    String record = ne.next().toString();
+                    LOGGER.fine("SRV record found: "+record);
+                    String[] fields = record.split(" ");
+                    int p = Integer.parseInt(fields[0]);
+                    // fields[1]: weight
+                    // fields[2]: port
+                    // fields[3]: target host name
+                    if (priority==-1||p<priority) {
+                        priority = p;
+                        result.clear();
+                    }
+                    if (priority==p) {
+                        String hostName = fields[3];
+                        // cut off trailing ".". HUDSON-2647
+                        if (hostName.endsWith("."))
+                            hostName = hostName.substring(0, hostName.length()-1);
+                        result.add(new SocketInfo(hostName, Integer.parseInt(fields[2])));
+                    }
                 }
             }
-            if (result.isEmpty())
-                throw new NamingException("No SRV record found for "+ldapServer);
+
+            if (result.isEmpty()) {
+                NamingException x = new NamingException("No SRV record found for " + ldapServer);
+                if (failure!=null)  x.initCause(failure);
+                throw x;
+            }
 
             LOGGER.fine(ldapServer+" resolved to "+result);
             return result;
