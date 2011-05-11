@@ -87,7 +87,8 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
     public final Secret bindPassword;
 
     /**
-     * If non-null, Jenkins will try to connect at this server.
+     * If non-null, Jenkins will try to connect at this server at the first priority, before falling back to
+     * discovered DNS servers.
      */
     public final String server;
 
@@ -134,7 +135,7 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
 
                 try {
                     pw.println("Domain="+domain+" site="+site);
-                    List<SocketInfo> ldapServers = descriptor.obtainLDAPServer(domain, site);
+                    List<SocketInfo> ldapServers = descriptor.obtainLDAPServer(domain, site, server);
                     pw.println("List of domain controllers: "+ldapServers);
 
                     for (SocketInfo ldapServer : ldapServers) {
@@ -224,7 +225,7 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
                     // then look for the LDAP server
                     List<SocketInfo> servers;
                     try {
-                        servers = obtainLDAPServer(ictx, name, site);
+                        servers = obtainLDAPServer(ictx, name, site, server);
                     } catch (NamingException e) {
                         String msg = site==null ? "No LDAP server was found in "+name : "No LDAP server was found in the "+site+" site of "+name;
                         LOGGER.log(Level.WARNING, msg, e);
@@ -234,7 +235,7 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
                     if (bindName!=null) {
                         // make sure the bind actually works
                         try {
-                            bind(bindName, Secret.toString(password), servers, server).close();
+                            bind(bindName, Secret.toString(password), servers).close();
                         } catch (BadCredentialsException e) {
                             return FormValidation.error(e, "Bad bind username or password");
                         } catch (Exception e) {
@@ -274,7 +275,7 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
          * In a real deployment, often there are servers that don't respond or
          * otherwise broken, so try all the servers.
          */
-        public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers, String server) {
+        public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers) {
             // in a AD forest, it'd be mighty nice to be able to login as "joe"
             // as opposed to "joe@europe",
             // but the bind operation doesn't appear to allow me to do so.
@@ -287,22 +288,7 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
 
             NamingException error = null;
 
-            if (server!=null&&!server.equals("")) {
-
-                try {
-                    DirContext context = LdapCtxFactory.getLdapCtxInstance("ldaps://"+server+'/', props);
-
-                    LOGGER.fine("Bound to "+server);
-                    return context; // worked
-                } catch (NamingException e) {
-                    LOGGER.log(Level.WARNING, "Failed to bind to "+server, e);
-                    error = e; // retry
-                }
-
-            }
-
             for (SocketInfo ldapServer : ldapServers) {
-
                 try {
                     DirContext context = LdapCtxFactory.getLdapCtxInstance("ldaps://"+ldapServer+'/', props);
                     LOGGER.fine("Bound to "+ldapServer);
@@ -327,8 +313,8 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
             return new InitialDirContext(env);
         }
 
-        public List<SocketInfo> obtainLDAPServer(String domainName, String site) throws NamingException {
-            return obtainLDAPServer(createDNSLookupContext(), domainName, site);
+        public List<SocketInfo> obtainLDAPServer(String domainName, String site, String preferredServer) throws NamingException {
+            return obtainLDAPServer(createDNSLookupContext(), domainName, site, preferredServer);
         }
 
         private static final List<SocketInfo> CANDIDATES = Arrays.asList(new SocketInfo("_gc._tcp.", 3269), new SocketInfo("_ldap._tcp.", 636) // LDAPS
@@ -339,9 +325,7 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
          * 
          * @return A list with at least one item.
          */
-        public List<SocketInfo> obtainLDAPServer(DirContext ictx, String domainName, String site) throws NamingException {
-            
-
+        public List<SocketInfo> obtainLDAPServer(DirContext ictx, String domainName, String site, String preferredServer) throws NamingException {
             if (DOMAIN_CONTROLLERS!=null) {
                 List<SocketInfo> r = new ArrayList<SocketInfo>();
                 for (String token : DOMAIN_CONTROLLERS.split(",")) {
@@ -355,12 +339,10 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
 
             String ldapServer = null;
             Attribute a = null;
-            SocketInfo mode = null;
             NamingException failure = null;
 
             // try global catalog if it exists first, then the particular domain
             for (SocketInfo candidate : CANDIDATES) {
-                mode = candidate;
                 ldapServer = candidate.host/* used as a prefix */
                         +(site!=null ? site+"._sites." : "")+domainName;
                 LOGGER.fine("Attempting to resolve "+ldapServer+" to SRV record");
@@ -383,8 +365,12 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
 
             int priority = -1;
             List<SocketInfo> result = new ArrayList<SocketInfo>();
+            if (preferredServer!=null)
+                result.add(new SocketInfo(preferredServer));
             for (NamingEnumeration ne = a.getAll(); ne.hasMoreElements();) {
-                String[] fields = ne.next().toString().split(" ");
+                String record = ne.next().toString();
+                LOGGER.fine("SRV record found: "+record);
+                String[] fields = record.split(" ");
                 int p = Integer.parseInt(fields[0]);
                 // fields[1]: weight
                 // fields[2]: port
@@ -398,7 +384,7 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
                     // cut off trailing ".". HUDSON-2647
                     if (hostName.endsWith("."))
                         hostName = hostName.substring(0, hostName.length()-1);
-                    result.add(new SocketInfo(hostName, mode.port));
+                    result.add(new SocketInfo(hostName, Integer.parseInt(fields[2])));
                 }
             }
             if (result.isEmpty())

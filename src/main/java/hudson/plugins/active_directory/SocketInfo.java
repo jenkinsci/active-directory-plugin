@@ -17,9 +17,20 @@ public class SocketInfo {
         this.port = port;
     }
 
+    public SocketInfo(String hostAndPort) {
+        int idx = hostAndPort.lastIndexOf(':');
+        if (idx<0) {
+            this.host = hostAndPort;
+            this.port = 0;
+        } else {
+            this.host = hostAndPort.substring(0,idx);
+            this.port = Integer.parseInt(hostAndPort.substring(idx+1));
+        }
+    }
+
     @Override
     public String toString() {
-        return host+':'+port;
+        return port==0 ? host : host+':'+port;
     }
 
     public Socket connect() throws IOException {

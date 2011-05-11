@@ -107,7 +107,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
 
             List<SocketInfo> ldapServers;
             try {
-                ldapServers = descriptor.obtainLDAPServer(domainName, site);
+                ldapServers = descriptor.obtainLDAPServer(domainName, site, server);
             } catch (NamingException e) {
                 LOGGER.log(Level.WARNING, "Failed to find the LDAP service", e);
                 throw new AuthenticationServiceException("Failed to find the LDAP service for the domain "+domainName, e);
@@ -132,14 +132,14 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
             // user trying to login, then authenticate.
             try {
                 id = username;
-                context = descriptor.bind(bindName, bindPassword, ldapServers, server);
+                context = descriptor.bind(bindName, bindPassword, ldapServers);
             } catch (BadCredentialsException e) {
                 throw new AuthenticationServiceException("Failed to bind to LDAP server with the bind name/password", e);
             }
         } else {
             String principalName = getPrincipalName(username, domainName);
             id = principalName.substring(0, principalName.indexOf('@'));
-            context = descriptor.bind(principalName, password, ldapServers, server);
+            context = descriptor.bind(principalName, password, ldapServers);
         }
 
         try {
@@ -165,7 +165,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
                 if (dn==null)
                     throw new BadCredentialsException("No distinguished name for "+username);
                 LOGGER.fine("Attempting to validate password for DN="+dn);
-                DirContext test = descriptor.bind(dn.toString(), password, ldapServers, server);
+                DirContext test = descriptor.bind(dn.toString(), password, ldapServers);
                 test.close();
             }
 
