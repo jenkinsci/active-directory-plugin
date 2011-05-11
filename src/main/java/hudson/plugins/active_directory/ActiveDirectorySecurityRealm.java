@@ -283,11 +283,7 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
             // as opposed to "joe@europe",
             // but the bind operation doesn't appear to allow me to do so.
             Hashtable<String, String> props = new Hashtable<String, String>();
-            props.put(Context.SECURITY_PRINCIPAL, principalName);
-            props.put(Context.SECURITY_CREDENTIALS, password);
             props.put(Context.REFERRAL, "follow");
-            // specifying custom socket factory requires a custom classloader.
-            props.put("java.naming.ldap.factory.socket", TrustAllSocketFactory.class.getName());
 
             NamingException error = null;
 
@@ -299,13 +295,19 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
                     // try to upgrade to TLS if we can, but failing to do so isn't fatal
                     // see http://download.oracle.com/javase/jndi/tutorial/ldap/ext/starttls.html
                     try {
+                        // specifying custom socket factory requires that a caller to set the correct
+                        // context classloader so that this name resolves to the class instance.
+                        context.addToEnvironment("java.naming.ldap.factory.socket", TrustAllSocketFactory.class.getName());
+
                         StartTlsResponse rsp = (StartTlsResponse)context.extendedOperation(new StartTlsRequest());
                         rsp.negotiate();
                         LOGGER.fine("Connection upgraded to TLS");
                     } catch (NamingException e) {
-                        LOGGER.log(Level.FINE, "Failed to start TLS", e);
+                        LOGGER.log(Level.FINE, "Failed to start TLS. Authentication will be done via plain-text LDAP", e);
+                        context.addToEnvironment("java.naming.ldap.factory.socket", null);
                     } catch (IOException e) {
-                        LOGGER.log(Level.FINE, "Failed to start TLS", e);
+                        LOGGER.log(Level.FINE, "Failed to start TLS. Authentication will be done via plain-text LDAP", e);
+                        context.addToEnvironment("java.naming.ldap.factory.socket", null);
                     }
 
                     // authenticate after upgrading to TLS, so that the credential won't go in clear text
