@@ -120,7 +120,7 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractUserDetailsAu
                     so assume this account is enabled.
                  */
                 return false;
-            e.printStackTrace();
+            throw e;
         }
     }
 
