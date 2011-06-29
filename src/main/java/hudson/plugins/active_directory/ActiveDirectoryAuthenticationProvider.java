@@ -103,13 +103,28 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractUserDetailsAu
         
         return new ActiveDirectoryUserDetail(
             username, password,
-            !usr.accountDisabled(),
+            !isAccountDisabled(usr),
             true, true, true,
             groups.toArray(new GrantedAuthority[groups.size()])
         );
     }
 
-	protected String getDnOfUserOrGroup(String userOrGroupname) {
+    private boolean isAccountDisabled(IADsUser usr) {
+        try {
+            return usr.accountDisabled();
+        } catch (ComException e) {
+            if (e.getHRESULT()==0x8000500D)
+                /*
+                    See http://support.microsoft.com/kb/243440 and JENKINS-10086
+                    We suspect this to be caused by old directory items that do not have this value,
+                    so assume this account is enabled.
+                 */
+                return false;
+            e.printStackTrace();
+        }
+    }
+
+    protected String getDnOfUserOrGroup(String userOrGroupname) {
 		_Command cmd = ClassFactory.createCommand();
         cmd.activeConnection(con);
 
