@@ -106,6 +106,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
                 password = (String) authentication.getCredentials();
 
             List<SocketInfo> ldapServers;
+            SocketInfo preferredServer = (server != null) ? new SocketInfo(server) : null;
             try {
                 ldapServers = descriptor.obtainLDAPServer(domainName, site, server);
             } catch (NamingException e) {
@@ -113,7 +114,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
                 throw new AuthenticationServiceException("Failed to find the LDAP service for the domain "+domainName, e);
             }
 
-            return retrieveUser(username, password, domainName, ldapServers);
+            return retrieveUser(username, password, domainName, ldapServers, preferredServer);
         } finally {
             Thread.currentThread().setContextClassLoader(ccl);
         }
@@ -124,7 +125,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
      * 
      * @param domainName
      */
-    public UserDetails retrieveUser(String username, String password, String domainName, List<SocketInfo> ldapServers) {
+    public UserDetails retrieveUser(String username, String password, String domainName, List<SocketInfo> ldapServers, SocketInfo preferredServer) {
         DirContext context;
         String id;
         if (bindName!=null) {
@@ -132,14 +133,14 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
             // user trying to login, then authenticate.
             try {
                 id = username;
-                context = descriptor.bind(bindName, bindPassword, ldapServers);
+                context = descriptor.bind(bindName, bindPassword, ldapServers, preferredServer);
             } catch (BadCredentialsException e) {
                 throw new AuthenticationServiceException("Failed to bind to LDAP server with the bind name/password", e);
             }
         } else {
             String principalName = getPrincipalName(username, domainName);
             id = principalName.substring(0, principalName.indexOf('@'));
-            context = descriptor.bind(principalName, password, ldapServers);
+            context = descriptor.bind(principalName, password, ldapServers, preferredServer);
         }
 
         try {
@@ -165,7 +166,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
                 if (dn==null)
                     throw new BadCredentialsException("No distinguished name for "+username);
                 LOGGER.fine("Attempting to validate password for DN="+dn);
-                DirContext test = descriptor.bind(dn.toString(), password, ldapServers);
+                DirContext test = descriptor.bind(dn.toString(), password, ldapServers, preferredServer);
                 test.close();
             }
 

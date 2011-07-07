@@ -100,8 +100,15 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
         this.domain = fixEmpty(domain);
         this.site = fixEmpty(site);
         this.bindName = fixEmpty(bindName);
-        this.server = fixEmpty(server);
         this.bindPassword = Secret.fromString(fixEmpty(bindPassword));
+
+        // append default port if not specified
+        server = fixEmpty(server);
+        if (server != null) {
+            if (!server.contains(":")) server += ":3268";
+        }
+        
+        this.server = server;
     }
 
     public SecurityComponents createSecurityComponents() {
@@ -140,11 +147,13 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
                     pw.println("Domain="+domain+" site="+site);
                     List<SocketInfo> ldapServers = descriptor.obtainLDAPServer(domain, site, server);
                     pw.println("List of domain controllers: "+ldapServers);
-
+                    
+                    SocketInfo preferredServer = (server != null) ? new SocketInfo(server) : null;
+                    
                     for (SocketInfo ldapServer : ldapServers) {
                         pw.println("Trying a domain controller at "+ldapServer);
                         try {
-                            UserDetails d = p.retrieveUser(username, password, domain, Collections.singletonList(ldapServer));
+                            UserDetails d = p.retrieveUser(username, password, domain, Collections.singletonList(ldapServer), preferredServer);
                             pw.println("Authenticated as "+d);
                         } catch (AuthenticationException e) {
                             e.printStackTrace(pw);
@@ -236,9 +245,11 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
                     }
 
                     if (bindName!=null) {
+                        SocketInfo prefSock = (server == null) ? null : new SocketInfo(server);
+                        
                         // make sure the bind actually works
                         try {
-                            bind(bindName, Secret.toString(password), servers).close();
+                            bind(bindName, Secret.toString(password), servers, prefSock).close();
                         } catch (BadCredentialsException e) {
                             return FormValidation.error(e, "Bad bind username or password");
                         } catch (Exception e) {
@@ -278,7 +289,7 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
          * In a real deployment, often there are servers that don't respond or
          * otherwise broken, so try all the servers.
          */
-        public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers) {
+        public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers, SocketInfo preferredServer) {
             // in a AD forest, it'd be mighty nice to be able to login as "joe"
             // as opposed to "joe@europe",
             // but the bind operation doesn't appear to allow me to do so.
@@ -287,34 +298,22 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
 
             NamingException error = null;
 
+            if (preferredServer != null) {
+                try {
+                    LdapContext context = bind(principalName, password, preferredServer, props);
+                    LOGGER.fine("Bound to " + preferredServer);
+                    return context;
+                } catch (NamingException e) {
+                    LOGGER.log(Level.WARNING, "Failed to bind to preferred server "+preferredServer, e);
+                    error = e; // retry
+                }
+            }
+            
             for (SocketInfo ldapServer : ldapServers) {
                 try {
-                    LdapContext context = (LdapContext)LdapCtxFactory.getLdapCtxInstance("ldap://"+ldapServer+'/', props);
-                    LOGGER.fine("Bound to "+ldapServer);
-
-                    // try to upgrade to TLS if we can, but failing to do so isn't fatal
-                    // see http://download.oracle.com/javase/jndi/tutorial/ldap/ext/starttls.html
-                    try {
-                        // specifying custom socket factory requires that a caller to set the correct
-                        // context classloader so that this name resolves to the class instance.
-                        context.addToEnvironment("java.naming.ldap.factory.socket", TrustAllSocketFactory.class.getName());
-
-                        StartTlsResponse rsp = (StartTlsResponse)context.extendedOperation(new StartTlsRequest());
-                        rsp.negotiate();
-                        LOGGER.fine("Connection upgraded to TLS");
-                    } catch (NamingException e) {
-                        LOGGER.log(Level.FINE, "Failed to start TLS. Authentication will be done via plain-text LDAP", e);
-                        context.addToEnvironment("java.naming.ldap.factory.socket", null);
-                    } catch (IOException e) {
-                        LOGGER.log(Level.FINE, "Failed to start TLS. Authentication will be done via plain-text LDAP", e);
-                        context.addToEnvironment("java.naming.ldap.factory.socket", null);
-                    }
-
-                    // authenticate after upgrading to TLS, so that the credential won't go in clear text
-                    context.addToEnvironment(Context.SECURITY_PRINCIPAL, principalName);
-                    context.addToEnvironment(Context.SECURITY_CREDENTIALS, password);
-
-                    return context; // worked
+                    LdapContext context = bind(principalName, password, ldapServer, props);
+                    LOGGER.fine("Bound to " + ldapServer);
+                    return context;
                 } catch (NamingException e) {
                     LOGGER.log(Level.WARNING, "Failed to bind to "+ldapServer, e);
                     error = e; // retry
@@ -325,6 +324,34 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
             throw new BadCredentialsException("Either no such user '"+principalName+"' or incorrect password", error);
         }
 
+        private LdapContext bind(String principalName, String password, SocketInfo server, Hashtable<String, String> props) throws NamingException {
+            LdapContext context = (LdapContext)LdapCtxFactory.getLdapCtxInstance("ldap://"+server+'/', props);
+            
+            // try to upgrade to TLS if we can, but failing to do so isn't fatal
+            // see http://download.oracle.com/javase/jndi/tutorial/ldap/ext/starttls.html
+            try {
+                // specifying custom socket factory requires that a caller to set the correct
+                // context classloader so that this name resolves to the class instance.
+                context.addToEnvironment("java.naming.ldap.factory.socket", TrustAllSocketFactory.class.getName());
+
+                StartTlsResponse rsp = (StartTlsResponse)context.extendedOperation(new StartTlsRequest());
+                rsp.negotiate();
+                LOGGER.fine("Connection upgraded to TLS");
+            } catch (NamingException e) {
+                LOGGER.log(Level.FINE, "Failed to start TLS. Authentication will be done via plain-text LDAP", e);
+                context.addToEnvironment("java.naming.ldap.factory.socket", null);
+            } catch (IOException e) {
+                LOGGER.log(Level.FINE, "Failed to start TLS. Authentication will be done via plain-text LDAP", e);
+                context.addToEnvironment("java.naming.ldap.factory.socket", null);
+            }
+
+            // authenticate after upgrading to TLS, so that the credential won't go in clear text
+            context.addToEnvironment(Context.SECURITY_PRINCIPAL, principalName);
+            context.addToEnvironment(Context.SECURITY_CREDENTIALS, password);
+
+            return context; // worked
+        }
+        
         /**
          * Creates {@link DirContext} for accesssing DNS.
          */
