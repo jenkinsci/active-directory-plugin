@@ -2,7 +2,6 @@ package hudson.plugins.active_directory;
 
 import static hudson.Util.fixEmpty;
 
-import com4j.COM4J;
 import com4j.typelibs.ado20.ClassFactory;
 import groovy.lang.Binding;
 import hudson.Extension;
@@ -202,10 +201,15 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
                 ClassFactory.createConnection().dispose();
                 return true;
             } catch (Throwable t) {
-                LOGGER.log(Level.FINE,"COM4J isn't working. Falling back to non-native authentication",t);
+                if (!WARNED) {
+                    LOGGER.log(Level.INFO,"COM4J isn't working. Falling back to non-native authentication",t);
+                    WARNED = true;
+                }
                 return false;
             }
         }
+
+        private static boolean WARNED = false;
 
         public FormValidation doValidate(@QueryParameter(fixEmpty = true) String domain, @QueryParameter(fixEmpty = true) String site, @QueryParameter(fixEmpty = true) String bindName,
                 @QueryParameter(fixEmpty = true) String bindPassword, @QueryParameter(fixEmpty = true) String server) throws IOException, ServletException, NamingException {
