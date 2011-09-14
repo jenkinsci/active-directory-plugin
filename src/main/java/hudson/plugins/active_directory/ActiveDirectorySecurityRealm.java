@@ -1,6 +1,9 @@
 package hudson.plugins.active_directory;
 
 import static hudson.Util.fixEmpty;
+
+import com4j.COM4J;
+import com4j.typelibs.ado20.ClassFactory;
 import groovy.lang.Binding;
 import hudson.Extension;
 import hudson.Functions;
@@ -193,8 +196,15 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
          * {@link ActiveDirectoryUnixAuthenticationProvider}
          */
         public boolean canDoNativeAuth() {
-            return Functions.isWindows()
-                && "32".equals(System.getProperty("sun.arch.data.model"));
+            if (!Functions.isWindows())     return false;
+
+            try {
+                ClassFactory.createConnection().dispose();
+                return true;
+            } catch (Throwable t) {
+                LOGGER.log(Level.FINE,"COM4J isn't working. Falling back to non-native authentication",t);
+                return false;
+            }
         }
 
         public FormValidation doValidate(@QueryParameter(fixEmpty = true) String domain, @QueryParameter(fixEmpty = true) String site, @QueryParameter(fixEmpty = true) String bindName,
