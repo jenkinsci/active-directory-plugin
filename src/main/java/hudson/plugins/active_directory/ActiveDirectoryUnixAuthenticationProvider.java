@@ -53,6 +53,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
     private final ActiveDirectorySecurityRealm.DesciprotrImpl descriptor;
 
     public ActiveDirectoryUnixAuthenticationProvider(ActiveDirectorySecurityRealm realm) {
+        if (realm.domain==null) throw new IllegalArgumentException("Active Directory domain name is required but it is not set");
         this.domainNames = realm.domain.split(",");
         this.site = realm.site;
         this.bindName = realm.bindName;
