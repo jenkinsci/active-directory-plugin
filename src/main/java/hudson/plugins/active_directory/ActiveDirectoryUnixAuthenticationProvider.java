@@ -168,6 +168,8 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
                     throw new BadCredentialsException("No distinguished name for "+username);
                 LOGGER.fine("Attempting to validate password for DN="+dn);
                 DirContext test = descriptor.bind(dn.toString(), password, ldapServers, preferredServer);
+                // Binding alone is not enough to test the credential. Need to actually perform some query operation
+                test.search(toDC(domainName), "(& (userPrincipalName={0})(objectClass=user))", new Object[] { id }, controls).close();
                 test.close();
             }
 
