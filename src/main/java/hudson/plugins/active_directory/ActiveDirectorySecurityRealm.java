@@ -82,7 +82,7 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
 
     /**
      * If non-null, use this name and password to bind to LDAP to obtain the DN
-     * of the user trying to login. This is unnecessary in a sigle-domain mode,
+     * of the user trying to login. This is unnecessary in a single-domain mode,
      * where we can just bind with the user name and password provided during
      * the login, but in a forest mode, without some known credential, we cannot
      * figure out which domain in the forest the user belongs to.
