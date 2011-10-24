@@ -236,13 +236,18 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
 
                     // first test the sanity of the domain name itself
                     try {
-                        LOGGER.fine("Attempting to resolve "+name+" to A record");
+                        LOGGER.fine("Attempting to resolve "+name+" to NS record");
                         ictx = createDNSLookupContext();
-                        Attributes attributes = ictx.getAttributes(name, new String[] { "A" });
-                        Attribute a = attributes.get("A");
-                        if (a==null)
-                            throw new NamingException();
-                        LOGGER.fine(name+" resolved to "+a.get());
+                        Attributes attributes = ictx.getAttributes(name, new String[] { "NS" });
+                        Attribute ns = attributes.get("NS");
+                        if (ns==null) {
+                            LOGGER.fine("Attempting to resolve "+name+" to A record");
+                            attributes = ictx.getAttributes(name, new String[] { "A" });
+                            Attribute a = attributes.get("A");
+                            if (a==null)
+                                throw new NamingException(name+" doesn't look like a domain name");
+                        }
+                        LOGGER.fine(name+" resolved to "+ns.get());
                     } catch (NamingException e) {
                         LOGGER.log(Level.WARNING, "Failed to resolve "+name+" to A record", e);
                         return FormValidation.error(e, name+" doesn't look like a valid domain name");
