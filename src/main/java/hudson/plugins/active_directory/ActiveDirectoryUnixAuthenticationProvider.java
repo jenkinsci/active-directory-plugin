@@ -159,6 +159,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
                 }
             }
             SearchResult result = renum.next();
+            LOGGER.fine("Authentication successful as "+id);
 
             if (bindName!=null) {
                 // if we've used the credential specifically for the bind, we
@@ -215,6 +216,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
         membershipList.add(identity);
         while (!membershipList.isEmpty()) {
             identity = membershipList.removeFirst();
+            LOGGER.finer("Looking up group of "+identity);
 
             Attribute memberOf = identity.get("memberOf");
             if (memberOf==null)
