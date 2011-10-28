@@ -159,7 +159,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
                 }
             }
             SearchResult result = renum.next();
-            LOGGER.fine("Authentication successful as "+id);
+            LOGGER.fine("Authentication successful as "+id+" : "+result);
 
             if (bindName!=null) {
                 // if we've used the credential specifically for the bind, we
