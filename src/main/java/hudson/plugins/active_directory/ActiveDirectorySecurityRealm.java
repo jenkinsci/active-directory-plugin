@@ -36,6 +36,7 @@ import javax.naming.directory.InitialDirContext;
 import javax.naming.ldap.LdapContext;
 import javax.naming.ldap.StartTlsRequest;
 import javax.naming.ldap.StartTlsResponse;
+import javax.net.ssl.SSLSocketFactory;
 import javax.servlet.ServletException;
 
 import org.acegisecurity.AuthenticationException;
@@ -347,18 +348,15 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
             String ldapUrl = "ldap://" + server + '/';
             String oldName = Thread.currentThread().getName();
             Thread.currentThread().setName("Connecting to "+ldapUrl+" : "+oldName);
+            LOGGER.fine("Connecting to " + ldapUrl);
             try {
                 LdapContext context = (LdapContext)LdapCtxFactory.getLdapCtxInstance(ldapUrl, props);
 
                 // try to upgrade to TLS if we can, but failing to do so isn't fatal
                 // see http://download.oracle.com/javase/jndi/tutorial/ldap/ext/starttls.html
                 try {
-                    // specifying custom socket factory requires that a caller to set the correct
-                    // context classloader so that this name resolves to the class instance.
-                    context.addToEnvironment("java.naming.ldap.factory.socket", TrustAllSocketFactory.class.getName());
-
                     StartTlsResponse rsp = (StartTlsResponse)context.extendedOperation(new StartTlsRequest());
-                    rsp.negotiate();
+                    rsp.negotiate((SSLSocketFactory)TrustAllSocketFactory.getDefault());
                     LOGGER.fine("Connection upgraded to TLS");
                 } catch (NamingException e) {
                     LOGGER.log(Level.FINE, "Failed to start TLS. Authentication will be done via plain-text LDAP", e);
