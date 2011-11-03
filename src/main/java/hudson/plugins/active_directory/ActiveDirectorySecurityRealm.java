@@ -315,6 +315,7 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
             // but the bind operation doesn't appear to allow me to do so.
             Hashtable<String, String> props = new Hashtable<String, String>();
             props.put(Context.REFERRAL, "follow");
+            props.put("java.naming.ldap.attributes.binary","tokenGroups objectSid");
 
             NamingException error = null;
 

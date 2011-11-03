@@ -1,13 +1,12 @@
 package hudson.plugins.active_directory;
 
-import static javax.naming.directory.SearchControls.SUBTREE_SCOPE;
 import hudson.security.GroupDetails;
 import hudson.security.UserMayOrMayNotExistException;
 import hudson.security.SecurityRealm;
 import hudson.util.Secret;
 
+import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
@@ -18,7 +17,6 @@ import javax.naming.NamingException;
 import javax.naming.directory.Attribute;
 import javax.naming.directory.Attributes;
 import javax.naming.directory.DirContext;
-import javax.naming.directory.SearchControls;
 import javax.naming.directory.SearchResult;
 
 import org.acegisecurity.AuthenticationException;
@@ -146,35 +144,36 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
 
         try {
             // locate this user's record
-            SearchControls controls = new SearchControls();
-            controls.setSearchScope(SUBTREE_SCOPE);
-            NamingEnumeration<SearchResult> renum = context.search(toDC(domainName), "(& (userPrincipalName={0})(objectClass=user))", new Object[] { id }, controls);
-            if (!renum.hasMore()) {
+            final String domainDN = toDC(domainName);
+
+            Attributes user = new LDAPSearchBuilder(context,domainDN).subTreeScope().searchOne("(& (userPrincipalName={0})(objectClass=user))",id);
+            if (user==null) {
                 // failed to find it. Fall back to sAMAccountName.
                 // see http://www.nabble.com/Re%3A-Hudson-AD-plug-in-td21428668.html
                 LOGGER.fine("Failed to find "+id+" in userPrincipalName. Trying sAMAccountName");
-                renum = context.search(toDC(domainName), "(& (sAMAccountName={0})(objectClass=user))", new Object[] { id }, controls);
-                if (!renum.hasMore()) {
+                user = new LDAPSearchBuilder(context,domainDN).subTreeScope().searchOne("(& (sAMAccountName={0})(objectClass=user))",id);
+                if (user==null) {
                     throw new BadCredentialsException("Authentication was successful but cannot locate the user information for "+username);
                 }
             }
-            SearchResult result = renum.next();
-            LOGGER.fine("Authentication successful as "+id+" : "+result);
+            LOGGER.fine("Authentication successful as "+id+" : "+user);
+
+            Object dn = user.get("distinguishedName").get();
+            if (dn==null)
+                throw new BadCredentialsException("No distinguished name for "+username);
 
             if (bindName!=null) {
                 // if we've used the credential specifically for the bind, we
                 // need to verify the provided password.
-                Object dn = result.getAttributes().get("distinguishedName").get();
-                if (dn==null)
-                    throw new BadCredentialsException("No distinguished name for "+username);
                 LOGGER.fine("Attempting to validate password for DN="+dn);
                 DirContext test = descriptor.bind(dn.toString(), password, ldapServers, preferredServer);
-                // Binding alone is not enough to test the credential. Need to actually perform some query operation
-                test.search(toDC(domainName), "(& (userPrincipalName={0})(objectClass=user))", new Object[] { id }, controls).close();
+                // Binding alone is not enough to test the credential. Need to actually perform some query operation.
+                // but if the authentication fails this throws an exception
+                new LDAPSearchBuilder(test,domainDN).searchOne("(& (userPrincipalName={0})(objectClass=user))",id);
                 test.close();
             }
 
-            Set<GrantedAuthority> groups = resolveGroups(result.getAttributes(), context);
+            Set<GrantedAuthority> groups = resolveGroups(domainDN, dn.toString(), context);
             groups.add(SecurityRealm.AUTHENTICATED_AUTHORITY);
 
             context.close();
@@ -205,35 +204,45 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
     }
 
     /**
-     * Recursively resolve group memberships of the given identity and returns
-     * them all as a set.
-     * 
+     * Resolves all the groups that the user is in.
+     *
+     * We now use <a href="http://msdn.microsoft.com/en-us/library/windows/desktop/ms680275(v=vs.85).aspx">tokenGroups</a>
+     * attribute, which is a computed attribute that lists all the SIDs of the groups that the user is directly/indirectly in.
+     * We then use that to retrieve all the groups in one query and resolve their canonical names.
+     *
+     * @param userDN
+     *      User's distinguished name.
      * @param context Used for making queries.
      */
-    private Set<GrantedAuthority> resolveGroups(Attributes identity, DirContext context) throws NamingException {
-        Set<GrantedAuthority> groups = new HashSet<GrantedAuthority>();
-        LinkedList<Attributes> membershipList = new LinkedList<Attributes>();
-        membershipList.add(identity);
-        while (!membershipList.isEmpty()) {
-            identity = membershipList.removeFirst();
-            LOGGER.finer("Looking up group of "+identity);
+    private Set<GrantedAuthority> resolveGroups(String domainDN, String userDN, DirContext context) throws NamingException {
+        LOGGER.finer("Looking up group of "+userDN);
+        Attributes a = context.getAttributes(userDN,new String[]{"tokenGroups"});
 
-            Attribute memberOf = identity.get("memberOf");
-            if (memberOf==null)
-                continue;
+        // build up the query to retrieve all the groups
+        StringBuilder query = new StringBuilder("(|");
+        List<byte[]> sids = new ArrayList<byte[]>();
 
-            for (int i = 0; i<memberOf.size(); i++) {
-                if (LOGGER.isLoggable(Level.FINE))
-                    LOGGER.fine(identity.get("CN").get()+" is a member of "+memberOf.get(i));
-
-                Attributes group = context.getAttributes("\""+memberOf.get(i)+'"', new String[] { "CN", "memberOf" });
-                Attribute cn = group.get("CN");
-                if (groups.add(new GrantedAuthorityImpl(cn.get().toString()))) {
-                    membershipList.add(group); // recursively look for groups
-                                               // that this group is a member of.
-                }
-            }
+        NamingEnumeration<?> tokenGroups = a.get("tokenGroups").getAll();
+        while (tokenGroups.hasMore()) {
+            byte[] gsid = (byte[])tokenGroups.next();
+            query.append("(objectSid={"+sids.size()+"})");
+            sids.add(gsid);
         }
+
+        query.append(")");
+
+        Set<GrantedAuthority> groups = new HashSet<GrantedAuthority>();
+
+        NamingEnumeration<SearchResult> renum = new LDAPSearchBuilder(context,domainDN).subTreeScope().returns("cn").search(query.toString(), sids.toArray());
+        while (renum.hasMore()) {
+            a = renum.next().getAttributes();
+            Attribute cn = a.get("cn");
+            if (LOGGER.isLoggable(Level.FINE))
+                LOGGER.fine(userDN+" is a member of "+cn);
+            groups.add(new GrantedAuthorityImpl(cn.get().toString()));
+        }
+        renum.close();
+
         return groups;
     }
 
