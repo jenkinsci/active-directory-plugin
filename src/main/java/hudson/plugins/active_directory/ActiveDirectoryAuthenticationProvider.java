@@ -109,8 +109,8 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractUserDetailsAu
             !isAccountDisabled(usr),
             true, true, true,
             groups.toArray(new GrantedAuthority[groups.size()]),
-            usr.firstName(), usr.lastName(), usr.emailAddress(), usr.telephoneNumber().toString()
-        );
+            usr.fullName(), usr.emailAddress(), usr.telephoneNumber().toString()
+        ).updateUserInfo();
     }
 
     private boolean isAccountDisabled(IADsUser usr) {

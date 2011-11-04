@@ -179,11 +179,10 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
             context.close();
 
             return new ActiveDirectoryUserDetail(id, password, true, true, true, true, groups.toArray(new GrantedAuthority[groups.size()]),
-                    getStringAttribute(user, "givenName"),
-                    getStringAttribute(user, "sn"),
+                    getStringAttribute(user, "displayName"),
                     getStringAttribute(user, "mail"),
                     getStringAttribute(user, "telephoneNumber")
-                    );
+                    ).updateUserInfo();
         } catch (NamingException e) {
             LOGGER.log(Level.WARNING, "Failed to retrieve user information for "+username, e);
             throw new BadCredentialsException("Failed to retrieve user information for "+username, e);
