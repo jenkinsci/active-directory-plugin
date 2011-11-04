@@ -57,10 +57,6 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
         con.open("Active Directory Provider",""/*default*/,""/*default*/,-1/*default*/);
     }
 
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException, DataAccessException {
-        return retrieveUser(username,null);
-    }
-
     protected UserDetails retrieveUser(String username, UsernamePasswordAuthenticationToken authentication) throws AuthenticationException {
         String password = null;
         if(authentication!=null)

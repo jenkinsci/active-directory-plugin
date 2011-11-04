@@ -60,16 +60,6 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         this.descriptor = realm.getDescriptor();
     }
 
-    /**
-     * We'd like to implement {@link UserDetailsService} ideally, but in short
-     * of keeping the manager user/password, we can't do so. In Active Directory
-     * authentication, we should support SPNEGO/Kerberos and that should
-     * eliminate the need for the "remember me" service.
-     */
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException, DataAccessException {
-        throw new UsernameNotFoundException("Active-directory plugin doesn't support user retrieval");
-    }
-
     protected UserDetails retrieveUser(String username, UsernamePasswordAuthenticationToken authentication) throws AuthenticationException {
         UserDetails userDetails = null;
         for (String domainName : domainNames) {
@@ -95,7 +85,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         ClassLoader ccl = Thread.currentThread().getContextClassLoader();
         Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
         try {
-            String password = null;
+            String password = NO_AUTHENTICATION;
             if (authentication!=null)
                 password = (String) authentication.getCredentials();
 
@@ -132,6 +122,8 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                 throw new AuthenticationServiceException("Failed to bind to LDAP server with the bind name/password", e);
             }
         } else {
+            if (password==NO_AUTHENTICATION)    throw new AuthenticationServiceException("Unable to retrieve the user information without bind DN/password configured");
+
             String principalName = getPrincipalName(username, domainName);
             id = principalName.substring(0, principalName.indexOf('@'));
             context = descriptor.bind(principalName, password, ldapServers, preferredServer);
@@ -157,9 +149,9 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
             if (dn==null)
                 throw new BadCredentialsException("No distinguished name for "+username);
 
-            if (bindName!=null) {
+            if (bindName!=null && password!=NO_AUTHENTICATION) {
                 // if we've used the credential specifically for the bind, we
-                // need to verify the provided password.
+                // need to verify the provided password to do authentication
                 LOGGER.fine("Attempting to validate password for DN="+dn);
                 DirContext test = descriptor.bind(dn.toString(), password, ldapServers, preferredServer);
                 // Binding alone is not enough to test the credential. Need to actually perform some query operation.
@@ -266,6 +258,12 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     }
 
     private static final Logger LOGGER = Logger.getLogger(ActiveDirectoryUnixAuthenticationProvider.class.getName());
+
+    /**
+     * We use this as the password value if we are calling retrieveUser to retrieve the user information
+     * without authentication.
+     */
+    private static final String NO_AUTHENTICATION = "\u0000\u0000\u0000\u0000\u0000\u0000";
 
     public GroupDetails loadGroupByGroupname(String groupname) {
         throw new UserMayOrMayNotExistException(groupname);
