@@ -1,17 +1,14 @@
 package hudson.plugins.active_directory;
 
-import com4j.COM4J;
-import com4j.Com4jObject;
-import com4j.ComException;
-import com4j.Variant;
-import com4j.typelibs.activeDirectory.IADs;
-import com4j.typelibs.activeDirectory.IADsGroup;
-import com4j.typelibs.activeDirectory.IADsOpenDSObject;
-import com4j.typelibs.activeDirectory.IADsUser;
-import com4j.typelibs.ado20.ClassFactory;
-import com4j.typelibs.ado20._Command;
-import com4j.typelibs.ado20._Connection;
-import com4j.typelibs.ado20._Recordset;
+import hudson.security.GroupDetails;
+import hudson.security.SecurityRealm;
+import hudson.tasks.MailAddressResolver;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.logging.Logger;
+
 import org.acegisecurity.AuthenticationException;
 import org.acegisecurity.BadCredentialsException;
 import org.acegisecurity.GrantedAuthority;
@@ -24,12 +21,18 @@ import org.acegisecurity.userdetails.UserDetailsService;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
 import org.springframework.dao.DataAccessException;
 
-import hudson.security.GroupDetails;
-import hudson.security.SecurityRealm;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.logging.Logger;
+import com4j.COM4J;
+import com4j.Com4jObject;
+import com4j.ComException;
+import com4j.Variant;
+import com4j.typelibs.activeDirectory.IADs;
+import com4j.typelibs.activeDirectory.IADsGroup;
+import com4j.typelibs.activeDirectory.IADsOpenDSObject;
+import com4j.typelibs.activeDirectory.IADsUser;
+import com4j.typelibs.ado20.ClassFactory;
+import com4j.typelibs.ado20._Command;
+import com4j.typelibs.ado20._Connection;
+import com4j.typelibs.ado20._Recordset;
 
 /**
  * {@link AuthenticationProvider} with Active Directory, plus {@link UserDetailsService}
@@ -105,7 +108,8 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractUserDetailsAu
             username, password,
             !isAccountDisabled(usr),
             true, true, true,
-            groups.toArray(new GrantedAuthority[groups.size()])
+            groups.toArray(new GrantedAuthority[groups.size()]),
+            usr.firstName(), usr.lastName(), usr.emailAddress(), usr.telephoneNumber().toString()
         );
     }
 

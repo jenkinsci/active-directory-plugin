@@ -178,11 +178,24 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetai
 
             context.close();
 
-            return new ActiveDirectoryUserDetail(id, password, true, true, true, true, groups.toArray(new GrantedAuthority[groups.size()]));
+            return new ActiveDirectoryUserDetail(id, password, true, true, true, true, groups.toArray(new GrantedAuthority[groups.size()]),
+                    getStringAttribute(user, "givenName"),
+                    getStringAttribute(user, "sn"),
+                    getStringAttribute(user, "mail"),
+                    getStringAttribute(user, "telephoneNumber")
+                    );
         } catch (NamingException e) {
             LOGGER.log(Level.WARNING, "Failed to retrieve user information for "+username, e);
             throw new BadCredentialsException("Failed to retrieve user information for "+username, e);
         }
+    }
+
+    private String getStringAttribute(Attributes user, String name) throws NamingException {
+        Attribute a = user.get(name);
+        if (a==null)    return null;
+        Object v = a.get();
+        if (v==null)    return null;
+        return v.toString();
     }
 
     /**
