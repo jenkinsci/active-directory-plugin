@@ -70,11 +70,6 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         throw new UsernameNotFoundException("Active-directory plugin doesn't support user retrieval");
     }
 
-    protected void additionalAuthenticationChecks(UserDetails userDetails, UsernamePasswordAuthenticationToken authentication) throws AuthenticationException {
-        // active directory authentication is not by comparing clear text password,
-        // so there's nothing to do here.
-    }
-
     protected UserDetails retrieveUser(String username, UsernamePasswordAuthenticationToken authentication) throws AuthenticationException {
         UserDetails userDetails = null;
         for (String domainName : domainNames) {

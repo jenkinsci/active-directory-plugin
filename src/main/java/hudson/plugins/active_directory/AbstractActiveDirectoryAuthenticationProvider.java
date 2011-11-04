@@ -11,4 +11,9 @@ import org.acegisecurity.userdetails.UserDetailsService;
  */
 public abstract class AbstractActiveDirectoryAuthenticationProvider extends AbstractUserDetailsAuthenticationProvider implements UserDetailsService, GroupDetailsService {
     protected abstract UserDetails retrieveUser(String username, UsernamePasswordAuthenticationToken authentication) throws AuthenticationException;
+
+    protected void additionalAuthenticationChecks(UserDetails userDetails, UsernamePasswordAuthenticationToken authentication) throws AuthenticationException {
+        // active directory authentication is not by comparing clear text password,
+        // so there's nothing to do here.
+    }
 }

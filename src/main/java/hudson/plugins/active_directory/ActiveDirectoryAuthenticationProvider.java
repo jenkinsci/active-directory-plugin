@@ -57,11 +57,6 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
         con.open("Active Directory Provider",""/*default*/,""/*default*/,-1/*default*/);
     }
 
-    protected void additionalAuthenticationChecks(UserDetails userDetails, UsernamePasswordAuthenticationToken authentication) throws AuthenticationException {
-        // active directory authentication is not by comparing clear text password,
-        // so there's nothing to do here.
-    }
-
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException, DataAccessException {
         return retrieveUser(username,null);
     }
