@@ -38,7 +38,7 @@ import org.springframework.dao.DataAccessException;
  * @author Kohsuke Kawaguchi
  * @author James Nord
  */
-public class ActiveDirectoryUnixAuthenticationProvider extends AbstractUserDetailsAuthenticationProvider implements UserDetailsService, GroupDetailsService {
+public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDirectoryAuthenticationProvider {
 
     private final String[] domainNames;
 

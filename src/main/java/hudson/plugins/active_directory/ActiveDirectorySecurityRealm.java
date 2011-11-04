@@ -9,6 +9,7 @@ import hudson.Functions;
 import hudson.Util;
 import hudson.model.Descriptor;
 import hudson.model.Hudson;
+import hudson.security.AbstractPasswordBasedSecurityRealm;
 import hudson.security.GroupDetails;
 import hudson.security.SecurityRealm;
 import hudson.util.FormValidation;
@@ -42,6 +43,8 @@ import javax.servlet.ServletException;
 import org.acegisecurity.AuthenticationException;
 import org.acegisecurity.AuthenticationManager;
 import org.acegisecurity.BadCredentialsException;
+import org.acegisecurity.providers.AuthenticationProvider;
+import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
 import org.acegisecurity.userdetails.UserDetails;
 import org.acegisecurity.userdetails.UserDetailsService;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
@@ -55,9 +58,11 @@ import org.springframework.web.context.WebApplicationContext;
 import com.sun.jndi.ldap.LdapCtxFactory;
 
 /**
+ * {@link SecurityRealm} that talks to Active Directory.
+ * 
  * @author Kohsuke Kawaguchi
  */
-public class ActiveDirectorySecurityRealm extends SecurityRealm {
+public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityRealm {
     /**
      * Active directory domain name to authenticate against.
      * 
@@ -141,7 +146,7 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
         ClassLoader ccl = Thread.currentThread().getContextClassLoader();
         Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
         try {
-            UserDetailsService uds = getSecurityComponents().userDetails;
+            UserDetailsService uds = getAuthenticationProvider();
             if (uds instanceof ActiveDirectoryUnixAuthenticationProvider) {
                 ActiveDirectoryUnixAuthenticationProvider p = (ActiveDirectoryUnixAuthenticationProvider) uds;
                 DesciprotrImpl descriptor = getDescriptor();
@@ -473,8 +478,25 @@ public class ActiveDirectorySecurityRealm extends SecurityRealm {
 
     @Override
     public GroupDetails loadGroupByGroupname(String groupname) throws UsernameNotFoundException, DataAccessException {
-        GroupDetailsService groupDetailsService = (GroupDetailsService) getSecurityComponents().userDetails;
-        return groupDetailsService.loadGroupByGroupname(groupname);
+        return getAuthenticationProvider().loadGroupByGroupname(groupname);
+    }
+
+    /**
+     * Interface that actually talks to Active Directory.
+     */
+    public AbstractActiveDirectoryAuthenticationProvider getAuthenticationProvider() {
+        return (AbstractActiveDirectoryAuthenticationProvider)getSecurityComponents().userDetails;
+    }
+
+    @Override
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException, DataAccessException {
+        // delegate to one of our ActiveDirectory(Unix)?AuthenticationProvider
+        return getAuthenticationProvider().loadUserByUsername(username);
+    }
+
+    @Override
+    protected UserDetails authenticate(String username, String password) throws AuthenticationException {
+        return getAuthenticationProvider().retrieveUser(username,new UsernamePasswordAuthenticationToken(username,password));
     }
 
     private static final Logger LOGGER = Logger.getLogger(ActiveDirectorySecurityRealm.class.getName());

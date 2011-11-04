@@ -39,8 +39,7 @@ import com4j.typelibs.ado20._Recordset;
  *
  * @author Kohsuke Kawaguchi
  */
-public class ActiveDirectoryAuthenticationProvider extends AbstractUserDetailsAuthenticationProvider
-    implements UserDetailsService, GroupDetailsService {
+public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirectoryAuthenticationProvider {
     private final String defaultNamingContext;
     /**
      * ADO connection for searching Active Directory.
