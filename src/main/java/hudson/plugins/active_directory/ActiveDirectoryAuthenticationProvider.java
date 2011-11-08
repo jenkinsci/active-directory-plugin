@@ -103,6 +103,11 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
         ).updateUserInfo();
     }
 
+    @Override
+    protected boolean canRetrieveUserByName() {
+        return true;
+    }
+
     private String getTelehoneNumber(IADsUser usr) {
         try {
             Object t = usr.telephoneNumber();

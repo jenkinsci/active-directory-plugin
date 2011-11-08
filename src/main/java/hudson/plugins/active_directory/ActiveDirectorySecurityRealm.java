@@ -12,6 +12,7 @@ import hudson.model.Hudson;
 import hudson.security.AbstractPasswordBasedSecurityRealm;
 import hudson.security.GroupDetails;
 import hudson.security.SecurityRealm;
+import hudson.security.TokenBasedRememberMeServices2;
 import hudson.util.FormValidation;
 import hudson.util.Secret;
 import hudson.util.spring.BeanBuilder;
@@ -39,11 +40,13 @@ import javax.naming.ldap.StartTlsRequest;
 import javax.naming.ldap.StartTlsResponse;
 import javax.net.ssl.SSLSocketFactory;
 import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
+import org.acegisecurity.Authentication;
 import org.acegisecurity.AuthenticationException;
 import org.acegisecurity.AuthenticationManager;
 import org.acegisecurity.BadCredentialsException;
-import org.acegisecurity.providers.AuthenticationProvider;
 import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
 import org.acegisecurity.userdetails.UserDetails;
 import org.acegisecurity.userdetails.UserDetailsService;
@@ -125,7 +128,21 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         binding.setVariable("realm", this);
         builder.parse(getClass().getResourceAsStream("ActiveDirectory.groovy"), binding);
         WebApplicationContext context = builder.createApplicationContext();
-        return new SecurityComponents(findBean(AuthenticationManager.class, context), findBean(UserDetailsService.class, context));
+
+        final AbstractActiveDirectoryAuthenticationProvider adp = findBean(AbstractActiveDirectoryAuthenticationProvider.class, context);
+
+        return new SecurityComponents(
+                findBean(AuthenticationManager.class, context),
+                findBean(UserDetailsService.class, context),
+                new TokenBasedRememberMeServices2() {
+                    public Authentication autoLogin(HttpServletRequest request, HttpServletResponse response) {
+                        // no supporting auto-login unless we can do retrieveUser. See JENKINS-11643.
+                        if (adp.canRetrieveUserByName())
+                            return super.autoLogin(request,response);
+                        else
+                            return null;
+                    }
+                });
     }
 
     @Override
