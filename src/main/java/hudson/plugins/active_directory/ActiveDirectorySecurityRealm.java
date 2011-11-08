@@ -130,19 +130,22 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         WebApplicationContext context = builder.createApplicationContext();
 
         final AbstractActiveDirectoryAuthenticationProvider adp = findBean(AbstractActiveDirectoryAuthenticationProvider.class, context);
+        final UserDetailsService uds = findBean(UserDetailsService.class, context);
 
-        return new SecurityComponents(
-                findBean(AuthenticationManager.class, context),
-                findBean(UserDetailsService.class, context),
-                new TokenBasedRememberMeServices2() {
-                    public Authentication autoLogin(HttpServletRequest request, HttpServletResponse response) {
-                        // no supporting auto-login unless we can do retrieveUser. See JENKINS-11643.
-                        if (adp.canRetrieveUserByName())
-                            return super.autoLogin(request,response);
-                        else
-                            return null;
-                    }
-                });
+        TokenBasedRememberMeServices2 rms = new TokenBasedRememberMeServices2() {
+            public Authentication autoLogin(HttpServletRequest request, HttpServletResponse response) {
+                // no supporting auto-login unless we can do retrieveUser. See JENKINS-11643.
+                if (adp.canRetrieveUserByName())
+                    return super.autoLogin(request, response);
+                else
+                    return null;
+            }
+        };
+        rms.setUserDetailsService(uds);
+        rms.setKey(Hudson.getInstance().getSecretKey());
+        rms.setParameter("remember_me"); // this is the form field name in login.jelly
+
+        return new SecurityComponents( findBean(AuthenticationManager.class, context), uds, rms);
     }
 
     @Override
