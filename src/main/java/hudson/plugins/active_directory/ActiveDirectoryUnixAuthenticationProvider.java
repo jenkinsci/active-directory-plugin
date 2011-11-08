@@ -1,24 +1,9 @@
 package hudson.plugins.active_directory;
 
 import hudson.security.GroupDetails;
-import hudson.security.UserMayOrMayNotExistException;
 import hudson.security.SecurityRealm;
+import hudson.security.UserMayOrMayNotExistException;
 import hudson.util.Secret;
-
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
-import javax.naming.NamingEnumeration;
-import javax.naming.NamingException;
-import javax.naming.directory.Attribute;
-import javax.naming.directory.Attributes;
-import javax.naming.directory.DirContext;
-import javax.naming.directory.SearchResult;
-
 import org.acegisecurity.AuthenticationException;
 import org.acegisecurity.AuthenticationServiceException;
 import org.acegisecurity.BadCredentialsException;
@@ -26,11 +11,20 @@ import org.acegisecurity.GrantedAuthority;
 import org.acegisecurity.GrantedAuthorityImpl;
 import org.acegisecurity.providers.AuthenticationProvider;
 import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
-import org.acegisecurity.providers.dao.AbstractUserDetailsAuthenticationProvider;
 import org.acegisecurity.userdetails.UserDetails;
-import org.acegisecurity.userdetails.UserDetailsService;
-import org.acegisecurity.userdetails.UsernameNotFoundException;
-import org.springframework.dao.DataAccessException;
+
+import javax.naming.NamingEnumeration;
+import javax.naming.NamingException;
+import javax.naming.directory.Attribute;
+import javax.naming.directory.Attributes;
+import javax.naming.directory.DirContext;
+import javax.naming.directory.SearchResult;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * {@link AuthenticationProvider} with Active Directory, through LDAP.
@@ -216,17 +210,25 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     private Set<GrantedAuthority> resolveGroups(String domainDN, String userDN, DirContext context) throws NamingException {
         LOGGER.finer("Looking up group of "+userDN);
         Attributes a = context.getAttributes(userDN,new String[]{"tokenGroups"});
+        Attribute tga = a.get("tokenGroups");
+        if (tga==null) {// see JENKINS-11644. still trying to figure out when this happens
+            LOGGER.warning("Failed to retrieve tokenGroups for "+userDN);
+            HashSet<GrantedAuthority> r = new HashSet<GrantedAuthority>();
+            r.add(new GrantedAuthorityImpl("unable-to-retrieve-tokenGroups"));
+            return r;
+        }
 
         // build up the query to retrieve all the groups
         StringBuilder query = new StringBuilder("(|");
         List<byte[]> sids = new ArrayList<byte[]>();
 
-        NamingEnumeration<?> tokenGroups = a.get("tokenGroups").getAll();
+        NamingEnumeration<?> tokenGroups = tga.getAll();
         while (tokenGroups.hasMore()) {
             byte[] gsid = (byte[])tokenGroups.next();
             query.append("(objectSid={"+sids.size()+"})");
             sids.add(gsid);
         }
+        tokenGroups.close();
 
         query.append(")");
 
