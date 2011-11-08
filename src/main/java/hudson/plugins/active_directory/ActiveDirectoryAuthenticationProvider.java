@@ -99,8 +99,39 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
             !isAccountDisabled(usr),
             true, true, true,
             groups.toArray(new GrantedAuthority[groups.size()]),
-            usr.fullName(), usr.emailAddress(), usr.telephoneNumber().toString()
+                getFullName(usr), getEmailAddress(usr), getTelehoneNumber(usr)
         ).updateUserInfo();
+    }
+
+    private String getTelehoneNumber(IADsUser usr) {
+        try {
+            Object t = usr.telephoneNumber();
+            return t==null ? null : t.toString();
+        } catch (ComException e) {
+            if (e.getHRESULT()==0x8000500D) // see http://support.microsoft.com/kb/243440
+                return null;
+            throw e;
+        }
+    }
+
+    private String getEmailAddress(IADsUser usr) {
+        try {
+            return usr.emailAddress();
+        } catch (ComException e) {
+            if (e.getHRESULT()==0x8000500D) // see http://support.microsoft.com/kb/243440
+                return null;
+            throw e;
+        }
+    }
+
+    private String getFullName(IADsUser usr) {
+        try {
+            return usr.fullName();
+        } catch (ComException e) {
+            if (e.getHRESULT()==0x8000500D) // see http://support.microsoft.com/kb/243440
+                return null;
+            throw e;
+        }
     }
 
     private boolean isAccountDisabled(IADsUser usr) {
