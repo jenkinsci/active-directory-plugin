@@ -67,7 +67,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
             }
         }
         if (userDetails==null) {
-            LOGGER.log(Level.WARNING, "Exhausted all configured domains and could not authenticat against any.");
+            LOGGER.log(Level.WARNING, "Exhausted all configured domains and could not authenticate against any.");
             throw new BadCredentialsException("Either no such user '"+username+"' or incorrect password");
         }
         return userDetails;
@@ -121,7 +121,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                 throw new AuthenticationServiceException("Failed to bind to LDAP server with the bind name/password", e);
             }
         } else {
-            if (password==NO_AUTHENTICATION)    throw new AuthenticationServiceException("Unable to retrieve the user information without bind DN/password configured");
+            if (password==NO_AUTHENTICATION)    throw new UserMayOrMayNotExistException("Unable to retrieve the user information without bind DN/password configured");
 
             String principalName = getPrincipalName(username, domainName);
             id = principalName.substring(0, principalName.indexOf('@'));
