@@ -21,8 +21,10 @@ import javax.naming.directory.DirContext;
 import javax.naming.directory.SearchResult;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
+import java.util.Stack;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -217,8 +219,8 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
      */
     private Set<GrantedAuthority> resolveGroups(String domainDN, String userDN, DirContext context) throws NamingException {
         LOGGER.finer("Looking up group of "+userDN);
-        Attributes a = context.getAttributes(userDN,new String[]{"tokenGroups"});
-        Attribute tga = a.get("tokenGroups");
+        Attributes id = context.getAttributes(userDN,new String[]{"tokenGroups","memberOf","CN"});
+        Attribute tga = id.get("tokenGroups");
         if (tga==null) {// see JENKINS-11644. still trying to figure out when this happens
             LOGGER.warning("Failed to retrieve tokenGroups for "+userDN);
             HashSet<GrantedAuthority> r = new HashSet<GrantedAuthority>();
@@ -244,13 +246,42 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
 
         NamingEnumeration<SearchResult> renum = new LDAPSearchBuilder(context,domainDN).subTreeScope().returns("cn").search(query.toString(), sids.toArray());
         while (renum.hasMore()) {
-            a = renum.next().getAttributes();
+            Attributes a = renum.next().getAttributes();
             Attribute cn = a.get("cn");
             if (LOGGER.isLoggable(Level.FINE))
                 LOGGER.fine(userDN+" is a member of "+cn);
             groups.add(new GrantedAuthorityImpl(cn.get().toString()));
         }
         renum.close();
+
+        {/*
+            stage 2: use memberOf to find groups that aren't picked up by tokenGroups.
+            This includes distribution groups
+        */
+            LOGGER.fine("Stage 2: looking up via memberOf");
+
+            Stack<Attributes> q = new Stack<Attributes>();
+            q.push(id);
+            while (!q.isEmpty()) {
+                Attributes identity = q.pop();
+                LOGGER.finer("Looking up group of "+identity);
+
+                Attribute memberOf = identity.get("memberOf");
+                if (memberOf==null)
+                    continue;
+
+                for (int i = 0; i<memberOf.size(); i++) {
+                    Attributes group = context.getAttributes("\""+memberOf.get(i)+'"', new String[] { "CN", "memberOf" });
+                    Attribute cn = group.get("CN");
+                    if (LOGGER.isLoggable(Level.FINE))
+                        LOGGER.fine(cn.get()+" is a member of "+memberOf.get(i));
+
+                    if (groups.add(new GrantedAuthorityImpl(cn.get().toString()))) {
+                        q.add(group); // recursively look for groups that this group is a member of.
+                    }
+                }
+            }
+        }
 
         return groups;
     }
