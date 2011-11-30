@@ -56,11 +56,13 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
 
     protected UserDetails retrieveUser(String username, UsernamePasswordAuthenticationToken authentication) throws AuthenticationException {
         UserDetails userDetails = null;
+        BadCredentialsException e = null;
         for (String domainName : domainNames) {
             try {
                 userDetails = retrieveUser(username, authentication, domainName);
             } catch (BadCredentialsException bce) {
                 LOGGER.log(Level.WARNING, "Credential exception tying to authenticate against "+domainName+" domain", bce);
+                e = bce;
             }
             if (userDetails!=null) {
                 break;
@@ -68,6 +70,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         }
         if (userDetails==null) {
             LOGGER.log(Level.WARNING, "Exhausted all configured domains and could not authenticate against any.");
+            if (e!=null)    throw e;
             throw new BadCredentialsException("Either no such user '"+username+"' or incorrect password");
         }
         return userDetails;
