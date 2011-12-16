@@ -63,8 +63,10 @@ public class ActiveDirectoryUserDetail extends User {
      * @return this
      */
     public UserDetails updateUserInfo() {
+        // the challenge here is to set the name if it's not set, but if the user overrides that
+        //
         hudson.model.User u = getJenkinsUser();
-        if (getDisplayName()!=null)
+        if (getDisplayName()!=null && u.getId().equals(u.getFullName()))
             u.setFullName(getDisplayName());
 
         if (getMail()!=null)
