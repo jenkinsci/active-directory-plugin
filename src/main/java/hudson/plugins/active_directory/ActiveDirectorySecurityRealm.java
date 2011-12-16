@@ -341,6 +341,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             Hashtable<String, String> props = new Hashtable<String, String>();
             props.put(Context.REFERRAL, "follow");
             props.put("java.naming.ldap.attributes.binary","tokenGroups objectSid");
+            props.put("java.naming.ldap.factory.socket",TrustAllSocketFactory.class.getName());
 
             NamingException error = null;
 
@@ -371,25 +372,27 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         }
 
         private LdapContext bind(String principalName, String password, SocketInfo server, Hashtable<String, String> props) throws NamingException {
-            String ldapUrl = "ldap://" + server + '/';
+            String ldapUrl = (FORCE_LDAPS?"ldaps://":"ldap://") + server + '/';
             String oldName = Thread.currentThread().getName();
             Thread.currentThread().setName("Connecting to "+ldapUrl+" : "+oldName);
             LOGGER.fine("Connecting to " + ldapUrl);
             try {
                 LdapContext context = (LdapContext)LdapCtxFactory.getLdapCtxInstance(ldapUrl, props);
 
-                // try to upgrade to TLS if we can, but failing to do so isn't fatal
-                // see http://download.oracle.com/javase/jndi/tutorial/ldap/ext/starttls.html
-                try {
-                    StartTlsResponse rsp = (StartTlsResponse)context.extendedOperation(new StartTlsRequest());
-                    rsp.negotiate((SSLSocketFactory)TrustAllSocketFactory.getDefault());
-                    LOGGER.fine("Connection upgraded to TLS");
-                } catch (NamingException e) {
-                    LOGGER.log(Level.FINE, "Failed to start TLS. Authentication will be done via plain-text LDAP", e);
-                    context.addToEnvironment("java.naming.ldap.factory.socket", null);
-                } catch (IOException e) {
-                    LOGGER.log(Level.FINE, "Failed to start TLS. Authentication will be done via plain-text LDAP", e);
-                    context.addToEnvironment("java.naming.ldap.factory.socket", null);
+                if (!FORCE_LDAPS) {
+                    // try to upgrade to TLS if we can, but failing to do so isn't fatal
+                    // see http://download.oracle.com/javase/jndi/tutorial/ldap/ext/starttls.html
+                    try {
+                        StartTlsResponse rsp = (StartTlsResponse)context.extendedOperation(new StartTlsRequest());
+                        rsp.negotiate((SSLSocketFactory)TrustAllSocketFactory.getDefault());
+                        LOGGER.fine("Connection upgraded to TLS");
+                    } catch (NamingException e) {
+                        LOGGER.log(Level.FINE, "Failed to start TLS. Authentication will be done via plain-text LDAP", e);
+                        context.addToEnvironment("java.naming.ldap.factory.socket", null);
+                    } catch (IOException e) {
+                        LOGGER.log(Level.FINE, "Failed to start TLS. Authentication will be done via plain-text LDAP", e);
+                        context.addToEnvironment("java.naming.ldap.factory.socket", null);
+                    }
                 }
 
                 // authenticate after upgrading to TLS, so that the credential won't go in clear text
@@ -416,8 +419,9 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             return obtainLDAPServer(createDNSLookupContext(), domainName, site, preferredServer);
         }
 
-        private static final List<SocketInfo> CANDIDATES = Arrays.asList(new SocketInfo("_gc._tcp.", 3269), new SocketInfo("_ldap._tcp.", 636) // LDAPS
-                );
+        // domain name prefixes
+        // see http://technet.microsoft.com/en-us/library/cc759550(WS.10).aspx
+        private static final List<String> CANDIDATES = Arrays.asList("_gc._tcp.","_ldap._tcp.");
 
         /**
          * Use DNS and obtains the LDAP servers that we should try.
@@ -441,9 +445,8 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             NamingException failure = null;
 
             // try global catalog if it exists first, then the particular domain
-            for (SocketInfo candidate : CANDIDATES) {
-                ldapServer = candidate.host/* used as a prefix */
-                        +(site!=null ? site+"._sites." : "")+domainName;
+            for (String candidate : CANDIDATES) {
+                ldapServer = candidate+(site!=null ? site+"._sites." : "")+domainName;
                 LOGGER.fine("Attempting to resolve "+ldapServer+" to SRV record");
                 try {
                     Attributes attributes = ictx.getAttributes(ldapServer, new String[] { "SRV" });
@@ -477,10 +480,18 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                     }
                     if (priority==p) {
                         String hostName = fields[3];
-                        // cut off trailing ".". HUDSON-2647
+                        // cut off trailing ".". JENKINS-2647
                         if (hostName.endsWith("."))
                             hostName = hostName.substring(0, hostName.length()-1);
-                        result.add(new SocketInfo(hostName, Integer.parseInt(fields[2])));
+                        int port = Integer.parseInt(fields[2]);
+                        if (FORCE_LDAPS) {
+                            // map to LDAPS ports. I don't think there's any SRV records specifically for LDAPS.
+                            // I think Microsoft considers LDAP+TLS the way to go, or else there should have been
+                            // separate SRV entries.
+                            if (port==389)  port=686;
+                            if (port==3268) port=3269;
+                        }
+                        result.add(new SocketInfo(hostName, port));
                     }
                 }
             }
@@ -527,4 +538,14 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
      * The format is "host:port,host:port,..."
      */
     public static String DOMAIN_CONTROLLERS = System.getProperty(ActiveDirectorySecurityRealm.class.getName()+".domainControllers");
+
+    /**
+     * Instead of LDAP+TLS upgrade, start right away with LDAPS.
+     * For the time being I'm trying not to expose this to users. I don't see why any AD shouldn't support
+     * TLS upgrade if it's got the certificate.
+     *
+     * One legitimate use case is when the domain controller is Windows 2000, which doesn't support TLS
+     * (according to http://support.microsoft.com/kb/321051).
+     */
+    public static boolean FORCE_LDAPS = Boolean.getBoolean(ActiveDirectoryUnixAuthenticationProvider.class.getName()+".forceLdaps");
 }
