@@ -362,6 +362,8 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             Thread.currentThread().setName("Connecting to "+ldapUrl+" : "+oldName);
             LOGGER.fine("Connecting to " + ldapUrl);
             try {
+                props.put(Context.PROVIDER_URL, ldapUrl);
+                props.put("java.naming.ldap.version", "3");
                 LdapContext context = (LdapContext)LdapCtxFactory.getLdapCtxInstance(ldapUrl, props);
 
                 if (!FORCE_LDAPS) {
@@ -373,10 +375,10 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                         LOGGER.fine("Connection upgraded to TLS");
                     } catch (NamingException e) {
                         LOGGER.log(Level.FINE, "Failed to start TLS. Authentication will be done via plain-text LDAP", e);
-                        context.addToEnvironment("java.naming.ldap.factory.socket", null);
+                        context.removeFromEnvironment("java.naming.ldap.factory.socket");
                     } catch (IOException e) {
                         LOGGER.log(Level.FINE, "Failed to start TLS. Authentication will be done via plain-text LDAP", e);
-                        context.addToEnvironment("java.naming.ldap.factory.socket", null);
+                        context.removeFromEnvironment("java.naming.ldap.factory.socket");
                     }
                 }
 
@@ -449,38 +451,48 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                 }
             }
 
-            int priority = -1;
-
             if (a!=null) {
                 // discover servers
+                class PrioritizedSocketInfo implements Comparable<PrioritizedSocketInfo> {
+                    SocketInfo socket;
+                    int priority;
+
+                    PrioritizedSocketInfo(SocketInfo socket, int priority) {
+                        this.socket = socket;
+                        this.priority = priority;
+                    }
+
+                    public int compareTo(PrioritizedSocketInfo that) {
+                        return that.priority-this.priority; // sort them so that bigger priority comes first
+                    }
+                }
+                List<PrioritizedSocketInfo> plist = new ArrayList<PrioritizedSocketInfo>();
                 for (NamingEnumeration ne = a.getAll(); ne.hasMoreElements();) {
                     String record = ne.next().toString();
                     LOGGER.fine("SRV record found: "+record);
                     String[] fields = record.split(" ");
-                    int p = Integer.parseInt(fields[0]);
                     // fields[1]: weight
                     // fields[2]: port
                     // fields[3]: target host name
-                    if (priority==-1||p<priority) {
-                        priority = p;
-                        result.clear();
+
+                    String hostName = fields[3];
+                    // cut off trailing ".". JENKINS-2647
+                    if (hostName.endsWith("."))
+                        hostName = hostName.substring(0, hostName.length()-1);
+                    int port = Integer.parseInt(fields[2]);
+                    if (FORCE_LDAPS) {
+                        // map to LDAPS ports. I don't think there's any SRV records specifically for LDAPS.
+                        // I think Microsoft considers LDAP+TLS the way to go, or else there should have been
+                        // separate SRV entries.
+                        if (port==389)  port=686;
+                        if (port==3268) port=3269;
                     }
-                    if (priority==p) {
-                        String hostName = fields[3];
-                        // cut off trailing ".". JENKINS-2647
-                        if (hostName.endsWith("."))
-                            hostName = hostName.substring(0, hostName.length()-1);
-                        int port = Integer.parseInt(fields[2]);
-                        if (FORCE_LDAPS) {
-                            // map to LDAPS ports. I don't think there's any SRV records specifically for LDAPS.
-                            // I think Microsoft considers LDAP+TLS the way to go, or else there should have been
-                            // separate SRV entries.
-                            if (port==389)  port=686;
-                            if (port==3268) port=3269;
-                        }
-                        result.add(new SocketInfo(hostName, port));
-                    }
+                    int p = Integer.parseInt(fields[0]);
+                    plist.add(new PrioritizedSocketInfo(new SocketInfo(hostName, port),p));
                 }
+                Collections.sort(plist);
+                for (PrioritizedSocketInfo psi : plist)
+                    result.add(psi.socket);
             }
 
             if (result.isEmpty()) {
