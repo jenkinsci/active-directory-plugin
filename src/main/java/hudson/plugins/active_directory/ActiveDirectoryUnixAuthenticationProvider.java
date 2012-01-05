@@ -4,6 +4,7 @@ import hudson.security.GroupDetails;
 import hudson.security.SecurityRealm;
 import hudson.security.UserMayOrMayNotExistException;
 import hudson.util.Secret;
+import hudson.util.TimeUnit2;
 import org.acegisecurity.AuthenticationException;
 import org.acegisecurity.AuthenticationServiceException;
 import org.acegisecurity.BadCredentialsException;
@@ -13,6 +14,7 @@ import org.acegisecurity.providers.AuthenticationProvider;
 import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
 import org.acegisecurity.userdetails.UserDetails;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
+import org.apache.commons.collections.map.LRUMap;
 
 import javax.naming.NamingEnumeration;
 import javax.naming.NamingException;
@@ -50,6 +52,21 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
 
     private final ActiveDirectorySecurityRealm.DesciprotrImpl descriptor;
 
+    private final LRUMap/*<String,GroupCacheEntry>*/ groupCache = new LRUMap(256);
+    
+    static class GroupCacheEntry {
+        final ActiveDirectoryGroupDetails detail;
+        long timestamp = System.currentTimeMillis();
+
+        GroupCacheEntry(String name) {
+            detail = new ActiveDirectoryGroupDetails(name);
+        }
+
+        public boolean isStale() {
+            return (System.currentTimeMillis() - timestamp) > TimeUnit2.MINUTES.toMillis(10);
+        }
+    }    
+    
     public ActiveDirectoryUnixAuthenticationProvider(ActiveDirectorySecurityRealm realm) {
         if (realm.domain==null) throw new IllegalArgumentException("Active Directory domain name is required but it is not set");
         this.domainNames = realm.domain.split(",");
@@ -195,6 +212,16 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         if (bindName==null)
             throw new UserMayOrMayNotExistException("Unable to retrieve group information without bind DN/password configured");
 
+        synchronized (groupCache) {
+            GroupCacheEntry v = (GroupCacheEntry)groupCache.get(groupname);
+            if (v!=null) {
+                if (!v.isStale())
+                    return v.detail;
+                else
+                    groupCache.remove(groupname);
+            }
+        }
+
         boolean problem = false;
         for (String domainName : domainNames) {
             // when we use custom socket factory below, every LDAP operations result
@@ -219,7 +246,11 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                     }
                     LOGGER.fine("Found group " + groupname + " : " + group);
 
-                    return new ActiveDirectoryGroupDetails(groupname);
+                    GroupCacheEntry e = new GroupCacheEntry(groupname);
+                    synchronized (groupCache) {
+                        groupCache.put(groupname, e);
+                    }
+                    return e.detail;
                 } catch (NamingException e) {
                     LOGGER.log(Level.WARNING, "Failed to retrieve user information for "+groupname, e);
                     throw new BadCredentialsException("Failed to retrieve user information for "+groupname, e);
