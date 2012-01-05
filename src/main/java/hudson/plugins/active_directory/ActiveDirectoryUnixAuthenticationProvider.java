@@ -12,6 +12,7 @@ import org.acegisecurity.GrantedAuthorityImpl;
 import org.acegisecurity.providers.AuthenticationProvider;
 import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
 import org.acegisecurity.userdetails.UserDetails;
+import org.acegisecurity.userdetails.UsernameNotFoundException;
 
 import javax.naming.NamingEnumeration;
 import javax.naming.NamingException;
@@ -94,17 +95,22 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
             if (authentication!=null)
                 password = (String) authentication.getCredentials();
 
-            List<SocketInfo> ldapServers;
-            try {
-                ldapServers = descriptor.obtainLDAPServer(domainName, site, server);
-            } catch (NamingException e) {
-                LOGGER.log(Level.WARNING, "Failed to find the LDAP service", e);
-                throw new AuthenticationServiceException("Failed to find the LDAP service for the domain "+domainName, e);
-            }
-
-            return retrieveUser(username, password, domainName, ldapServers);
+            return retrieveUser(username, password, domainName, obtainLDAPServers(domainName));
         } finally {
             Thread.currentThread().setContextClassLoader(ccl);
+        }
+    }
+
+    /**
+     * Obtains the list of the LDAP servers in the order we should talk to, given how this
+     * {@link ActiveDirectoryUnixAuthenticationProvider} is configured.
+     */
+    private List<SocketInfo> obtainLDAPServers(String domainName) throws AuthenticationServiceException {
+        try {
+            return descriptor.obtainLDAPServer(domainName, site, server);
+        } catch (NamingException e) {
+            LOGGER.log(Level.WARNING, "Failed to find the LDAP service", e);
+            throw new AuthenticationServiceException("Failed to find the LDAP service for the domain "+domainName, e);
         }
     }
 
@@ -158,14 +164,15 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                 DirContext test = descriptor.bind(dn.toString(), password, ldapServers);
                 // Binding alone is not enough to test the credential. Need to actually perform some query operation.
                 // but if the authentication fails this throws an exception
-                new LDAPSearchBuilder(test,domainDN).searchOne("(& (userPrincipalName={0})(objectClass=user))",id);
-                test.close();
+                try {
+                    new LDAPSearchBuilder(test,domainDN).searchOne("(& (userPrincipalName={0})(objectClass=user))",id);
+                } finally {
+                    closeQuietly(test);
+                }
             }
 
             Set<GrantedAuthority> groups = resolveGroups(domainDN, dn.toString(), context);
             groups.add(SecurityRealm.AUTHENTICATED_AUTHORITY);
-
-            context.close();
 
             return new ActiveDirectoryUserDetail(id, password, true, true, true, true, groups.toArray(new GrantedAuthority[groups.size()]),
                     getStringAttribute(user, "displayName"),
@@ -175,8 +182,74 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         } catch (NamingException e) {
             LOGGER.log(Level.WARNING, "Failed to retrieve user information for "+username, e);
             throw new BadCredentialsException("Failed to retrieve user information for "+username, e);
+        } finally {
+            closeQuietly(context);
         }
     }
+
+    public GroupDetails loadGroupByGroupname(String groupname) {
+        if (bindName==null)
+            throw new UserMayOrMayNotExistException("Unable to retrieve group information without bind DN/password configured");
+
+        boolean problem = false;
+        for (String domainName : domainNames) {
+            // when we use custom socket factory below, every LDAP operations result
+            // in a classloading via context classloader, so we need it to resolve.
+            ClassLoader ccl = Thread.currentThread().getContextClassLoader();
+            Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
+            try {
+                DirContext context = descriptor.bind(bindName, bindPassword, obtainLDAPServers(domainName));
+
+                try {
+                    final String domainDN = toDC(domainName);
+
+                    Attributes group = new LDAPSearchBuilder(context,domainDN).subTreeScope().searchOne("(& (cn={0})(objectClass=group))",groupname);
+                    if (group==null) {
+                        // failed to find it. Fall back to sAMAccountName.
+                        // see http://www.nabble.com/Re%3A-Hudson-AD-plug-in-td21428668.html
+                        LOGGER.fine("Failed to find "+groupname+" in cn. Trying sAMAccountName");
+                        group = new LDAPSearchBuilder(context,domainDN).subTreeScope().searchOne("(& (sAMAccountName={0})(objectClass=group))",groupname);
+                        if (group==null) {
+                            throw new UsernameNotFoundException(groupname);
+                        }
+                    }
+                    LOGGER.fine("Found group " + groupname + " : " + group);
+
+                    return new ActiveDirectoryGroupDetails(groupname);
+                } catch (NamingException e) {
+                    LOGGER.log(Level.WARNING, "Failed to retrieve user information for "+groupname, e);
+                    throw new BadCredentialsException("Failed to retrieve user information for "+groupname, e);
+                } finally {
+                    closeQuietly(context);
+                }
+            } catch (UsernameNotFoundException e) {
+                // everything worked OK but we just didn't find it. This could be just a typo in group name.
+                LOGGER.log(Level.FINE, "Failed to find the group "+groupname+" in "+domainName+" domain", e);
+            } catch (AuthenticationException e) {
+                // something went wrong talking to the server. This should be reported
+                LOGGER.log(Level.WARNING, "Failed to find the group "+groupname+" in "+domainName+" domain", e);
+                problem = true;
+            } finally {
+                Thread.currentThread().setContextClassLoader(ccl);
+            }
+        }
+
+        LOGGER.log(Level.WARNING, "Exhausted all configured domains and could not authenticate against any.");
+        if (!problem)
+            throw new UsernameNotFoundException(groupname);
+        else
+            throw new UserMayOrMayNotExistException(groupname);
+    }
+
+    private void closeQuietly(DirContext context) {
+        try {
+            if (context!=null)
+                context.close();
+        } catch (NamingException e) {
+            LOGGER.log(Level.INFO,"Failed to close DirContext: "+context,e);
+        }
+    }
+
 
     private String getStringAttribute(Attributes user, String name) throws NamingException {
         Attribute a = user.get(name);
@@ -303,8 +376,4 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
      * without authentication.
      */
     private static final String NO_AUTHENTICATION = "\u0000\u0000\u0000\u0000\u0000\u0000";
-
-    public GroupDetails loadGroupByGroupname(String groupname) {
-        throw new UserMayOrMayNotExistException(groupname);
-    }
 }
