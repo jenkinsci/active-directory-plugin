@@ -1,6 +1,7 @@
 package hudson.plugins.active_directory;
 
 import static hudson.Util.fixEmpty;
+import static hudson.plugins.active_directory.ActiveDirectoryUnixAuthenticationProvider.toDC;
 
 import com4j.typelibs.ado20.ClassFactory;
 import groovy.lang.Binding;
@@ -290,8 +291,16 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                     if (bindName!=null) {
                         // make sure the bind actually works
                         try {
-                            bind(bindName, Secret.toString(password), servers).close();
+                            DirContext context = bind(bindName, Secret.toString(password), servers);
+                            try {
+                                // actually do a search to make sure the credential is valid
+                                new LDAPSearchBuilder(context, toDC(domain)).searchOne("(objectClass=user)");
+                            } finally {
+                                context.close();
+                            }
                         } catch (BadCredentialsException e) {
+                            return FormValidation.error(e, "Bad bind username or password");
+                        } catch (javax.naming.AuthenticationException e) {
                             return FormValidation.error(e, "Bad bind username or password");
                         } catch (Exception e) {
                             return FormValidation.error(e, e.getMessage());

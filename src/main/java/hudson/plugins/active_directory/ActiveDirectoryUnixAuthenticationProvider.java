@@ -357,7 +357,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         return groups;
     }
 
-    private static String toDC(String domainName) {
+    /*package*/ static String toDC(String domainName) {
         StringBuilder buf = new StringBuilder();
         for (String token : domainName.split("\\.")) {
             if (token.length()==0)
