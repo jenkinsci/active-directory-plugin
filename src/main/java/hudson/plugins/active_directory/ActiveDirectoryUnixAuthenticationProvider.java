@@ -74,10 +74,14 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         }
 
         LOGGER.log(Level.WARNING, "Exhausted all configured domains and could not authenticate against any.");
-        if (causes.isEmpty())
+        switch (causes.size()) {
+        case 0:
             throw new BadCredentialsException("Either no such user '"+username+"' or incorrect password");
-        else
+        case 1:
+            throw causes.get(0); // preserve the original exception
+        default:
             throw new MultiCauseBadCredentialsException("Either no such user '"+username+"' or incorrect password",causes);
+        }
     }
 
     @Override
@@ -148,14 +152,14 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                 LOGGER.fine("Failed to find "+id+" in userPrincipalName. Trying sAMAccountName");
                 user = new LDAPSearchBuilder(context,domainDN).subTreeScope().searchOne("(& (sAMAccountName={0})(objectClass=user))",id);
                 if (user==null) {
-                    throw new BadCredentialsException("Authentication was successful but cannot locate the user information for "+username);
+                    throw new UsernameNotFoundException("Authentication was successful but cannot locate the user information for "+username);
                 }
             }
             LOGGER.fine("Authentication successful as "+id+" : "+user);
 
             Object dn = user.get("distinguishedName").get();
             if (dn==null)
-                throw new BadCredentialsException("No distinguished name for "+username);
+                throw new AuthenticationServiceException("No distinguished name for "+username);
 
             if (bindName!=null && password!=NO_AUTHENTICATION) {
                 // if we've used the credential specifically for the bind, we
