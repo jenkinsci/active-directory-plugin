@@ -176,12 +176,10 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                     List<SocketInfo> ldapServers = descriptor.obtainLDAPServer(domain, site, server);
                     pw.println("List of domain controllers: "+ldapServers);
                     
-                    SocketInfo preferredServer = (server != null) ? new SocketInfo(server) : null;
-                    
                     for (SocketInfo ldapServer : ldapServers) {
                         pw.println("Trying a domain controller at "+ldapServer);
                         try {
-                            UserDetails d = p.retrieveUser(username, password, domain, Collections.singletonList(ldapServer), preferredServer);
+                            UserDetails d = p.retrieveUser(username, password, domain, Collections.singletonList(ldapServer));
                             pw.println("Authenticated as "+d);
                         } catch (AuthenticationException e) {
                             e.printStackTrace(pw);
@@ -290,11 +288,9 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                     }
 
                     if (bindName!=null) {
-                        SocketInfo prefSock = (server == null) ? null : new SocketInfo(server);
-                        
                         // make sure the bind actually works
                         try {
-                            bind(bindName, Secret.toString(password), servers, prefSock).close();
+                            bind(bindName, Secret.toString(password), servers).close();
                         } catch (BadCredentialsException e) {
                             return FormValidation.error(e, "Bad bind username or password");
                         } catch (Exception e) {
@@ -334,7 +330,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
          * In a real deployment, often there are servers that don't respond or
          * otherwise broken, so try all the servers.
          */
-        public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers, SocketInfo preferredServer) {
+        public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers) {
             // in a AD forest, it'd be mighty nice to be able to login as "joe"
             // as opposed to "joe@europe",
             // but the bind operation doesn't appear to allow me to do so.
@@ -345,17 +341,6 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
             NamingException error = null;
 
-            if (preferredServer != null) {
-                try {
-                    LdapContext context = bind(principalName, password, preferredServer, props);
-                    LOGGER.fine("Bound to " + preferredServer);
-                    return context;
-                } catch (NamingException e) {
-                    LOGGER.log(Level.WARNING, "Failed to bind to preferred server "+preferredServer, e);
-                    error = e; // retry
-                }
-            }
-            
             for (SocketInfo ldapServer : ldapServers) {
                 try {
                     LdapContext context = bind(principalName, password, ldapServer, props);
@@ -425,7 +410,9 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
         /**
          * Use DNS and obtains the LDAP servers that we should try.
-         * 
+         *
+         * @param preferredServer
+         *      If non-null, this server is returned as the first preference in the returned list.
          * @return A list with at least one item.
          */
         public List<SocketInfo> obtainLDAPServer(DirContext ictx, String domainName, String site, String preferredServer) throws NamingException {

@@ -21,7 +21,6 @@ import javax.naming.directory.DirContext;
 import javax.naming.directory.SearchResult;
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.Stack;
@@ -40,6 +39,10 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
 
     private final String site;
 
+    /**
+     * The LDAP server that we should talk to first, regardless of the LDAP server discovery result.
+     * Conceptually there should be one per domain, but for historical reason we only support one here.
+     */
     private final String server;
 
     private final String bindName, bindPassword;
@@ -57,27 +60,23 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     }
 
     protected UserDetails retrieveUser(String username, UsernamePasswordAuthenticationToken authentication) throws AuthenticationException {
-        UserDetails userDetails = null;
         List<BadCredentialsException> causes = new ArrayList<BadCredentialsException>();
         for (String domainName : domainNames) {
             try {
-                userDetails = retrieveUser(username, authentication, domainName);
+                UserDetails userDetails = retrieveUser(username, authentication, domainName);
+                if (userDetails!=null)
+                    return userDetails;
             } catch (BadCredentialsException bce) {
                 LOGGER.log(Level.WARNING, "Credential exception tying to authenticate against "+domainName+" domain", bce);
                 causes.add(bce);
             }
-            if (userDetails!=null) {
-                break;
-            }
         }
-        if (userDetails==null) {
-            LOGGER.log(Level.WARNING, "Exhausted all configured domains and could not authenticate against any.");
-            if (causes.isEmpty())
-                throw new BadCredentialsException("Either no such user '"+username+"' or incorrect password");
-            else
-                throw new MultiCauseBadCredentialsException("Either no such user '"+username+"' or incorrect password",causes);
-        }
-        return userDetails;
+
+        LOGGER.log(Level.WARNING, "Exhausted all configured domains and could not authenticate against any.");
+        if (causes.isEmpty())
+            throw new BadCredentialsException("Either no such user '"+username+"' or incorrect password");
+        else
+            throw new MultiCauseBadCredentialsException("Either no such user '"+username+"' or incorrect password",causes);
     }
 
     @Override
@@ -96,7 +95,6 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                 password = (String) authentication.getCredentials();
 
             List<SocketInfo> ldapServers;
-            SocketInfo preferredServer = (server != null) ? new SocketInfo(server) : null;
             try {
                 ldapServers = descriptor.obtainLDAPServer(domainName, site, server);
             } catch (NamingException e) {
@@ -104,7 +102,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                 throw new AuthenticationServiceException("Failed to find the LDAP service for the domain "+domainName, e);
             }
 
-            return retrieveUser(username, password, domainName, ldapServers, preferredServer);
+            return retrieveUser(username, password, domainName, ldapServers);
         } finally {
             Thread.currentThread().setContextClassLoader(ccl);
         }
@@ -112,10 +110,8 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
 
     /**
      * Retrieves the user by using the given list of available AD LDAP servers.
-     * 
-     * @param domainName
      */
-    public UserDetails retrieveUser(String username, String password, String domainName, List<SocketInfo> ldapServers, SocketInfo preferredServer) {
+    public UserDetails retrieveUser(String username, String password, String domainName, List<SocketInfo> ldapServers) {
         DirContext context;
         String id;
         if (bindName!=null) {
@@ -123,7 +119,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
             // user trying to login, then authenticate.
             try {
                 id = username;
-                context = descriptor.bind(bindName, bindPassword, ldapServers, preferredServer);
+                context = descriptor.bind(bindName, bindPassword, ldapServers);
             } catch (BadCredentialsException e) {
                 throw new AuthenticationServiceException("Failed to bind to LDAP server with the bind name/password", e);
             }
@@ -132,7 +128,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
 
             String principalName = getPrincipalName(username, domainName);
             id = principalName.substring(0, principalName.indexOf('@'));
-            context = descriptor.bind(principalName, password, ldapServers, preferredServer);
+            context = descriptor.bind(principalName, password, ldapServers);
         }
 
         try {
@@ -159,7 +155,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                 // if we've used the credential specifically for the bind, we
                 // need to verify the provided password to do authentication
                 LOGGER.fine("Attempting to validate password for DN="+dn);
-                DirContext test = descriptor.bind(dn.toString(), password, ldapServers, preferredServer);
+                DirContext test = descriptor.bind(dn.toString(), password, ldapServers);
                 // Binding alone is not enough to test the credential. Need to actually perform some query operation.
                 // but if the authentication fails this throws an exception
                 new LDAPSearchBuilder(test,domainDN).searchOne("(& (userPrincipalName={0})(objectClass=user))",id);
