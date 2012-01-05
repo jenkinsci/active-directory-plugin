@@ -12,6 +12,10 @@ import org.springframework.dao.DataAccessException;
  * @author Kohsuke Kawaguchi
  */
 public abstract class AbstractActiveDirectoryAuthenticationProvider extends AbstractUserDetailsAuthenticationProvider implements UserDetailsService, GroupDetailsService {
+
+    /**
+     * Authenticates the user (if {@code authentication!=null}), or retrieve the user name information (otherwise.)
+     */
     protected abstract UserDetails retrieveUser(String username, UsernamePasswordAuthenticationToken authentication) throws AuthenticationException;
 
     /**
