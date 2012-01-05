@@ -429,15 +429,18 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
          * @return A list with at least one item.
          */
         public List<SocketInfo> obtainLDAPServer(DirContext ictx, String domainName, String site, String preferredServer) throws NamingException {
+            List<SocketInfo> result = new ArrayList<SocketInfo>();
+            if (preferredServer!=null)
+                result.add(new SocketInfo(preferredServer));
+
             if (DOMAIN_CONTROLLERS!=null) {
-                List<SocketInfo> r = new ArrayList<SocketInfo>();
                 for (String token : DOMAIN_CONTROLLERS.split(",")) {
                     String[] x = token.trim().split(":");
                     if (x.length!=2)
                         throw new NamingException("Invalid domain controller override: "+token);
-                    r.add(new SocketInfo(x[0],Integer.parseInt(x[1])));
+                    result.add(new SocketInfo(x[0],Integer.parseInt(x[1])));
                 }
-                return r;
+                return result;
             }
 
             String ldapServer = null;
@@ -460,9 +463,6 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             }
 
             int priority = -1;
-            List<SocketInfo> result = new ArrayList<SocketInfo>();
-            if (preferredServer!=null)
-                result.add(new SocketInfo(preferredServer));
 
             if (a!=null) {
                 // discover servers
