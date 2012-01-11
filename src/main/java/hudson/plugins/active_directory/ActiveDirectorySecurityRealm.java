@@ -365,6 +365,19 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             throw new BadCredentialsException("Either no such user '"+principalName+"' or incorrect password", error);
         }
 
+        private void customizeLdapProperty(Hashtable<String, String> props, String propName) {
+            String prop = System.getProperty(propName, null);
+            if (prop != null) {
+                props.put(propName, prop);
+            }
+        }
+        
+        /** Lookups for hardcoded LDAP properties if they are specified as System properties and uses them */
+        private void customizeLdapProperties(Hashtable<String, String> props) {
+             customizeLdapProperty(props, "com.sun.jndi.ldap.connect.timeout");
+             customizeLdapProperty(props, "com.sun.jndi.ldap.read.timeout");
+        }
+        
         private LdapContext bind(String principalName, String password, SocketInfo server, Hashtable<String, String> props) throws NamingException {
             String ldapUrl = (FORCE_LDAPS?"ldaps://":"ldap://") + server + '/';
             String oldName = Thread.currentThread().getName();
@@ -373,6 +386,9 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             try {
                 props.put(Context.PROVIDER_URL, ldapUrl);
                 props.put("java.naming.ldap.version", "3");
+                
+                customizeLdapProperties(props);
+                
                 LdapContext context = (LdapContext)LdapCtxFactory.getLdapCtxInstance(ldapUrl, props);
 
                 if (!FORCE_LDAPS) {
