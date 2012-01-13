@@ -58,13 +58,23 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     static class GroupCacheEntry {
         final ActiveDirectoryGroupDetails detail;
         long timestamp = System.currentTimeMillis();
+        boolean exists = true;
 
         GroupCacheEntry(String name) {
             detail = new ActiveDirectoryGroupDetails(name);
         }
 
+        GroupCacheEntry(String name, boolean exists){
+            this(name);
+            this.exists = exists;
+        }
+
         public boolean isStale() {
             return (System.currentTimeMillis() - timestamp) > TimeUnit2.MINUTES.toMillis(10);
+        }
+
+        public boolean exists(){
+            return this.exists;
         }
     }    
     
@@ -231,8 +241,12 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         synchronized (groupCache) {
             GroupCacheEntry v = (GroupCacheEntry)groupCache.get(groupname);
             if (v!=null) {
-                if (!v.isStale())
-                    return v.detail;
+                if (!v.isStale()){
+                    if(v.exists())
+                        return v.detail;
+                    else
+                        throw new UsernameNotFoundException(groupname);
+                }
                 else
                     groupCache.remove(groupname);
             }
@@ -257,6 +271,11 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                         LOGGER.fine("Failed to find "+groupname+" in cn. Trying sAMAccountName");
                         group = new LDAPSearchBuilder(context,domainDN).subTreeScope().searchOne("(& (sAMAccountName={0})(objectClass=group))",groupname);
                         if (group==null) {
+                            // Group still not found, cache this result.
+                            GroupCacheEntry e = new GroupCacheEntry(groupname, false);
+                            synchronized (groupCache) {
+                                groupCache.put(groupname, e);
+                            }
                             throw new UsernameNotFoundException(groupname);
                         }
                     }
