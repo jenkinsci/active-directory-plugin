@@ -288,11 +288,13 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
             }
         }
 
-        LOGGER.log(Level.WARNING, "Exhausted all configured domains and could not authenticate against any.");
-        if (!problem)
+        if (!problem){
             throw new UsernameNotFoundException(groupname);
-        else
+        }
+        else{
+            LOGGER.log(Level.WARNING, "Exhausted all configured domains and could not authenticate against any.");
             throw new UserMayOrMayNotExistException(groupname);
+        }
     }
 
     private void closeQuietly(DirContext context) {
