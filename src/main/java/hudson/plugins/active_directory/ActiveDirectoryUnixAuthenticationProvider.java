@@ -15,6 +15,7 @@ import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
 import org.acegisecurity.userdetails.UserDetails;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
 import org.apache.commons.collections.map.LRUMap;
+import org.apache.commons.lang.StringUtils;
 
 import javax.naming.NamingEnumeration;
 import javax.naming.NamingException;
@@ -136,11 +137,20 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     }
 
     /**
-     * Retrieves the user by using the given list of available AD LDAP servers.
+     * Authenticates and retrieves the user by using the given list of available AD LDAP servers.
+     * 
+     * @param password
+     *      If this is {@link #NO_AUTHENTICATION}, the authentication is not performed, and just the retrieval
+     *      would happen.
      */
     public UserDetails retrieveUser(String username, String password, String domainName, List<SocketInfo> ldapServers) {
         DirContext context;
         String id;
+
+        // LDAP treats empty password as anonymous bind, so we need to reject it
+        if (StringUtils.isEmpty(password))
+            throw new BadCredentialsException("Empty password");
+        
         if (bindName!=null) {
             // two step approach. Use a special credential to obtain DN for the
             // user trying to login, then authenticate.
@@ -151,11 +161,17 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                 throw new AuthenticationServiceException("Failed to bind to LDAP server with the bind name/password", e);
             }
         } else {
-            if (password==NO_AUTHENTICATION)    throw new UserMayOrMayNotExistException("Unable to retrieve the user information without bind DN/password configured");
-
             String principalName = getPrincipalName(username, domainName);
             id = principalName.substring(0, principalName.indexOf('@'));
-            context = descriptor.bind(principalName, password, ldapServers);
+            try {
+                // if we are just retrieving the user, trying using anonymous bind by empty password (see RFC 2829 5.1)
+                // but if that fails, that's not BadCredentialException but UserMayOrMayNotExistException
+                context = descriptor.bind(principalName, password==NO_AUTHENTICATION ? "" : password, ldapServers);
+            } catch (BadCredentialsException e) {
+                if (password==NO_AUTHENTICATION)
+                    throw new UserMayOrMayNotExistException("Unable to retrieve the user information without bind DN/password configured");
+                throw e;
+            }
         }
 
         try {
@@ -172,7 +188,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                     throw new UsernameNotFoundException("Authentication was successful but cannot locate the user information for "+username);
                 }
             }
-            LOGGER.fine("Authentication successful as "+id+" : "+user);
+            LOGGER.fine("Found user "+id+" : "+user);
 
             Object dn = user.get("distinguishedName").get();
             if (dn==null)
@@ -379,6 +395,10 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                 for (int i = 0; i<memberOf.size(); i++) {
                     Attributes group = context.getAttributes("\""+memberOf.get(i)+'"', new String[] { "CN", "memberOf" });
                     Attribute cn = group.get("CN");
+                    if (cn==null) {
+                        LOGGER.fine("Failed to obtain CN of "+memberOf.get(i));
+                        continue;
+                    }
                     if (LOGGER.isLoggable(Level.FINE))
                         LOGGER.fine(cn.get()+" is a member of "+memberOf.get(i));
 
