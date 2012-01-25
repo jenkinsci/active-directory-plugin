@@ -188,12 +188,12 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
             // locate this user's record
             final String domainDN = toDC(domainName);
 
-            Attributes user = new LDAPSearchBuilder(context,domainDN).subTreeScope().searchOne("(& (userPrincipalName={0})(objectClass=user))",id);
+            Attributes user = new LDAPSearchBuilder(context,domainDN).subTreeScope().searchOne("(& (userPrincipalName={0})(objectCategory=user))",id);
             if (user==null) {
                 // failed to find it. Fall back to sAMAccountName.
                 // see http://www.nabble.com/Re%3A-Hudson-AD-plug-in-td21428668.html
                 LOGGER.fine("Failed to find "+id+" in userPrincipalName. Trying sAMAccountName");
-                user = new LDAPSearchBuilder(context,domainDN).subTreeScope().searchOne("(& (sAMAccountName={0})(objectClass=user))",id);
+                user = new LDAPSearchBuilder(context,domainDN).subTreeScope().searchOne("(& (sAMAccountName={0})(objectCategory=user))",id);
                 if (user==null) {
                     throw new UsernameNotFoundException("Authentication was successful but cannot locate the user information for "+username);
                 }
@@ -212,7 +212,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                 // Binding alone is not enough to test the credential. Need to actually perform some query operation.
                 // but if the authentication fails this throws an exception
                 try {
-                    new LDAPSearchBuilder(test,domainDN).searchOne("(& (userPrincipalName={0})(objectClass=user))",id);
+                    new LDAPSearchBuilder(test,domainDN).searchOne("(& (userPrincipalName={0})(objectCategory=user))",id);
                 } finally {
                     closeQuietly(test);
                 }
@@ -264,12 +264,12 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                 try {
                     final String domainDN = toDC(domainName);
 
-                    Attributes group = new LDAPSearchBuilder(context,domainDN).subTreeScope().searchOne("(& (cn={0})(objectClass=group))",groupname);
+                    Attributes group = new LDAPSearchBuilder(context,domainDN).subTreeScope().searchOne("(& (cn={0})(objectCategory=group))",groupname);
                     if (group==null) {
                         // failed to find it. Fall back to sAMAccountName.
                         // see http://www.nabble.com/Re%3A-Hudson-AD-plug-in-td21428668.html
                         LOGGER.fine("Failed to find "+groupname+" in cn. Trying sAMAccountName");
-                        group = new LDAPSearchBuilder(context,domainDN).subTreeScope().searchOne("(& (sAMAccountName={0})(objectClass=group))",groupname);
+                        group = new LDAPSearchBuilder(context,domainDN).subTreeScope().searchOne("(& (sAMAccountName={0})(objectCategory=group))",groupname);
                         if (group==null) {
                             // Group still not found, cache this result.
                             GroupCacheEntry e = new GroupCacheEntry(groupname, false);
