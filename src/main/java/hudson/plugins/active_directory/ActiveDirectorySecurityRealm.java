@@ -172,23 +172,25 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                 ActiveDirectoryUnixAuthenticationProvider p = (ActiveDirectoryUnixAuthenticationProvider) uds;
                 DesciprotrImpl descriptor = getDescriptor();
 
-                try {
-                    pw.println("Domain="+domain+" site="+site);
-                    List<SocketInfo> ldapServers = descriptor.obtainLDAPServer(domain, site, server);
-                    pw.println("List of domain controllers: "+ldapServers);
-                    
-                    for (SocketInfo ldapServer : ldapServers) {
-                        pw.println("Trying a domain controller at "+ldapServer);
-                        try {
-                            UserDetails d = p.retrieveUser(username, password, domain, Collections.singletonList(ldapServer));
-                            pw.println("Authenticated as "+d);
-                        } catch (AuthenticationException e) {
-                            e.printStackTrace(pw);
-                        }
-                    }
-                } catch (NamingException e) {
-                    pw.println("Failing to resolve domain controllers");
-                    e.printStackTrace(pw);
+                for (String domainName : domain.split(",")) {
+	                try {
+	                    pw.println("Domain="+domainName+" site="+site);
+	                    List<SocketInfo> ldapServers = descriptor.obtainLDAPServer(domainName, site, server);
+	                    pw.println("List of domain controllers: "+ldapServers);
+	                    
+	                    for (SocketInfo ldapServer : ldapServers) {
+	                        pw.println("Trying a domain controller at "+ldapServer);
+	                        try {
+	                            UserDetails d = p.retrieveUser(username, password, domainName, Collections.singletonList(ldapServer));
+	                            pw.println("Authenticated as "+d);
+	                        } catch (AuthenticationException e) {
+	                            e.printStackTrace(pw);
+	                        }
+	                    }
+	                } catch (NamingException e) {
+	                    pw.println("Failing to resolve domain controllers");
+	                    e.printStackTrace(pw);
+	                }
                 }
             } else {
                 pw.println("Using Windows ADSI. No diagnostics available.");
