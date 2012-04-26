@@ -2,11 +2,9 @@ package hudson.plugins.active_directory;
 
 import hudson.Util;
 import hudson.security.GroupDetails;
-import hudson.security.HudsonPrivateSecurityRealm.Details;
 import hudson.security.SecurityRealm;
 import hudson.security.UserMayOrMayNotExistException;
 import hudson.util.Secret;
-import hudson.util.TimeUnit2;
 import org.acegisecurity.AuthenticationException;
 import org.acegisecurity.AuthenticationServiceException;
 import org.acegisecurity.BadCredentialsException;
@@ -16,7 +14,6 @@ import org.acegisecurity.providers.AuthenticationProvider;
 import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
 import org.acegisecurity.userdetails.UserDetails;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
-import org.apache.commons.collections.map.LRUMap;
 import org.apache.commons.lang.StringUtils;
 
 import javax.naming.NamingEnumeration;
@@ -25,6 +22,7 @@ import javax.naming.directory.Attribute;
 import javax.naming.directory.Attributes;
 import javax.naming.directory.DirContext;
 import javax.naming.directory.SearchResult;
+import javax.naming.ldap.LdapName;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -411,7 +409,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                     continue;
 
                 for (int i = 0; i<memberOf.size(); i++) {
-                    Attributes group = context.getAttributes("\""+memberOf.get(i)+'"', new String[] { "CN", "memberOf" });
+                    Attributes group = context.getAttributes(new LdapName(memberOf.get(i).toString()), new String[] { "CN", "memberOf" });
                     Attribute cn = group.get("CN");
                     if (cn==null) {
                         LOGGER.fine("Failed to obtain CN of "+memberOf.get(i));
