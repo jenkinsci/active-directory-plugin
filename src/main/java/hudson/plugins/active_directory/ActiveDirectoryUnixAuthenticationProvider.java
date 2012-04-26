@@ -112,29 +112,6 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         }
     };
     
-    static class GroupCacheEntry {
-        final ActiveDirectoryGroupDetails detail;
-        long timestamp = System.currentTimeMillis();
-        boolean exists = true;
-
-        GroupCacheEntry(String name) {
-            detail = new ActiveDirectoryGroupDetails(name);
-        }
-
-        GroupCacheEntry(String name, boolean exists){
-            this(name);
-            this.exists = exists;
-        }
-
-        public boolean isStale() {
-            return (System.currentTimeMillis() - timestamp) > TimeUnit2.MINUTES.toMillis(10);
-        }
-
-        public boolean exists(){
-            return this.exists;
-        }
-    }    
-    
     public ActiveDirectoryUnixAuthenticationProvider(ActiveDirectorySecurityRealm realm) {
         if (realm.domain==null) throw new IllegalArgumentException("Active Directory domain name is required but it is not set");
         this.domainNames = realm.domain.split(",");
