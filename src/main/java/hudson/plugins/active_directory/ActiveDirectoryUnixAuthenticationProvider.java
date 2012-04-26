@@ -237,6 +237,9 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                 context = descriptor.bind(principalName, anonymousBind ? "" : password, ldapServers);
             } catch (BadCredentialsException e) {
                 if (anonymousBind)
+                    // in my observation, if we attempt an anonymous bind and AD doesn't allow it, it still passes the bind method
+                    // and only fail later when we actually do a query. So perhaps this is a dead path, but I'm leaving it here
+                    // anyway as a precaution.
                     throw new UserMayOrMayNotExistException("Unable to retrieve the user information without bind DN/password configured");
                 throw e;
             }
