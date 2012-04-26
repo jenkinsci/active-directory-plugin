@@ -40,5 +40,13 @@ public abstract class Cache<K,V,E extends Exception> {
         return val;
     }
 
+    /**
+     * Computes the value for the given key.
+     *
+     * @return
+     *      If this method returns normally, the result is cached, even if it is null.
+     * @throws E
+     *      To abort the cache computation. Exception is not cached.
+     */
     protected abstract V compute(K key) throws E;
 }
