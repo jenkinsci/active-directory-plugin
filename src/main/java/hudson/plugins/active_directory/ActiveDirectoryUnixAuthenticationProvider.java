@@ -1,5 +1,6 @@
 package hudson.plugins.active_directory;
 
+import hudson.Util;
 import hudson.security.GroupDetails;
 import hudson.security.HudsonPrivateSecurityRealm.Details;
 import hudson.security.SecurityRealm;
@@ -123,27 +124,44 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     }
 
     protected UserDetails retrieveUser(String username, UsernamePasswordAuthenticationToken authentication) throws AuthenticationException {
-        List<BadCredentialsException> causes = new ArrayList<BadCredentialsException>();
+        // this is more seriously error, indicating a failure to search
+        List<BadCredentialsException> errors = new ArrayList<BadCredentialsException>();
+
+        // this is lesser error, in that we searched and the user was not found
+        List<UsernameNotFoundException> notFound = new ArrayList<UsernameNotFoundException>();
+
         for (String domainName : domainNames) {
             try {
-                UserDetails userDetails = retrieveUser(username, authentication, domainName);
-                if (userDetails!=null)
-                    return userDetails;
+                return retrieveUser(username, authentication, domainName);
+            } catch (UsernameNotFoundException e) {
+                notFound.add(e);
             } catch (BadCredentialsException bce) {
                 LOGGER.log(Level.WARNING, "Credential exception tying to authenticate against "+domainName+" domain", bce);
-                causes.add(bce);
+                errors.add(bce);
             }
         }
 
-        LOGGER.log(Level.WARNING, "Exhausted all configured domains and could not authenticate against any.");
-        switch (causes.size()) {
+        switch (errors.size()) {
         case 0:
-            throw new BadCredentialsException("Either no such user '"+username+"' or incorrect password");
+            break;  // fall through
         case 1:
-            throw causes.get(0); // preserve the original exception
+            throw errors.get(0); // preserve the original exception
         default:
-            throw new MultiCauseBadCredentialsException("Either no such user '"+username+"' or incorrect password",causes);
+            throw new MultiCauseBadCredentialsException("Either no such user '"+username+"' or incorrect password",errors);
         }
+
+        if (notFound.size()==1)
+            throw notFound.get(0);  // preserve the original exception
+
+        if (!Util.filter(notFound,UserMayOrMayNotExistException.class).isEmpty())
+            // if one domain responds with UserMayOrMayNotExistException, then it might actually exist there,
+            // so our response will be "can't tell"
+            throw new MultiCauseUserNotFoundException("We can't tell if the user exists or not: "+username,notFound);
+
+        if (!notFound.isEmpty())
+            throw new MultiCauseUserNotFoundException("No such user: "+username,notFound);
+
+        throw new AssertionError("no domain is configured");
     }
 
     @Override
@@ -186,10 +204,14 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
      * @param password
      *      If this is {@link #NO_AUTHENTICATION}, the authentication is not performed, and just the retrieval
      *      would happen.
+     * @throws UsernameNotFoundException
+     *      The user didn't exist.
+     * @return never null
      */
     public UserDetails retrieveUser(String username, String password, String domainName, List<SocketInfo> ldapServers) {
         DirContext context;
         String id;
+        boolean anonymousBind;    // did we bind anonymously?
 
         // LDAP treats empty password as anonymous bind, so we need to reject it
         if (StringUtils.isEmpty(password))
@@ -201,18 +223,20 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
             try {
                 id = username;
                 context = descriptor.bind(bindName, bindPassword, ldapServers);
+                anonymousBind = false;
             } catch (BadCredentialsException e) {
                 throw new AuthenticationServiceException("Failed to bind to LDAP server with the bind name/password", e);
             }
         } else {
             String principalName = getPrincipalName(username, domainName);
             id = principalName.substring(0, principalName.indexOf('@'));
+            anonymousBind = password == NO_AUTHENTICATION;
             try {
                 // if we are just retrieving the user, trying using anonymous bind by empty password (see RFC 2829 5.1)
                 // but if that fails, that's not BadCredentialException but UserMayOrMayNotExistException
-                context = descriptor.bind(principalName, password==NO_AUTHENTICATION ? "" : password, ldapServers);
+                context = descriptor.bind(principalName, anonymousBind ? "" : password, ldapServers);
             } catch (BadCredentialsException e) {
-                if (password==NO_AUTHENTICATION)
+                if (anonymousBind)
                     throw new UserMayOrMayNotExistException("Unable to retrieve the user information without bind DN/password configured");
                 throw e;
             }
@@ -261,6 +285,12 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                     getStringAttribute(user, "telephoneNumber")
                     ).updateUserInfo();
         } catch (NamingException e) {
+            if (anonymousBind && e.getMessage().contains("successful bind must be completed") && e.getMessage().contains("000004DC")) {
+                // sometimes (or always?) anonymous bind itself will succeed but the actual query will fail.
+                // see JENKINS-12619. On my AD the error code is DSID-0C0906DC
+                throw new UserMayOrMayNotExistException("Unable to retrieve the user information without bind DN/password configured");
+            }
+
             LOGGER.log(Level.WARNING, "Failed to retrieve user information for "+username, e);
             throw new BadCredentialsException("Failed to retrieve user information for "+username, e);
         } finally {
