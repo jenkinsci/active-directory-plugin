@@ -263,6 +263,11 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
             if (dn==null)
                 throw new AuthenticationServiceException("No distinguished name for "+username);
 
+            // Canonicalize the uesr name. AD user names are case insensitive, so you can login to Administrator as ADMINISTRATOR
+            String canonicalId = (String)user.get("cn").get();
+            if (canonicalId!=null)  // shouldn't happen but let's be defensive
+                id = canonicalId;
+
             if (bindName!=null && password!=NO_AUTHENTICATION) {
                 // if we've used the credential specifically for the bind, we
                 // need to verify the provided password to do authentication
