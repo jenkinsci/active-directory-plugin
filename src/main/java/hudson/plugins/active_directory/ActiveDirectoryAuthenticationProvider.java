@@ -1,26 +1,5 @@
 package hudson.plugins.active_directory;
 
-import hudson.security.GroupDetails;
-import hudson.security.SecurityRealm;
-import hudson.tasks.MailAddressResolver;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.logging.Logger;
-
-import org.acegisecurity.AuthenticationException;
-import org.acegisecurity.BadCredentialsException;
-import org.acegisecurity.GrantedAuthority;
-import org.acegisecurity.GrantedAuthorityImpl;
-import org.acegisecurity.providers.AuthenticationProvider;
-import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
-import org.acegisecurity.providers.dao.AbstractUserDetailsAuthenticationProvider;
-import org.acegisecurity.userdetails.UserDetails;
-import org.acegisecurity.userdetails.UserDetailsService;
-import org.acegisecurity.userdetails.UsernameNotFoundException;
-import org.springframework.dao.DataAccessException;
-
 import com4j.COM4J;
 import com4j.Com4jObject;
 import com4j.ComException;
@@ -33,6 +12,21 @@ import com4j.typelibs.ado20.ClassFactory;
 import com4j.typelibs.ado20._Command;
 import com4j.typelibs.ado20._Connection;
 import com4j.typelibs.ado20._Recordset;
+import hudson.security.GroupDetails;
+import hudson.security.SecurityRealm;
+import org.acegisecurity.AuthenticationException;
+import org.acegisecurity.BadCredentialsException;
+import org.acegisecurity.GrantedAuthority;
+import org.acegisecurity.GrantedAuthorityImpl;
+import org.acegisecurity.providers.AuthenticationProvider;
+import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
+import org.acegisecurity.userdetails.UserDetails;
+import org.acegisecurity.userdetails.UserDetailsService;
+import org.acegisecurity.userdetails.UsernameNotFoundException;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.logging.Logger;
 
 /**
  * {@link AuthenticationProvider} with Active Directory, plus {@link UserDetailsService}
@@ -154,7 +148,7 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
         }
     }
 
-    protected String getDnOfUserOrGroup(String userOrGroupname) {
+    private String getDnOfUserOrGroup(String userOrGroupname) throws UsernameNotFoundException {
 		_Command cmd = ClassFactory.createCommand();
         cmd.activeConnection(con);
 
@@ -168,18 +162,32 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
 	}
 
 	public GroupDetails loadGroupByGroupname(String groupname) {
-		// First get the distinguishedName
-		String dn = getDnOfUserOrGroup(groupname);
-		IADsOpenDSObject dso = COM4J.getObject(IADsOpenDSObject.class, "LDAP:",
-				null);
-		IADsGroup group = dso.openDSObject("LDAP://" + dn, null, null, 0)
-				.queryInterface(IADsGroup.class);
-		// If not a group will return null
-		if (group == null) {
-			throw new UsernameNotFoundException("Group not found: " + groupname);
-		}
-		return new ActiveDirectoryGroupDetails(groupname);
+        ActiveDirectoryGroupDetails details = groupCache.get(groupname);
+        if (details!=null)      return details;
+        throw new UsernameNotFoundException("Group not found: " + groupname);
 	}
+
+    /**
+     * {@link ActiveDirectoryGroupDetails} cache.
+     */
+    private final Cache<String,ActiveDirectoryGroupDetails,UsernameNotFoundException> groupCache = new Cache<String,ActiveDirectoryGroupDetails,UsernameNotFoundException>() {
+        @Override
+        protected ActiveDirectoryGroupDetails compute(String groupname) {
+            // First get the distinguishedName
+            try {
+                String dn = getDnOfUserOrGroup(groupname);
+                IADsOpenDSObject dso = COM4J.getObject(IADsOpenDSObject.class, "LDAP:", null);
+                IADsGroup group = dso.openDSObject("LDAP://" + dn, null, null, 0)
+                        .queryInterface(IADsGroup.class);
+
+                // If not a group will return null
+                if (group == null)  return null;
+                return new ActiveDirectoryGroupDetails(groupname);
+            } catch (UsernameNotFoundException e) {
+                return null; // failed to convert group name to DN
+            }
+        }
+    };
 
     private static final Logger LOGGER = Logger.getLogger(ActiveDirectoryAuthenticationProvider.class.getName());
 }
