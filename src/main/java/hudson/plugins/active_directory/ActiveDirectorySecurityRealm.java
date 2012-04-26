@@ -412,6 +412,9 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                 // authenticate after upgrading to TLS, so that the credential won't go in clear text
                 context.addToEnvironment(Context.SECURITY_PRINCIPAL, principalName);
                 context.addToEnvironment(Context.SECURITY_CREDENTIALS, password);
+                // this is supposed to cause the LDAP bind operation with the server,
+                // but I notice that AD may still accept this and yet fail to search later
+                context.reconnect(null);
 
                 return context; // worked
             } finally {
