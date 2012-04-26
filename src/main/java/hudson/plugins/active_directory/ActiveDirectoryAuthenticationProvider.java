@@ -12,6 +12,7 @@ import com4j.typelibs.ado20.ClassFactory;
 import com4j.typelibs.ado20._Command;
 import com4j.typelibs.ado20._Connection;
 import com4j.typelibs.ado20._Recordset;
+import com4j.util.ComObjectCollector;
 import hudson.security.GroupDetails;
 import hudson.security.SecurityRealm;
 import org.acegisecurity.AuthenticationException;
@@ -56,45 +57,50 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
         if(authentication!=null)
             password = (String) authentication.getCredentials();
 
-
         String dn = getDnOfUserOrGroup(username);
 
-
-        // now we got the DN of the user
-        IADsOpenDSObject dso = COM4J.getObject(IADsOpenDSObject.class,"LDAP:",null);
-
-        // turns out we don't need DN for authentication
-        // we can bind with the user name
-        // dso.openDSObject("LDAP://"+context,args[0],args[1],1);
-
-        // to do bind with DN as the user name, the flag must be 0
-        IADsUser usr;
+        ComObjectCollector col = new ComObjectCollector();
+        COM4J.addListener(col);
         try {
-            usr = (authentication==null
-                ? dso.openDSObject("LDAP://"+dn, null, null, 0)
-                : dso.openDSObject("LDAP://"+dn, dn, password, 0))
-                    .queryInterface(IADsUser.class);
-        } catch (ComException e) {
-            throw new BadCredentialsException("Incorrect password for "+username);
-        }
-        if (usr == null)    // the user name was in fact a group
-        	throw new UsernameNotFoundException("User not found: "+username);
+            // now we got the DN of the user
+            IADsOpenDSObject dso = COM4J.getObject(IADsOpenDSObject.class,"LDAP:",null);
 
-        List<GrantedAuthority> groups = new ArrayList<GrantedAuthority>();
-        for( Com4jObject g : usr.groups() ) {
-            IADsGroup grp = g.queryInterface(IADsGroup.class);
-            // cut "CN=" and make that the role name
-            groups.add(new GrantedAuthorityImpl(grp.name().substring(3)));
+            // turns out we don't need DN for authentication
+            // we can bind with the user name
+            // dso.openDSObject("LDAP://"+context,args[0],args[1],1);
+
+            // to do bind with DN as the user name, the flag must be 0
+            IADsUser usr;
+            try {
+                usr = (authentication==null
+                    ? dso.openDSObject("LDAP://"+dn, null, null, 0)
+                    : dso.openDSObject("LDAP://"+dn, dn, password, 0))
+                        .queryInterface(IADsUser.class);
+            } catch (ComException e) {
+                throw new BadCredentialsException("Incorrect password for "+username);
+            }
+            if (usr == null)    // the user name was in fact a group
+                throw new UsernameNotFoundException("User not found: "+username);
+
+            List<GrantedAuthority> groups = new ArrayList<GrantedAuthority>();
+            for( Com4jObject g : usr.groups() ) {
+                IADsGroup grp = g.queryInterface(IADsGroup.class);
+                // cut "CN=" and make that the role name
+                groups.add(new GrantedAuthorityImpl(grp.name().substring(3)));
+            }
+            groups.add(SecurityRealm.AUTHENTICATED_AUTHORITY);
+
+            return new ActiveDirectoryUserDetail(
+                username, password,
+                !isAccountDisabled(usr),
+                true, true, true,
+                groups.toArray(new GrantedAuthority[groups.size()]),
+                    getFullName(usr), getEmailAddress(usr), getTelehoneNumber(usr)
+            ).updateUserInfo();
+        } finally {
+            col.diposeAll();
+            COM4J.removeListener(col);
         }
-        groups.add(SecurityRealm.AUTHENTICATED_AUTHORITY);
-        
-        return new ActiveDirectoryUserDetail(
-            username, password,
-            !isAccountDisabled(usr),
-            true, true, true,
-            groups.toArray(new GrantedAuthority[groups.size()]),
-                getFullName(usr), getEmailAddress(usr), getTelehoneNumber(usr)
-        ).updateUserInfo();
     }
 
     @Override
@@ -173,8 +179,10 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
     private final Cache<String,ActiveDirectoryGroupDetails,UsernameNotFoundException> groupCache = new Cache<String,ActiveDirectoryGroupDetails,UsernameNotFoundException>() {
         @Override
         protected ActiveDirectoryGroupDetails compute(String groupname) {
-            // First get the distinguishedName
+            ComObjectCollector col = new ComObjectCollector();
+            COM4J.addListener(col);
             try {
+                // First get the distinguishedName
                 String dn = getDnOfUserOrGroup(groupname);
                 IADsOpenDSObject dso = COM4J.getObject(IADsOpenDSObject.class, "LDAP:", null);
                 IADsGroup group = dso.openDSObject("LDAP://" + dn, null, null, 0)
@@ -185,6 +193,9 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
                 return new ActiveDirectoryGroupDetails(groupname);
             } catch (UsernameNotFoundException e) {
                 return null; // failed to convert group name to DN
+            } finally {
+                col.diposeAll();
+                COM4J.removeListener(col);
             }
         }
     };
