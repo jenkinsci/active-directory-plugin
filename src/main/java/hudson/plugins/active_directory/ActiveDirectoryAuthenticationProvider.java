@@ -167,8 +167,6 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
 		return dn;
 	}
 
-    private static final Logger LOGGER = Logger.getLogger(ActiveDirectoryAuthenticationProvider.class.getName());
-
 	public GroupDetails loadGroupByGroupname(String groupname) {
 		// First get the distinguishedName
 		String dn = getDnOfUserOrGroup(groupname);
@@ -182,4 +180,6 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
 		}
 		return new ActiveDirectoryGroupDetails(groupname);
 	}
+
+    private static final Logger LOGGER = Logger.getLogger(ActiveDirectoryAuthenticationProvider.class.getName());
 }
