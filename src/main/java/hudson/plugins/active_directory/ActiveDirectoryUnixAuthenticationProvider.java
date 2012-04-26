@@ -1,6 +1,7 @@
 package hudson.plugins.active_directory;
 
 import hudson.security.GroupDetails;
+import hudson.security.HudsonPrivateSecurityRealm.Details;
 import hudson.security.SecurityRealm;
 import hudson.security.UserMayOrMayNotExistException;
 import hudson.util.Secret;
@@ -53,7 +54,63 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
 
     private final ActiveDirectorySecurityRealm.DesciprotrImpl descriptor;
 
-    private final LRUMap/*<String,GroupCacheEntry>*/ groupCache = new LRUMap(256);
+    /**
+     * {@link ActiveDirectoryGroupDetails} cache.
+     */
+    private final Cache<String,ActiveDirectoryGroupDetails,UsernameNotFoundException> groupCache = new Cache<String,ActiveDirectoryGroupDetails,UsernameNotFoundException>() {
+        @Override
+        protected ActiveDirectoryGroupDetails compute(String groupname) {
+            boolean problem = false;
+            for (String domainName : domainNames) {
+                // when we use custom socket factory below, every LDAP operations result
+                // in a classloading via context classloader, so we need it to resolve.
+                ClassLoader ccl = Thread.currentThread().getContextClassLoader();
+                Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
+                try {
+                    DirContext context = descriptor.bind(bindName, bindPassword, obtainLDAPServers(domainName));
+
+                    try {
+                        final String domainDN = toDC(domainName);
+
+                        Attributes group = new LDAPSearchBuilder(context,domainDN).subTreeScope().searchOne("(& (cn={0})(objectCategory=group))",groupname);
+                        if (group==null) {
+                            // failed to find it. Fall back to sAMAccountName.
+                            // see http://www.nabble.com/Re%3A-Hudson-AD-plug-in-td21428668.html
+                            LOGGER.fine("Failed to find "+groupname+" in cn. Trying sAMAccountName");
+                            group = new LDAPSearchBuilder(context,domainDN).subTreeScope().searchOne("(& (sAMAccountName={0})(objectCategory=group))",groupname);
+                            if (group==null) {
+                                // Group not found in this domain, try next
+                                continue;
+                            }
+                        }
+                        LOGGER.fine("Found group " + groupname + " : " + group);
+                        return new ActiveDirectoryGroupDetails(groupname);
+                    } catch (NamingException e) {
+                        LOGGER.log(Level.WARNING, "Failed to retrieve user information for "+groupname, e);
+                        throw new BadCredentialsException("Failed to retrieve user information for "+groupname, e);
+                    } finally {
+                        closeQuietly(context);
+                    }
+                } catch (UsernameNotFoundException e) {
+                    // everything worked OK but we just didn't find it. This could be just a typo in group name.
+                    LOGGER.log(Level.FINE, "Failed to find the group "+groupname+" in "+domainName+" domain", e);
+                } catch (AuthenticationException e) {
+                    // something went wrong talking to the server. This should be reported
+                    LOGGER.log(Level.WARNING, "Failed to find the group "+groupname+" in "+domainName+" domain", e);
+                    problem = true;
+                } finally {
+                    Thread.currentThread().setContextClassLoader(ccl);
+                }
+            }
+
+            if (!problem) {
+                return null; // group not found anywhere. cache this result
+            } else {
+                LOGGER.log(Level.WARNING, "Exhausted all configured domains and could not authenticate against any.");
+                throw new UserMayOrMayNotExistException(groupname);
+            }
+        }
+    };
     
     static class GroupCacheEntry {
         final ActiveDirectoryGroupDetails detail;
@@ -238,78 +295,9 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         if (bindName==null)
             throw new UserMayOrMayNotExistException("Unable to retrieve group information without bind DN/password configured");
 
-        synchronized (groupCache) {
-            GroupCacheEntry v = (GroupCacheEntry)groupCache.get(groupname);
-            if (v!=null) {
-                if (!v.isStale()){
-                    if(v.exists())
-                        return v.detail;
-                    else
-                        throw new UsernameNotFoundException(groupname);
-                }
-                else
-                    groupCache.remove(groupname);
-            }
-        }
-
-        boolean problem = false;
-        for (String domainName : domainNames) {
-            // when we use custom socket factory below, every LDAP operations result
-            // in a classloading via context classloader, so we need it to resolve.
-            ClassLoader ccl = Thread.currentThread().getContextClassLoader();
-            Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
-            try {
-                DirContext context = descriptor.bind(bindName, bindPassword, obtainLDAPServers(domainName));
-
-                try {
-                    final String domainDN = toDC(domainName);
-
-                    Attributes group = new LDAPSearchBuilder(context,domainDN).subTreeScope().searchOne("(& (cn={0})(objectCategory=group))",groupname);
-                    if (group==null) {
-                        // failed to find it. Fall back to sAMAccountName.
-                        // see http://www.nabble.com/Re%3A-Hudson-AD-plug-in-td21428668.html
-                        LOGGER.fine("Failed to find "+groupname+" in cn. Trying sAMAccountName");
-                        group = new LDAPSearchBuilder(context,domainDN).subTreeScope().searchOne("(& (sAMAccountName={0})(objectCategory=group))",groupname);
-                        if (group==null) {
-                            // Group still not found, cache this result.
-                            GroupCacheEntry e = new GroupCacheEntry(groupname, false);
-                            synchronized (groupCache) {
-                                groupCache.put(groupname, e);
-                            }
-                            throw new UsernameNotFoundException(groupname);
-                        }
-                    }
-                    LOGGER.fine("Found group " + groupname + " : " + group);
-
-                    GroupCacheEntry e = new GroupCacheEntry(groupname);
-                    synchronized (groupCache) {
-                        groupCache.put(groupname, e);
-                    }
-                    return e.detail;
-                } catch (NamingException e) {
-                    LOGGER.log(Level.WARNING, "Failed to retrieve user information for "+groupname, e);
-                    throw new BadCredentialsException("Failed to retrieve user information for "+groupname, e);
-                } finally {
-                    closeQuietly(context);
-                }
-            } catch (UsernameNotFoundException e) {
-                // everything worked OK but we just didn't find it. This could be just a typo in group name.
-                LOGGER.log(Level.FINE, "Failed to find the group "+groupname+" in "+domainName+" domain", e);
-            } catch (AuthenticationException e) {
-                // something went wrong talking to the server. This should be reported
-                LOGGER.log(Level.WARNING, "Failed to find the group "+groupname+" in "+domainName+" domain", e);
-                problem = true;
-            } finally {
-                Thread.currentThread().setContextClassLoader(ccl);
-            }
-        }
-
-        if (!problem) {
-            throw new UsernameNotFoundException(groupname);
-        } else {
-            LOGGER.log(Level.WARNING, "Exhausted all configured domains and could not authenticate against any.");
-            throw new UserMayOrMayNotExistException(groupname);
-        }
+        ActiveDirectoryGroupDetails details = groupCache.get(groupname);
+        if (details==null)  throw new UsernameNotFoundException(groupname);
+        else                return details;
     }
 
     private void closeQuietly(DirContext context) {
