@@ -409,11 +409,20 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                     }
                 }
 
-                // authenticate after upgrading to TLS, so that the credential won't go in clear text
-                context.addToEnvironment(Context.SECURITY_PRINCIPAL, principalName);
-                context.addToEnvironment(Context.SECURITY_CREDENTIALS, password);
+                if (principalName==null || password==null || password.equals("")) {
+                    // anonymous bind. LDAP uses empty password as a signal to anonymous bind (RFC 2829 5.1),
+                    // which means it can never be the actual user password.
+                    context.addToEnvironment(Context.SECURITY_AUTHENTICATION, "none");
+                } else {
+                    // authenticate after upgrading to TLS, so that the credential won't go in clear text
+                    context.addToEnvironment(Context.SECURITY_PRINCIPAL, principalName);
+                    context.addToEnvironment(Context.SECURITY_CREDENTIALS, password);
+                }
+
                 // this is supposed to cause the LDAP bind operation with the server,
-                // but I notice that AD may still accept this and yet fail to search later
+                // but I notice that AD may still accept this and yet fail to search later,
+                // when I tried anonymous bind.
+                // if I do specify a wrong credential, this seems to fail.
                 context.reconnect(null);
 
                 return context; // worked
