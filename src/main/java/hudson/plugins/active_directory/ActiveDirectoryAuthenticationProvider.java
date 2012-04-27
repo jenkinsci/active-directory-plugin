@@ -98,7 +98,7 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
                     getFullName(usr), getEmailAddress(usr), getTelehoneNumber(usr)
             ).updateUserInfo();
         } finally {
-            col.diposeAll();
+            col.disposeAll();
             COM4J.removeListener(col);
         }
     }
@@ -159,7 +159,7 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
         cmd.activeConnection(con);
 
         cmd.commandText("<LDAP://"+defaultNamingContext+">;(sAMAccountName="+userOrGroupname+");distinguishedName;subTree");
-        _Recordset rs = cmd.execute(null, Variant.MISSING, -1/*default*/);
+        _Recordset rs = cmd.execute(null, Variant.getMissing(), -1/*default*/);
         if(rs.eof())
             throw new UsernameNotFoundException("No such user or group: "+userOrGroupname);
 
@@ -194,7 +194,7 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
             } catch (UsernameNotFoundException e) {
                 return null; // failed to convert group name to DN
             } finally {
-                col.diposeAll();
+                col.disposeAll();
                 COM4J.removeListener(col);
             }
         }
