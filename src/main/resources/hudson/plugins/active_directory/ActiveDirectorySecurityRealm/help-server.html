@@ -1,7 +1,10 @@
 <div>
   Normally, Jenkins will discover the Active Directory domain controllers via DNS, and connect them in the
-  order of priority specified in DNS. You can override this behavior by explicitly specifying the host name
-  of the domain controller (and optionally the LDAP port, by appending ":NNN".)
+  order of priority specified in DNS. You can override this behavior by explicitly specifying the host names
+  of the domain controllers (and optionally the LDAP port, by appending ":NNN".)
+
+  <p>
+  Multiple domain controllers can be specified by using ',' as a separator.
 
   <p>
   This is useful when the advertised list of domain controller priority is messed up.

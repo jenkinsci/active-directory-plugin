@@ -167,6 +167,11 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         return bindName!=null;
     }
 
+    /**
+     *
+     * @param authentication
+     *      null if we are just retrieving the said user, instead of trying to authenticate.
+     */
     private UserDetails retrieveUser(String username, UsernamePasswordAuthenticationToken authentication, String domainName) throws AuthenticationException {
         // when we use custom socket factory below, every LDAP operations result
         // in a classloading via context classloader, so we need it to resolve.

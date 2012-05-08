@@ -413,10 +413,12 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                     // anonymous bind. LDAP uses empty password as a signal to anonymous bind (RFC 2829 5.1),
                     // which means it can never be the actual user password.
                     context.addToEnvironment(Context.SECURITY_AUTHENTICATION, "none");
+                    LOGGER.fine("Binding anonymously to "+ldapUrl);
                 } else {
                     // authenticate after upgrading to TLS, so that the credential won't go in clear text
                     context.addToEnvironment(Context.SECURITY_PRINCIPAL, principalName);
                     context.addToEnvironment(Context.SECURITY_CREDENTIALS, password);
+                    LOGGER.fine("Binding as "+principalName+" to "+ldapUrl);
                 }
 
                 // this is supposed to cause the LDAP bind operation with the server,
@@ -452,24 +454,28 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         /**
          * Use DNS and obtains the LDAP servers that we should try.
          *
-         * @param preferredServer
-         *      If non-null, this server is returned as the first preference in the returned list.
+         * @param preferredServers
+         *      If non-null, these servers are reported instead of doing the discovery.
+         *      In previous versions, this was simply added on top of the auto-discovered list, but this option
+         *      is useful when you have many domain controllers (because a single mistyped password can cause
+         *      an authentication attempt with every listed server, which can lock the user out!) This also
+         *      puts this feature in alignment with {@link #DOMAIN_CONTROLLERS}, which seems to indicate that
+         *      there are users who prefer this behaviour.
+         *
          * @return A list with at least one item.
          */
-        public List<SocketInfo> obtainLDAPServer(DirContext ictx, String domainName, String site, String preferredServer) throws NamingException {
+        public List<SocketInfo> obtainLDAPServer(DirContext ictx, String domainName, String site, String preferredServers) throws NamingException {
             List<SocketInfo> result = new ArrayList<SocketInfo>();
-            if (preferredServer!=null)
-                result.add(new SocketInfo(preferredServer));
+            if (preferredServers==null)
+                preferredServers = DOMAIN_CONTROLLERS;
 
-            if (DOMAIN_CONTROLLERS!=null) {
-                for (String token : DOMAIN_CONTROLLERS.split(",")) {
-                    String[] x = token.trim().split(":");
-                    if (x.length!=2)
-                        throw new NamingException("Invalid domain controller override: "+token);
-                    result.add(new SocketInfo(x[0],Integer.parseInt(x[1])));
+            if (preferredServers!=null) {
+                for (String token : preferredServers.split(",")) {
+                    result.add(new SocketInfo(token.trim()));
                 }
                 return result;
             }
+
 
             String ldapServer = null;
             Attribute a = null;
@@ -574,6 +580,9 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
      * If non-null, this value specifies the domain controllers and overrides all the lookups.
      *
      * The format is "host:port,host:port,..."
+     *
+     * @deprecated as of 1.28
+     *      Use the UI field.
      */
     public static String DOMAIN_CONTROLLERS = System.getProperty(ActiveDirectorySecurityRealm.class.getName()+".domainControllers");
 
