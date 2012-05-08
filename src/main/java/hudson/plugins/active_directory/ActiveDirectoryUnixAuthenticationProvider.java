@@ -235,7 +235,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
             id = principalName.substring(0, principalName.indexOf('@'));
             anonymousBind = password == NO_AUTHENTICATION;
             try {
-                // if we are just retrieving the user, trying using anonymous bind by empty password (see RFC 2829 5.1)
+                // if we are just retrieving the user, try using anonymous bind by empty password (see RFC 2829 5.1)
                 // but if that fails, that's not BadCredentialException but UserMayOrMayNotExistException
                 context = descriptor.bind(principalName, anonymousBind ? "" : password, ldapServers);
             } catch (BadCredentialsException e) {

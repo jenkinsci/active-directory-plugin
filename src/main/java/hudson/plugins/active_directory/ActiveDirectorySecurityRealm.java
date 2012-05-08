@@ -357,6 +357,19 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                     LdapContext context = bind(principalName, password, ldapServer, props);
                     LOGGER.fine("Bound to " + ldapServer);
                     return context;
+                } catch (javax.naming.AuthenticationException e) {
+                    // if the authentication failed (as opposed to a communication problem with the server),
+                    // don't retry, because if this is because of a wrong password, we can end up locking
+                    // the user out by causing multiple failed attempts.
+                    // error code 49 (LdapClient.LDAP_INVALID_CREDENTIALS) maps to this exception in LdapCtx.mapErrorCode
+                    // see http://confluence.atlassian.com/display/CONFKB/LDAP+Error+Code+49 and http://www-01.ibm.com/support/docview.wss?uid=swg21290631
+                    // for subcodes within this error.
+                    // it seems like we can be clever about checking subcode to decide if we retry or not,
+                    // but I'm erring on the safe side as I'm not sure how reliable the code is, and maybe
+                    // servers can be configured to hide the distinction between "no such user" and "bad password"
+                    // to reveal what user names are available.
+                    LOGGER.log(Level.WARNING, "Failed to authenticate while binding to "+ldapServer, e);
+                    throw new BadCredentialsException("Either no such user '"+principalName+"' or incorrect password",e);
                 } catch (NamingException e) {
                     LOGGER.log(Level.WARNING, "Failed to bind to "+ldapServer, e);
                     error = e; // retry
