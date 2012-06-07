@@ -12,6 +12,9 @@ import org.springframework.dao.DataAccessException;
  * @author Kohsuke Kawaguchi
  */
 public abstract class AbstractActiveDirectoryAuthenticationProvider extends AbstractUserDetailsAuthenticationProvider implements UserDetailsService, GroupDetailsService {
+    protected AbstractActiveDirectoryAuthenticationProvider() {
+        setHideUserNotFoundExceptions(SHOW_USER_NOT_FOUND_EXCEPTION);
+    }
 
     /**
      * Authenticates the user (if {@code authentication!=null}), or retrieve the user name information (otherwise.)
@@ -31,4 +34,9 @@ public abstract class AbstractActiveDirectoryAuthenticationProvider extends Abst
         // active directory authentication is not by comparing clear text password,
         // so there's nothing to do here.
     }
+
+    /**
+     * Setting this to true might help with diagnosing login problem.
+     */
+    public static boolean SHOW_USER_NOT_FOUND_EXCEPTION = Boolean.getBoolean(AbstractActiveDirectoryAuthenticationProvider.class.getName()+".showUserNotFoundException");
 }
