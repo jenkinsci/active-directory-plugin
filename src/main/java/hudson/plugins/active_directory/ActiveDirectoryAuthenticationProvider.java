@@ -27,6 +27,7 @@ import org.acegisecurity.userdetails.UsernameNotFoundException;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -97,6 +98,9 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
                 groups.toArray(new GrantedAuthority[groups.size()]),
                     getFullName(usr), getEmailAddress(usr), getTelehoneNumber(usr)
             ).updateUserInfo();
+        } catch (AuthenticationException e) {
+            LOGGER.log(Level.FINE, "Failed toretrieve user "+username, e);
+            throw e;
         } finally {
             col.disposeAll();
             COM4J.removeListener(col);

@@ -122,44 +122,49 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     }
 
     protected UserDetails retrieveUser(String username, UsernamePasswordAuthenticationToken authentication) throws AuthenticationException {
-        // this is more seriously error, indicating a failure to search
-        List<BadCredentialsException> errors = new ArrayList<BadCredentialsException>();
+        try {
+            // this is more seriously error, indicating a failure to search
+            List<BadCredentialsException> errors = new ArrayList<BadCredentialsException>();
 
-        // this is lesser error, in that we searched and the user was not found
-        List<UsernameNotFoundException> notFound = new ArrayList<UsernameNotFoundException>();
+            // this is lesser error, in that we searched and the user was not found
+            List<UsernameNotFoundException> notFound = new ArrayList<UsernameNotFoundException>();
 
-        for (String domainName : domainNames) {
-            try {
-                return retrieveUser(username, authentication, domainName);
-            } catch (UsernameNotFoundException e) {
-                notFound.add(e);
-            } catch (BadCredentialsException bce) {
-                LOGGER.log(Level.WARNING, "Credential exception tying to authenticate against "+domainName+" domain", bce);
-                errors.add(bce);
+            for (String domainName : domainNames) {
+                try {
+                    return retrieveUser(username, authentication, domainName);
+                } catch (UsernameNotFoundException e) {
+                    notFound.add(e);
+                } catch (BadCredentialsException bce) {
+                    LOGGER.log(Level.WARNING, "Credential exception tying to authenticate against "+domainName+" domain", bce);
+                    errors.add(bce);
+                }
             }
+
+            switch (errors.size()) {
+            case 0:
+                break;  // fall through
+            case 1:
+                throw errors.get(0); // preserve the original exception
+            default:
+                throw new MultiCauseBadCredentialsException("Either no such user '"+username+"' or incorrect password",errors);
+            }
+
+            if (notFound.size()==1)
+                throw notFound.get(0);  // preserve the original exception
+
+            if (!Util.filter(notFound,UserMayOrMayNotExistException.class).isEmpty())
+                // if one domain responds with UserMayOrMayNotExistException, then it might actually exist there,
+                // so our response will be "can't tell"
+                throw new MultiCauseUserNotFoundException("We can't tell if the user exists or not: "+username,notFound);
+
+            if (!notFound.isEmpty())
+                throw new MultiCauseUserNotFoundException("No such user: "+username,notFound);
+
+            throw new AssertionError("no domain is configured");
+        } catch (AuthenticationException e) {
+            LOGGER.log(Level.FINE, "Failed toretrieve user "+username, e);
+            throw e;
         }
-
-        switch (errors.size()) {
-        case 0:
-            break;  // fall through
-        case 1:
-            throw errors.get(0); // preserve the original exception
-        default:
-            throw new MultiCauseBadCredentialsException("Either no such user '"+username+"' or incorrect password",errors);
-        }
-
-        if (notFound.size()==1)
-            throw notFound.get(0);  // preserve the original exception
-
-        if (!Util.filter(notFound,UserMayOrMayNotExistException.class).isEmpty())
-            // if one domain responds with UserMayOrMayNotExistException, then it might actually exist there,
-            // so our response will be "can't tell"
-            throw new MultiCauseUserNotFoundException("We can't tell if the user exists or not: "+username,notFound);
-
-        if (!notFound.isEmpty())
-            throw new MultiCauseUserNotFoundException("No such user: "+username,notFound);
-
-        throw new AssertionError("no domain is configured");
     }
 
     @Override
