@@ -96,7 +96,7 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
                 !isAccountDisabled(usr),
                 true, true, true,
                 groups.toArray(new GrantedAuthority[groups.size()]),
-                    getFullName(usr), getEmailAddress(usr), getTelehoneNumber(usr)
+                    getFullName(usr), getEmailAddress(usr), getTelephoneNumber(usr)
             ).updateUserInfo();
         } catch (AuthenticationException e) {
             LOGGER.log(Level.FINE, "Failed toretrieve user "+username, e);
@@ -112,7 +112,7 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
         return true;
     }
 
-    private String getTelehoneNumber(IADsUser usr) {
+    private String getTelephoneNumber(IADsUser usr) {
         try {
             Object t = usr.telephoneNumber();
             return t==null ? null : t.toString();
