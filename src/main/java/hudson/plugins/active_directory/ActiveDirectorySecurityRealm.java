@@ -274,7 +274,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                             if (a==null)
                                 throw new NamingException(name+" doesn't look like a domain name");
                         }
-                        LOGGER.fine(name+" resolved to "+ns.get());
+                        LOGGER.log(Level.FINE, "{0} resolved to {1}", new Object[] {name, ns});
                     } catch (NamingException e) {
                         LOGGER.log(Level.WARNING, "Failed to resolve "+name+" to A record", e);
                         return FormValidation.error(e, name+" doesn't look like a valid domain name");
