@@ -17,6 +17,8 @@ public class ActiveDirectoryUserDetail extends User {
     // additional attributes from Active Directory
     private final String displayName, mail, telephoneNumber;
 
+    private String toStringValue;
+
 	public ActiveDirectoryUserDetail(String username, String password,
 			boolean enabled, boolean accountNonExpired,
 			boolean credentialsNonExpired, boolean accountNonLocked,
@@ -44,6 +46,39 @@ public class ActiveDirectoryUserDetail extends User {
 
     public String getTelephoneNumber() {
         return telephoneNumber;
+    }
+
+    @Override
+    public String toString() {
+        return toStringValue;
+    }
+
+    @Override
+    protected void setAuthorities(GrantedAuthority[] authorities) {
+        super.setAuthorities(authorities);
+        StringBuffer sb = new StringBuffer();
+        sb.append(super.toString()).append(": ");
+        sb.append("Username: ").append(getUsername()).append("; ");
+        sb.append("Password: [PROTECTED]; ");
+        sb.append("Enabled: ").append(isEnabled()).append("; ");
+        sb.append("AccountNonExpired: ").append(isAccountNonExpired()).append("; ");
+        sb.append("credentialsNonExpired: ").append(isCredentialsNonExpired()).append("; ");
+        sb.append("AccountNonLocked: ").append(isAccountNonLocked()).append("; ");
+
+        if (this.getAuthorities() != null) {
+            sb.append("Granted Authorities: ");
+
+            for (int i = 0; i < this.getAuthorities().length; i++) {
+                if (i > 0) {
+                    sb.append(", ");
+                }
+
+                sb.append(this.getAuthorities()[i].toString());
+            }
+        } else {
+            sb.append("Not granted any authorities");
+        }
+        toStringValue = sb.toString();
     }
 
     public static long getSerialVersionUID() {
