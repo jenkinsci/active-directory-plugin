@@ -53,6 +53,31 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
         con.open("Active Directory Provider",""/*default*/,""/*default*/,-1/*default*/);
     }
 
+    /**
+     * Escape unsafe characters in LDAP path name
+     * (are there authoritative source for this?)
+     *
+     *
+     * @see <a href="http://www.rlmueller.net/CharactersEscaped.htm">source</a>
+     */
+    static String ldapEscape(String dn) {
+        String letters = ",+\\#<>;\"=/";
+        StringBuilder buf = new StringBuilder(dn.length()+4);
+        boolean replaced = false;
+        for (int i=0; i<dn.length(); i++) {
+            char ch = dn.charAt(i);
+            int idx = letters.indexOf(ch);
+            if (idx>=0) {
+                replaced = true;
+                buf.append('\\').append(ch);
+            } else {
+                buf.append(ch);
+            }
+        }
+        if (replaced)   return buf.toString();
+        return dn;  // unmodified
+    }
+
     protected UserDetails retrieveUser(String username, UsernamePasswordAuthenticationToken authentication) throws AuthenticationException {
         String password = null;
         if(authentication!=null)
@@ -74,8 +99,8 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
             IADsUser usr;
             try {
                 usr = (authentication==null
-                    ? dso.openDSObject("LDAP://"+dn, null, null, 0)
-                    : dso.openDSObject("LDAP://"+dn, dn, password, 0))
+                    ? dso.openDSObject("LDAP://"+ ldapEscape(dn), null, null, 0)
+                    : dso.openDSObject("LDAP://"+ ldapEscape(dn), dn, password, 0))
                         .queryInterface(IADsUser.class);
             } catch (ComException e) {
                 // this is failing
@@ -93,6 +118,8 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
                 groups.add(new GrantedAuthorityImpl(grp.name().substring(3)));
             }
             groups.add(SecurityRealm.AUTHENTICATED_AUTHORITY);
+
+            LOGGER.log(Level.FINER, "Login successful: "+username+" dn="+dn);
 
             return new ActiveDirectoryUserDetail(
                 username, password,
