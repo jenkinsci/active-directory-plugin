@@ -78,7 +78,10 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
                     : dso.openDSObject("LDAP://"+dn, dn, password, 0))
                         .queryInterface(IADsUser.class);
             } catch (ComException e) {
-                throw new BadCredentialsException("Incorrect password for "+username);
+                // this is failing
+                String msg = String.format("Incorrect password for %s for=%s: error=%08X", username, dn, e.getHRESULT());
+                LOGGER.log(Level.FINE, "Login failure: "+msg,e);
+                throw (BadCredentialsException)new BadCredentialsException(msg).initCause(e);
             }
             if (usr == null)    // the user name was in fact a group
                 throw new UsernameNotFoundException("User not found: "+username);
