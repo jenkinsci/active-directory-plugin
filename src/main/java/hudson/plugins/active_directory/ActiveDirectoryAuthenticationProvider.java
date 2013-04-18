@@ -113,6 +113,7 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
 
             List<GrantedAuthority> groups = new ArrayList<GrantedAuthority>();
             for( Com4jObject g : usr.groups() ) {
+                if (g==null)        continue;   // according to JENKINS-17357 in some environment the collection contains null
                 IADsGroup grp = g.queryInterface(IADsGroup.class);
                 // cut "CN=" and make that the role name
                 groups.add(new GrantedAuthorityImpl(grp.name().substring(3)));
