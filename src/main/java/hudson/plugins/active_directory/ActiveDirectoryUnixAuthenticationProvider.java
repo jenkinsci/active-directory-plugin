@@ -5,6 +5,7 @@ import hudson.security.GroupDetails;
 import hudson.security.SecurityRealm;
 import hudson.security.UserMayOrMayNotExistException;
 import hudson.util.Secret;
+import javax.naming.NameNotFoundException;
 import org.acegisecurity.AuthenticationException;
 import org.acegisecurity.AuthenticationServiceException;
 import org.acegisecurity.BadCredentialsException;
@@ -419,17 +420,21 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                     continue;
 
                 for (int i = 0; i<memberOf.size(); i++) {
-                    Attributes group = context.getAttributes(new LdapName(memberOf.get(i).toString()), new String[] { "CN", "memberOf" });
-                    Attribute cn = group.get("CN");
-                    if (cn==null) {
-                        LOGGER.fine("Failed to obtain CN of "+memberOf.get(i));
-                        continue;
-                    }
-                    if (LOGGER.isLoggable(Level.FINE))
-                        LOGGER.fine(cn.get()+" is a member of "+memberOf.get(i));
+                    try {
+                        Attributes group = context.getAttributes(new LdapName(memberOf.get(i).toString()), new String[] { "CN", "memberOf" });
+                        Attribute cn = group.get("CN");
+                        if (cn==null) {
+                            LOGGER.fine("Failed to obtain CN of "+memberOf.get(i));
+                            continue;
+                        }
+                        if (LOGGER.isLoggable(Level.FINE))
+                            LOGGER.fine(cn.get()+" is a member of "+memberOf.get(i));
 
-                    if (groups.add(new GrantedAuthorityImpl(cn.get().toString()))) {
-                        q.add(group); // recursively look for groups that this group is a member of.
+                        if (groups.add(new GrantedAuthorityImpl(cn.get().toString()))) {
+                            q.add(group); // recursively look for groups that this group is a member of.
+                        }
+                    } catch (NameNotFoundException e) {
+                        LOGGER.fine("Failed to obtain CN of "+memberOf.get(i));
                     }
                 }
             }
