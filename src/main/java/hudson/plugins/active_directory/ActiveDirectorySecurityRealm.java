@@ -506,6 +506,8 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                 } catch (NamingException e) {
                     // failed retrieval. try next option.
                     failure = e;
+                } catch (NumberFormatException x) {
+                    failure = (NamingException) new NamingException("JDK IPv6 bug encountered").initCause(x);
                 }
             }
 
