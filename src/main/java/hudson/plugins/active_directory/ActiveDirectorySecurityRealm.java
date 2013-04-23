@@ -150,8 +150,8 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     }
 
     @Override
-    public DesciprotrImpl getDescriptor() {
-        return (DesciprotrImpl) super.getDescriptor();
+    public DescriptorImpl getDescriptor() {
+        return (DescriptorImpl) super.getDescriptor();
     }
 
     /**
@@ -170,7 +170,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             UserDetailsService uds = getAuthenticationProvider();
             if (uds instanceof ActiveDirectoryUnixAuthenticationProvider) {
                 ActiveDirectoryUnixAuthenticationProvider p = (ActiveDirectoryUnixAuthenticationProvider) uds;
-                DesciprotrImpl descriptor = getDescriptor();
+                DescriptorImpl descriptor = getDescriptor();
 
                 for (String domainName : domain.split(",")) {
 	                try {
@@ -206,7 +206,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     }
 
     @Extension
-    public static final class DesciprotrImpl extends Descriptor<SecurityRealm> {
+    public static final class DescriptorImpl extends Descriptor<SecurityRealm> {
         public String getDisplayName() {
             return Messages.DisplayName();
         }

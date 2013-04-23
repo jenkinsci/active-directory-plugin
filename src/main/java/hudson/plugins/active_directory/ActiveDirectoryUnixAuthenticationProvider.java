@@ -54,7 +54,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
 
     private final String bindName, bindPassword;
 
-    private final ActiveDirectorySecurityRealm.DesciprotrImpl descriptor;
+    private final ActiveDirectorySecurityRealm.DescriptorImpl descriptor;
 
     /**
      * {@link ActiveDirectoryGroupDetails} cache.
