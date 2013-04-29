@@ -290,7 +290,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                 }
             }
 
-            Set<GrantedAuthority> groups = resolveGroups(domainDN, StringEscapeUtils.escapeJava(dn.toString()), context);
+            Set<GrantedAuthority> groups = resolveGroups(domainDN, dn.toString(), context);
             groups.add(SecurityRealm.AUTHENTICATED_AUTHORITY);
 
             return new ActiveDirectoryUserDetail(id, password, true, true, true, true, groups.toArray(new GrantedAuthority[groups.size()]),
