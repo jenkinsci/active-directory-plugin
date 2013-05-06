@@ -197,6 +197,10 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
                 return new ActiveDirectoryGroupDetails(groupname);
             } catch (UsernameNotFoundException e) {
                 return null; // failed to convert group name to DN
+            } catch (ComException e) {
+                // recover gracefully since AD might behave in a way we haven't anticipated
+                LOGGER.log(Level.WARNING, "Failed to figure out details of AD group: "+groupname,e);
+                return null;
             } finally {
                 col.disposeAll();
                 COM4J.removeListener(col);
