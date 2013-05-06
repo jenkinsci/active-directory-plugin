@@ -99,8 +99,8 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
             IADsUser usr;
             try {
                 usr = (authentication==null
-                    ? dso.openDSObject("LDAP://"+ ldapEscape(dn), null, null, 0)
-                    : dso.openDSObject("LDAP://"+ ldapEscape(dn), dn, password, 0))
+                    ? dso.openDSObject("LDAP://"+ ldapEscape(dn), null, null, ADS_READONLY_SERVER)
+                    : dso.openDSObject("LDAP://"+ ldapEscape(dn), dn, password, ADS_READONLY_SERVER))
                         .queryInterface(IADsUser.class);
             } catch (ComException e) {
                 // this is failing
@@ -220,7 +220,7 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
                 // First get the distinguishedName
                 String dn = getDnOfUserOrGroup(groupname);
                 IADsOpenDSObject dso = COM4J.getObject(IADsOpenDSObject.class, "LDAP:", null);
-                IADsGroup group = dso.openDSObject("LDAP://" + ldapEscape(dn), null, null, 0)
+                IADsGroup group = dso.openDSObject("LDAP://" + ldapEscape(dn), null, null, ADS_READONLY_SERVER)
                         .queryInterface(IADsGroup.class);
 
                 // If not a group will return null
@@ -240,4 +240,12 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
     };
 
     private static final Logger LOGGER = Logger.getLogger(ActiveDirectoryAuthenticationProvider.class.getName());
+
+    /**
+     * Signify that we can connect to a read-only mirror.
+     *
+     * See http://msdn.microsoft.com/en-us/library/windows/desktop/aa772247(v=vs.85).aspx
+     */
+    private static final int ADS_READONLY_SERVER = 0x4;
+
 }
