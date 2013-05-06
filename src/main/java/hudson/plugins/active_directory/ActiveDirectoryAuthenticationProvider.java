@@ -220,7 +220,7 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
                 // First get the distinguishedName
                 String dn = getDnOfUserOrGroup(groupname);
                 IADsOpenDSObject dso = COM4J.getObject(IADsOpenDSObject.class, "LDAP:", null);
-                IADsGroup group = dso.openDSObject("LDAP://" + dn, null, null, 0)
+                IADsGroup group = dso.openDSObject("LDAP://" + ldapEscape(dn), null, null, 0)
                         .queryInterface(IADsGroup.class);
 
                 // If not a group will return null
@@ -228,6 +228,10 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
                 return new ActiveDirectoryGroupDetails(groupname);
             } catch (UsernameNotFoundException e) {
                 return null; // failed to convert group name to DN
+            } catch (ComException e) {
+                // recover gracefully since AD might behave in a way we haven't anticipated
+                LOGGER.log(Level.WARNING, "Failed to figure out details of AD group: "+groupname,e);
+                return null;
             } finally {
                 col.disposeAll();
                 COM4J.removeListener(col);
