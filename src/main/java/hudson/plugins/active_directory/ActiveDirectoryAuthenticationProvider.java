@@ -54,28 +54,19 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
     }
 
     /**
-     * Escape unsafe characters in LDAP path name
-     * (are there authoritative source for this?)
+     * Converts a value of the "distinguished name" attribute of some AD object
+     * and returns the "LDAP://..." URL to connect to it vis {@link IADsOpenDSObject#openDSObject(String, String, String, int)}
      *
+     * AFAICT, MSDN doesn't document exactly describe how a value of the DN attribute is escaped,
+     * but in my experiment with Windows 2008, it escapes <tt>,+\#<>;"=</tt> but not <tt>/</tt>
+     *
+     * This method must escape '/' since it needs to be escaped in LDAP:// URL, but we also need
+     * to avoid double-escaping what's already escaped.
      *
      * @see <a href="http://www.rlmueller.net/CharactersEscaped.htm">source</a>
      */
-    static String ldapEscape(String dn) {
-        String letters = ",+\\#<>;\"=/";
-        StringBuilder buf = new StringBuilder(dn.length()+4);
-        boolean replaced = false;
-        for (int i=0; i<dn.length(); i++) {
-            char ch = dn.charAt(i);
-            int idx = letters.indexOf(ch);
-            if (idx>=0) {
-                replaced = true;
-                buf.append('\\').append(ch);
-            } else {
-                buf.append(ch);
-            }
-        }
-        if (replaced)   return buf.toString();
-        return dn;  // unmodified
+    static String dnToLdapUrl(String dn) {
+        return "LDAP://"+dn.replace("/","\\/");
     }
 
     protected UserDetails retrieveUser(String username, UsernamePasswordAuthenticationToken authentication) throws AuthenticationException {
@@ -99,8 +90,8 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
             IADsUser usr;
             try {
                 usr = (authentication==null
-                    ? dso.openDSObject("LDAP://"+ ldapEscape(dn), null, null, ADS_READONLY_SERVER)
-                    : dso.openDSObject("LDAP://"+ ldapEscape(dn), dn, password, ADS_READONLY_SERVER))
+                    ? dso.openDSObject(dnToLdapUrl(dn), null, null, ADS_READONLY_SERVER)
+                    : dso.openDSObject(dnToLdapUrl(dn), dn, password, ADS_READONLY_SERVER))
                         .queryInterface(IADsUser.class);
             } catch (ComException e) {
                 // this is failing
@@ -220,7 +211,7 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
                 // First get the distinguishedName
                 String dn = getDnOfUserOrGroup(groupname);
                 IADsOpenDSObject dso = COM4J.getObject(IADsOpenDSObject.class, "LDAP:", null);
-                IADsGroup group = dso.openDSObject("LDAP://" + ldapEscape(dn), null, null, ADS_READONLY_SERVER)
+                IADsGroup group = dso.openDSObject(dnToLdapUrl(dn), null, null, ADS_READONLY_SERVER)
                         .queryInterface(IADsGroup.class);
 
                 // If not a group will return null

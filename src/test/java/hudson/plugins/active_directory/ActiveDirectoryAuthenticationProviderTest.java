@@ -11,7 +11,7 @@ import static junit.framework.Assert.*;
 public class ActiveDirectoryAuthenticationProviderTest {
     @Test
     public void testEscape() {
-        assertEquals("it\\/ops", ldapEscape("it/ops"));
-        assertEquals("foo\\#\\,bar", ldapEscape("foo#,bar"));
+        assertEquals("LDAP://it\\/ops", dnToLdapUrl("it/ops"));
+        assertEquals("LDAP://foo\\#\\,bar", dnToLdapUrl("foo\\#\\,bar"));
     }
 }
