@@ -95,7 +95,7 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
                         .queryInterface(IADsUser.class);
             } catch (ComException e) {
                 // this is failing
-                String msg = String.format("Incorrect password for %s for=%s: error=%08X", username, dn, e.getHRESULT());
+                String msg = String.format("Incorrect password for %s DN=%s: error=%08X", username, dn, e.getHRESULT());
                 LOGGER.log(Level.FINE, "Login failure: "+msg,e);
                 throw (BadCredentialsException)new BadCredentialsException(msg).initCause(e);
             }
