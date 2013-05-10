@@ -244,8 +244,20 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
             try {
                 Functions.checkPermission(Hudson.ADMINISTER);
-                String n = Util.fixEmptyAndTrim(domain);
-                if (n==null) {// no value given yet
+                domain = Util.fixEmptyAndTrim(domain);
+
+                if (canDoNativeAuth() && domain==null) {
+                    // this check must be identical to that of ActiveDirectory.groovy
+                    try {
+                        // make sure we can connect via ADSI
+                        new ActiveDirectoryAuthenticationProvider();
+                        return FormValidation.ok("OK");
+                    } catch (Exception e) {
+                        return FormValidation.error(e, "Failed to contact Active Directory");
+                    }
+                }
+
+                if (domain==null) {// no value given yet
                     return FormValidation.error("No domain name set");
                 }
 
@@ -253,7 +265,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                 if (bindName!=null && password==null)
                     return FormValidation.error("DN is specified but not password");
 
-                String[] names = n.split(",");
+                String[] names = domain.split(",");
                 for (String name : names) {
 
                     if (!name.endsWith("."))

@@ -23,6 +23,9 @@
       </f:nested>
     </j:when>
     <j:otherwise>
+      <f:nested>
+        <f:validateButton with="domain,server" title="${%Test}" method="validate"/>
+      </f:nested>
       <f:advanced>
         <f:entry title="${%Domain Name}" field="domain" help="/plugin/active-directory/help/domain-name-windows.html">
           <f:textbox />

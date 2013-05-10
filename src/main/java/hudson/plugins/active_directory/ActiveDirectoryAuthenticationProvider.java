@@ -3,6 +3,7 @@ package hudson.plugins.active_directory;
 import com4j.COM4J;
 import com4j.Com4jObject;
 import com4j.ComException;
+import com4j.ExecutionException;
 import com4j.Variant;
 import com4j.typelibs.activeDirectory.IADs;
 import com4j.typelibs.activeDirectory.IADsGroup;
@@ -24,7 +25,9 @@ import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
 import org.acegisecurity.userdetails.UserDetails;
 import org.acegisecurity.userdetails.UserDetailsService;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
+import org.kohsuke.stapler.framework.io.IOException2;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
@@ -42,15 +45,19 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
      */
     private final _Connection con;
 
-    public ActiveDirectoryAuthenticationProvider() {
-        IADs rootDSE = COM4J.getObject(IADs.class, "LDAP://RootDSE", null);
+    public ActiveDirectoryAuthenticationProvider() throws IOException {
+        try {
+            IADs rootDSE = COM4J.getObject(IADs.class, "LDAP://RootDSE", null);
 
-        defaultNamingContext = (String)rootDSE.get("defaultNamingContext");
-        LOGGER.info("Active Directory domain is "+defaultNamingContext);
+            defaultNamingContext = (String)rootDSE.get("defaultNamingContext");
+            LOGGER.info("Active Directory domain is "+defaultNamingContext);
 
-        con = ClassFactory.createConnection();
-        con.provider("ADsDSOObject");
-        con.open("Active Directory Provider",""/*default*/,""/*default*/,-1/*default*/);
+            con = ClassFactory.createConnection();
+            con.provider("ADsDSOObject");
+            con.open("Active Directory Provider",""/*default*/,""/*default*/,-1/*default*/);
+        } catch (ExecutionException e) {
+            throw new IOException2("Failed to connect to Active Directory. Does this machine belong to Active Directory?",e);
+        }
     }
 
     /**
