@@ -138,7 +138,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                 } catch (UsernameNotFoundException e) {
                     notFound.add(e);
                 } catch (BadCredentialsException bce) {
-                    LOGGER.log(Level.WARNING, "Credential exception tying to authenticate against "+domainName+" domain", bce);
+                    LOGGER.log(Level.WARNING, "Credential exception trying to authenticate against "+domainName+" domain", bce);
                     errors.add(bce);
                 }
             }
