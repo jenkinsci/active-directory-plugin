@@ -1,6 +1,7 @@
 target
 build
 *.iml
+.idea/
 .classpath
 .project
 .settings
