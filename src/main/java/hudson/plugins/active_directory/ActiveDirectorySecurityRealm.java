@@ -308,7 +308,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                             DirContext context = bind(bindName, Secret.toString(password), servers);
                             try {
                                 // actually do a search to make sure the credential is valid
-                                new LDAPSearchBuilder(context, toDC(domain)).searchOne("(objectClass=user)");
+                                new LDAPSearchBuilder(context, toDC(name)).searchOne("(objectClass=user)");
                             } finally {
                                 context.close();
                             }
