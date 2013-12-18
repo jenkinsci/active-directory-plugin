@@ -556,7 +556,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                         // map to LDAPS ports. I don't think there's any SRV records specifically for LDAPS.
                         // I think Microsoft considers LDAP+TLS the way to go, or else there should have been
                         // separate SRV entries.
-                        if (port==389)  port=686;
+                        if (port==389)  port=636;
                         if (port==3268) port=3269;
                     }
                     int p = Integer.parseInt(fields[0]);
