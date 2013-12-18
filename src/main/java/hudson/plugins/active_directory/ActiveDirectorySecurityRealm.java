@@ -621,5 +621,5 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
      * One legitimate use case is when the domain controller is Windows 2000, which doesn't support TLS
      * (according to http://support.microsoft.com/kb/321051).
      */
-    public static boolean FORCE_LDAPS = Boolean.getBoolean(ActiveDirectoryUnixAuthenticationProvider.class.getName()+".forceLdaps");
+    public static boolean FORCE_LDAPS = Boolean.getBoolean(ActiveDirectorySecurityRealm.class.getName()+".forceLdaps");
 }
