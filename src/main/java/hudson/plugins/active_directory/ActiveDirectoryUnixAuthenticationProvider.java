@@ -165,7 +165,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
 
             throw new AssertionError("no domain is configured");
         } catch (AuthenticationException e) {
-            LOGGER.log(Level.FINE, "Failed toretrieve user "+username, e);
+            LOGGER.log(Level.FINE, "Failed to retrieve user "+username, e);
             throw e;
         }
     }
