@@ -135,11 +135,12 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
         TokenBasedRememberMeServices2 rms = new TokenBasedRememberMeServices2() {
             public Authentication autoLogin(HttpServletRequest request, HttpServletResponse response) {
-                // no supporting auto-login unless we can do retrieveUser. See JENKINS-11643.
-                if (adp.canRetrieveUserByName())
+                try {
                     return super.autoLogin(request, response);
-                else
+                } catch (Exception e) {// TODO: this check is made redundant with 1.556, but needed with earlier versions
+                    cancelCookie(request, response, "Failed to handle remember-me cookie: "+Functions.printThrowable(e));
                     return null;
+                }
             }
         };
         rms.setUserDetailsService(uds);
