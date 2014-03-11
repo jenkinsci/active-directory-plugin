@@ -158,7 +158,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
             if (!Util.filter(notFound,UserMayOrMayNotExistException.class).isEmpty())
                 // if one domain responds with UserMayOrMayNotExistException, then it might actually exist there,
                 // so our response will be "can't tell"
-                throw new MultiCauseUserNotFoundException("We can't tell if the user exists or not: "+username,notFound);
+                throw new MultiCauseUserMayOrMayNotExistException("We can't tell if the user exists or not: "+username,notFound);
 
             if (!notFound.isEmpty())
                 throw new MultiCauseUserNotFoundException("No such user: "+username,notFound);
