@@ -396,13 +396,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         Set<GrantedAuthority> groups = new HashSet<GrantedAuthority>();
 
         NamingEnumeration<SearchResult> renum = new LDAPSearchBuilder(context,domainDN).subTreeScope().returns("cn").search(query.toString(), sids.toArray());
-        while (renum.hasMore()) {
-            Attributes a = renum.next().getAttributes();
-            Attribute cn = a.get("cn");
-            if (LOGGER.isLoggable(Level.FINE))
-                LOGGER.fine(userDN+" is a member of "+cn);
-            groups.add(new GrantedAuthorityImpl(cn.get().toString()));
-        }
+        parseMembers(userDN, groups, renum);
         renum.close();
 
         {/*
@@ -411,38 +405,61 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         */
             LOGGER.fine("Stage 2: looking up via memberOf");
 
-            Stack<Attributes> q = new Stack<Attributes>();
-            q.push(id);
-            while (!q.isEmpty()) {
-                Attributes identity = q.pop();
-                LOGGER.finer("Looking up group of "+identity);
+            // this Microsoft extension is explained in http://msdn.microsoft.com/en-us/library/aa746475(v=vs.85).aspx
+            renum = new LDAPSearchBuilder(context, domainDN).subTreeScope().returns("cn").search(
+                    "(member:1.2.840.113556.1.4.1941:={0})", userDN);
+            if (renum.hasMore()) {
+                // http://ldapwiki.willeke.com/wiki/Active%20Directory%20Group%20Related%20Searches cites that
+                // this filter search extension requires at least Win2K3 SP2. So if this didn't find anything,
+                // fall back to the recursive search
 
-                Attribute memberOf = identity.get("memberOf");
-                if (memberOf==null)
-                    continue;
+                // TODO: this search alone might be producing the super set of the tokenGroups/objectSid based search in the stage 1.
+                parseMembers(userDN, groups, renum);
+            } else {
+                Stack<Attributes> q = new Stack<Attributes>();
+                q.push(id);
+                while (!q.isEmpty()) {
+                    Attributes identity = q.pop();
+                    LOGGER.finer("Looking up group of " + identity);
 
-                for (int i = 0; i<memberOf.size(); i++) {
-                    try {
-                        Attributes group = context.getAttributes(new LdapName(memberOf.get(i).toString()), new String[] { "CN", "memberOf" });
-                        Attribute cn = group.get("CN");
-                        if (cn==null) {
-                            LOGGER.fine("Failed to obtain CN of "+memberOf.get(i));
-                            continue;
+                    Attribute memberOf = identity.get("memberOf");
+                    if (memberOf == null)
+                        continue;
+
+                    for (int i = 0; i < memberOf.size(); i++) {
+                        try {
+                            Attributes group = context.getAttributes(new LdapName(memberOf.get(i).toString()), new String[]{"CN", "memberOf"});
+                            Attribute cn = group.get("CN");
+                            if (cn == null) {
+                                LOGGER.fine("Failed to obtain CN of " + memberOf.get(i));
+                                continue;
+                            }
+                            if (LOGGER.isLoggable(Level.FINE))
+                                LOGGER.fine(cn.get() + " is a member of " + memberOf.get(i));
+
+                            if (groups.add(new GrantedAuthorityImpl(cn.get().toString()))) {
+                                q.add(group); // recursively look for groups that this group is a member of.
+                            }
+                        } catch (NameNotFoundException e) {
+                            LOGGER.fine("Failed to obtain CN of " + memberOf.get(i));
                         }
-                        if (LOGGER.isLoggable(Level.FINE))
-                            LOGGER.fine(cn.get()+" is a member of "+memberOf.get(i));
-
-                        if (groups.add(new GrantedAuthorityImpl(cn.get().toString()))) {
-                            q.add(group); // recursively look for groups that this group is a member of.
-                        }
-                    } catch (NameNotFoundException e) {
-                        LOGGER.fine("Failed to obtain CN of "+memberOf.get(i));
                     }
                 }
             }
+            renum.close();
         }
 
         return groups;
+    }
+
+    private void parseMembers(String userDN, Set<GrantedAuthority> groups, NamingEnumeration<SearchResult> renum) throws NamingException {
+        while (renum.hasMore()) {
+            Attributes a = renum.next().getAttributes();
+            Attribute cn = a.get("cn");
+            if (LOGGER.isLoggable(Level.FINE))
+                LOGGER.fine(userDN+" is a member of "+cn);
+            groups.add(new GrantedAuthorityImpl(cn.get().toString()));
+        }
     }
 
     /*package*/ static String toDC(String domainName) {
