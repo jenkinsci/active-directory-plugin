@@ -100,6 +100,8 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     public final String bindName;
 
     public final Secret bindPassword;
+    
+    public final boolean isGroupRetrievingDisabled;
 
     /**
      * If non-null, Jenkins will try to connect at this server at the first priority, before falling back to
@@ -108,11 +110,12 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     public final String server;
 
     @DataBoundConstructor
-    public ActiveDirectorySecurityRealm(String domain, String site, String bindName, String bindPassword, String server) {
+    public ActiveDirectorySecurityRealm(String domain, String site, String bindName, String bindPassword, String server, boolean isGroupRetrievingDisabled) {
         this.domain = fixEmpty(domain);
         this.site = fixEmpty(site);
         this.bindName = fixEmpty(bindName);
         this.bindPassword = Secret.fromString(fixEmpty(bindPassword));
+        this.isGroupRetrievingDisabled = isGroupRetrievingDisabled;
 
         // append default port if not specified
         server = fixEmpty(server);

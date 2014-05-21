@@ -17,6 +17,9 @@
         <f:entry field="bindPassword" title="${%Bind Password}">
           <f:password />
         </f:entry>
+        <f:entry title="${%Disable groups retrieving}" field="isGroupRetrievingDisabled">
+           <f:checkbox/>
+        </f:entry> 
       </f:advanced>
       <f:nested>
         <f:validateButton with="domain,site,bindName,bindPassword,server" title="${%Test}" method="validate"/>
