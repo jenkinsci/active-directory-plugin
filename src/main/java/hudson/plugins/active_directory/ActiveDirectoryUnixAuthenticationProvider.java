@@ -53,6 +53,8 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     private final String server;
 
     private final String bindName, bindPassword;
+    
+    private final boolean isGroupRetrievingDisabled;
 
     private final ActiveDirectorySecurityRealm.DescriptorImpl descriptor;
 
@@ -120,6 +122,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         this.site = realm.site;
         this.bindName = realm.bindName;
         this.server = realm.server;
+        this.isGroupRetrievingDisabled = realm.isGroupRetrievingDisabled;
         this.bindPassword = Secret.toString(realm.bindPassword);
         this.descriptor = realm.getDescriptor();
     }
@@ -290,7 +293,10 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                 }
             }
 
-            Set<GrantedAuthority> groups = resolveGroups(domainDN, dn.toString(), context);
+            Set<GrantedAuthority> groups = new HashSet<GrantedAuthority>();
+            if ( !this.isGroupRetrievingDisabled ) {
+                groups = resolveGroups(domainDN, dn.toString(), context);
+            }
             groups.add(SecurityRealm.AUTHENTICATED_AUTHORITY);
 
             return new ActiveDirectoryUserDetail(id, password, true, true, true, true, groups.toArray(new GrantedAuthority[groups.size()]),
