@@ -1,6 +1,7 @@
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
   <j:choose>
     <j:when test="${!descriptor.canDoNativeAuth()}">
+      <!-- code path for ActiveDirectoryUnixAuthenticationProvider -->
       <f:entry title="${%Domain Name}" field="domain" help="/plugin/active-directory/help/domain-name-unix.html">
         <f:textbox />
       </f:entry>
@@ -17,12 +18,16 @@
         <f:entry field="bindPassword" title="${%Bind Password}">
           <f:password />
         </f:entry>
+        <f:entry field="groupLookupStrategy" title="${%Group Membership Lookup Strategy}">
+          <f:select />
+        </f:entry>
       </f:advanced>
       <f:nested>
         <f:validateButton with="domain,site,bindName,bindPassword,server" title="${%Test}" method="validate"/>
       </f:nested>
     </j:when>
     <j:otherwise>
+      <!-- code path for ActiveDirectoryAuthenticationProvider -->
       <f:nested>
         <f:validateButton with="domain,server" title="${%Test}" method="validate"/>
       </f:nested>

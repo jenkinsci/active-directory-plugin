@@ -15,6 +15,8 @@ import hudson.security.GroupDetails;
 import hudson.security.SecurityRealm;
 import hudson.security.TokenBasedRememberMeServices2;
 import hudson.util.FormValidation;
+import hudson.util.ListBoxModel;
+import hudson.util.ListBoxModel.Option;
 import hudson.util.Secret;
 import hudson.util.spring.BeanBuilder;
 
@@ -107,12 +109,19 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
      */
     public final String server;
 
-    @DataBoundConstructor
+    private GroupLookupStrategy groupLookupStrategy;
+
     public ActiveDirectorySecurityRealm(String domain, String site, String bindName, String bindPassword, String server) {
+        this(domain,site,bindName,bindPassword,server,GroupLookupStrategy.AUTO);
+    }
+
+    @DataBoundConstructor
+    public ActiveDirectorySecurityRealm(String domain, String site, String bindName, String bindPassword, String server, GroupLookupStrategy groupLookupStrategy) {
         this.domain = fixEmpty(domain);
         this.site = fixEmpty(site);
         this.bindName = fixEmpty(bindName);
         this.bindPassword = Secret.fromString(fixEmpty(bindPassword));
+        this.groupLookupStrategy = groupLookupStrategy;
 
         // append default port if not specified
         server = fixEmpty(server);
@@ -121,6 +130,11 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         }
         
         this.server = server;
+    }
+
+    public GroupLookupStrategy getGroupLookupStrategy() {
+        if (groupLookupStrategy==null)      return GroupLookupStrategy.AUTO;
+        return groupLookupStrategy;
     }
 
     public SecurityComponents createSecurityComponents() {
@@ -235,6 +249,14 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                 }
                 return false;
             }
+        }
+
+        public ListBoxModel doFillGroupLookupStrategyItems() {
+            ListBoxModel model = new ListBoxModel();
+            for (GroupLookupStrategy e : GroupLookupStrategy.values()) {
+                model.add(e.getDisplayName(),e.name());
+            }
+            return model;
         }
 
         private static boolean WARNED = false;

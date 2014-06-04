@@ -6,6 +6,8 @@ import hudson.security.SecurityRealm;
 import hudson.security.UserMayOrMayNotExistException;
 import hudson.util.Secret;
 import javax.naming.NameNotFoundException;
+
+import hudson.util.TimeUnit2;
 import org.acegisecurity.AuthenticationException;
 import org.acegisecurity.AuthenticationServiceException;
 import org.acegisecurity.BadCredentialsException;
@@ -32,8 +34,6 @@ import java.util.Stack;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.apache.commons.lang.StringEscapeUtils;
-
 /**
  * {@link AuthenticationProvider} with Active Directory, through LDAP.
  * 
@@ -55,6 +55,8 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     private final String bindName, bindPassword;
 
     private final ActiveDirectorySecurityRealm.DescriptorImpl descriptor;
+
+    private GroupLookupStrategy groupLookupStrategy;
 
     /**
      * {@link ActiveDirectoryGroupDetails} cache.
@@ -121,6 +123,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         this.bindName = realm.bindName;
         this.server = realm.server;
         this.bindPassword = Secret.toString(realm.bindPassword);
+        this.groupLookupStrategy = realm.getGroupLookupStrategy();
         this.descriptor = realm.getDescriptor();
     }
 
@@ -405,9 +408,45 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         */
             LOGGER.fine("Stage 2: looking up via memberOf");
 
-            // this Microsoft extension is explained in http://msdn.microsoft.com/en-us/library/aa746475(v=vs.85).aspx
-            renum = new LDAPSearchBuilder(context, domainDN).subTreeScope().returns("cn").search(
-                    "(member:1.2.840.113556.1.4.1941:={0})", userDN);
+            while (true) {
+                switch (groupLookupStrategy) {
+                case AUTO:
+                    // try the accurate one first, and if it's too slow fall back to recursive in the hope that it's faster
+                    long start = System.currentTimeMillis();
+                    boolean found = chainGroupLookup(domainDN, userDN, context, groups);
+                    long duration = (System.currentTimeMillis() - start) / TimeUnit2.SECONDS.toMillis(1);
+                    if (!found || duration >= 10) {
+                        LOGGER.warning(String.format("AD chain lookup is taking too long (%dms). Falling back to recursive lookup", duration));
+                        groupLookupStrategy = GroupLookupStrategy.RECURSIVE;
+                        continue;
+                    } else {
+                        // it run fast enough, so let's stick to it
+                        groupLookupStrategy = GroupLookupStrategy.CHAIN;
+                        return groups;
+                    }
+                case RECURSIVE:
+                    recursiveGroupLookup(context, id, groups);
+                    return groups;
+                case CHAIN:
+                    chainGroupLookup(domainDN, userDN, context, groups);
+                    return groups;
+                }
+            }
+        }
+    }
+
+    /**
+     * Performs AD-extension to LDAP query that performs recursive group lookup.
+     * This Microsoft extension is explained in http://msdn.microsoft.com/en-us/library/aa746475(v=vs.85).aspx
+     *
+     * @return
+     *      false if it appears that this search failed.
+     * @see
+     */
+    private boolean chainGroupLookup(String domainDN, String userDN, DirContext context, Set<GrantedAuthority> groups) throws NamingException {
+        NamingEnumeration<SearchResult> renum = new LDAPSearchBuilder(context, domainDN).subTreeScope().returns("cn").search(
+                "(member:1.2.840.113556.1.4.1941:={0})", userDN);
+        try {
             if (renum.hasMore()) {
                 // http://ldapwiki.willeke.com/wiki/Active%20Directory%20Group%20Related%20Searches cites that
                 // this filter search extension requires at least Win2K3 SP2. So if this didn't find anything,
@@ -415,41 +454,57 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
 
                 // TODO: this search alone might be producing the super set of the tokenGroups/objectSid based search in the stage 1.
                 parseMembers(userDN, groups, renum);
+                return true;
             } else {
-                Stack<Attributes> q = new Stack<Attributes>();
-                q.push(id);
-                while (!q.isEmpty()) {
-                    Attributes identity = q.pop();
-                    LOGGER.finer("Looking up group of " + identity);
-
-                    Attribute memberOf = identity.get("memberOf");
-                    if (memberOf == null)
-                        continue;
-
-                    for (int i = 0; i < memberOf.size(); i++) {
-                        try {
-                            Attributes group = context.getAttributes(new LdapName(memberOf.get(i).toString()), new String[]{"CN", "memberOf"});
-                            Attribute cn = group.get("CN");
-                            if (cn == null) {
-                                LOGGER.fine("Failed to obtain CN of " + memberOf.get(i));
-                                continue;
-                            }
-                            if (LOGGER.isLoggable(Level.FINE))
-                                LOGGER.fine(cn.get() + " is a member of " + memberOf.get(i));
-
-                            if (groups.add(new GrantedAuthorityImpl(cn.get().toString()))) {
-                                q.add(group); // recursively look for groups that this group is a member of.
-                            }
-                        } catch (NameNotFoundException e) {
-                            LOGGER.fine("Failed to obtain CN of " + memberOf.get(i));
-                        }
-                    }
-                }
+                return false;
             }
+        } finally {
             renum.close();
         }
+    }
 
-        return groups;
+    /**
+     * Performs recursive group membership lookup.
+     *
+     * This was how we did the lookup traditionally until we discovered 1.2.840.113556.1.4.1941.
+     * But various people reported that it slows down the execution tremendously to the point that it is unusable,
+     * while others seem to report that it runs faster than recursive search (http://social.technet.microsoft.com/Forums/fr-FR/f238d2b0-a1d7-48e8-8a60-542e7ccfa2e8/recursive-retrieval-of-all-ad-group-memberships-of-a-user?forum=ITCG)
+     *
+     * This implementation is kept for Windows 2003 that doesn't support 1.2.840.113556.1.4.1941, but it can be also
+     * enabled for those who are seeing the performance problem.
+     *
+     * See JENKINS-22830
+     */
+    private void recursiveGroupLookup(DirContext context, Attributes id, Set<GrantedAuthority> groups) throws NamingException {
+        Stack<Attributes> q = new Stack<Attributes>();
+        q.push(id);
+        while (!q.isEmpty()) {
+            Attributes identity = q.pop();
+            LOGGER.finer("Looking up group of " + identity);
+
+            Attribute memberOf = identity.get("memberOf");
+            if (memberOf == null)
+                continue;
+
+            for (int i = 0; i < memberOf.size(); i++) {
+                try {
+                    Attributes group = context.getAttributes(new LdapName(memberOf.get(i).toString()), new String[]{"CN", "memberOf"});
+                    Attribute cn = group.get("CN");
+                    if (cn == null) {
+                        LOGGER.fine("Failed to obtain CN of " + memberOf.get(i));
+                        continue;
+                    }
+                    if (LOGGER.isLoggable(Level.FINE))
+                        LOGGER.fine(cn.get() + " is a member of " + memberOf.get(i));
+
+                    if (groups.add(new GrantedAuthorityImpl(cn.get().toString()))) {
+                        q.add(group); // recursively look for groups that this group is a member of.
+                    }
+                } catch (NameNotFoundException e) {
+                    LOGGER.fine("Failed to obtain CN of " + memberOf.get(i));
+                }
+            }
+        }
     }
 
     private void parseMembers(String userDN, Set<GrantedAuthority> groups, NamingEnumeration<SearchResult> renum) throws NamingException {

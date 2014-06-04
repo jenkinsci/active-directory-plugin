@@ -1,0 +1,45 @@
+<div>
+    <p>
+    Determines how group membership lookup is performed.
+
+    <p>
+    This option is here because we the Jenkins developers are between a rock and a hard place when
+    it comes to determining groups that an user belongs to. We have several approaches implemented
+    over the time, but none of them seem to satisfy everyone. So we basically threw hands in the air
+    and asking you to find one that works for you.
+
+    <p>
+    The only people who should try to tweak this setting is (1) those who find login very slow or
+    (2) those who find that Jenkins isn't picking up all the groups that you belong to. The general rule
+    of thumb is that you try both options while paying attention to the time it takes to login and
+    the groups reported in the "/whoAmI" page, and pick one that works for you.
+
+    <dl>
+    <dt>Automatic
+    <dd>
+    Do the best to pick the "best" algorithm. Specifically, Jenkins tries LDAP_MATCHING_RULE_IN_CHAIN first,
+    and if it's going too slow, then stick to the "recursive queries".
+
+
+    <dt>Recursive queries
+    <dd>
+    For each group X that Jenkins discovers, recursively list up all the other groups that has X as a member,
+    by issuing a separate LDAP query. This increases the number of queries, but each query remains simple.
+    Note that several people reported that this approach fails to find some groups that the user is actually
+    a member of, but the developers of this plugin do not have access to such AD deployment to investigate
+    the claim.
+
+    <dt>LDAP_MATCHING_RULE_IN_CHAIN
+    <dd>
+    Use <a href="http://msdn.microsoft.com/en-us/library/aa746475(v=vs.85).aspx">Microsoft extension to LDAP</a>
+    that was specifically added to Windows 2003 to perform recursive group membership lookup.
+    The general consensus in the developer community appears to be that <a href="http://www.networksteve.com/forum/topic.php/?TopicId=43899">this is the way to go</a>,
+    but several Jenkins users have reported that <a href="https://issues.jenkins-ci.org/browse/JENKINS-22830">this approach makes lookup intolerably slow</a>.
+
+    </dl>
+
+    <p>
+    It is less than ideal to ask users to make a choice like this. If you have insights to share to improve
+    this situation, or even just data point,
+    <a href="https://issues.jenkins-ci.org/browse/JENKINS-22830">please add your thoughts to JENKINS-22830</a>.
+</div>
