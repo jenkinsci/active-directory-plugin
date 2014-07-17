@@ -42,6 +42,8 @@ import java.util.logging.Logger;
  */
 public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDirectoryAuthenticationProvider {
 
+    private static final boolean NOSTRIP = Boolean.getBoolean("hudson.plugins.active_directory.ActiveDirectoryUnixAuthenticationProvider.NOSTRIP");
+
     private final String[] domainNames;
 
     private final String site;
@@ -243,7 +245,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
             }
         } else {
             String principalName = getPrincipalName(username, domainName);
-            id = principalName.substring(0, principalName.indexOf('@'));
+            id = NOSTRIP ? principalName : principalName.substring(0, principalName.indexOf('@'));
             anonymousBind = password == NO_AUTHENTICATION;
             try {
                 // if we are just retrieving the user, try using anonymous bind by empty password (see RFC 2829 5.1)
