@@ -42,8 +42,6 @@ import java.util.logging.Logger;
  */
 public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDirectoryAuthenticationProvider {
 
-    private static final boolean NOSTRIP = Boolean.getBoolean("hudson.plugins.active_directory.ActiveDirectoryUnixAuthenticationProvider.NOSTRIP");
-
     private final String[] domainNames;
 
     private final String site;
@@ -226,31 +224,30 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
      */
     public UserDetails retrieveUser(String username, String password, String domainName, List<SocketInfo> ldapServers) {
         DirContext context;
-        String id;
         boolean anonymousBind;    // did we bind anonymously?
 
         // LDAP treats empty password as anonymous bind, so we need to reject it
         if (StringUtils.isEmpty(password))
             throw new BadCredentialsException("Empty password");
-        
+
+        String userPrincipalName = getPrincipalName(username, domainName);
+        String samAccountName = userPrincipalName.substring(0, userPrincipalName.indexOf('@'));
+
         if (bindName!=null) {
             // two step approach. Use a special credential to obtain DN for the
             // user trying to login, then authenticate.
             try {
-                id = username;
                 context = descriptor.bind(bindName, bindPassword, ldapServers);
                 anonymousBind = false;
             } catch (BadCredentialsException e) {
                 throw new AuthenticationServiceException("Failed to bind to LDAP server with the bind name/password", e);
             }
         } else {
-            String principalName = getPrincipalName(username, domainName);
-            id = NOSTRIP ? principalName : principalName.substring(0, principalName.indexOf('@'));
             anonymousBind = password == NO_AUTHENTICATION;
             try {
                 // if we are just retrieving the user, try using anonymous bind by empty password (see RFC 2829 5.1)
                 // but if that fails, that's not BadCredentialException but UserMayOrMayNotExistException
-                context = descriptor.bind(principalName, anonymousBind ? "" : password, ldapServers);
+                context = descriptor.bind(userPrincipalName, anonymousBind ? "" : password, ldapServers);
             } catch (BadCredentialsException e) {
                 if (anonymousBind)
                     // in my observation, if we attempt an anonymous bind and AD doesn't allow it, it still passes the bind method
@@ -265,17 +262,17 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
             // locate this user's record
             final String domainDN = toDC(domainName);
 
-            Attributes user = new LDAPSearchBuilder(context,domainDN).subTreeScope().searchOne("(& (userPrincipalName={0})(objectCategory=user))",id);
+            Attributes user = new LDAPSearchBuilder(context,domainDN).subTreeScope().searchOne("(& (userPrincipalName={0})(objectCategory=user))",userPrincipalName);
             if (user==null) {
                 // failed to find it. Fall back to sAMAccountName.
                 // see http://www.nabble.com/Re%3A-Hudson-AD-plug-in-td21428668.html
-                LOGGER.fine("Failed to find "+id+" in userPrincipalName. Trying sAMAccountName");
-                user = new LDAPSearchBuilder(context,domainDN).subTreeScope().searchOne("(& (sAMAccountName={0})(objectCategory=user))",id);
+                LOGGER.fine("Failed to find "+userPrincipalName+" in userPrincipalName. Trying sAMAccountName");
+                user = new LDAPSearchBuilder(context,domainDN).subTreeScope().searchOne("(& (sAMAccountName={0})(objectCategory=user))",samAccountName);
                 if (user==null) {
                     throw new UsernameNotFoundException("Authentication was successful but cannot locate the user information for "+username);
                 }
             }
-            LOGGER.fine("Found user "+id+" : "+user);
+            LOGGER.fine("Found user "+username+" : "+user);
 
             Object dn = user.get("distinguishedName").get();
             if (dn==null)
@@ -289,7 +286,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                 // Binding alone is not enough to test the credential. Need to actually perform some query operation.
                 // but if the authentication fails this throws an exception
                 try {
-                    new LDAPSearchBuilder(test,domainDN).searchOne("(& (userPrincipalName={0})(objectCategory=user))",id);
+                    new LDAPSearchBuilder(test,domainDN).searchOne("(& (userPrincipalName={0})(objectCategory=user))",userPrincipalName);
                 } finally {
                     closeQuietly(test);
                 }
@@ -298,7 +295,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
             Set<GrantedAuthority> groups = resolveGroups(domainDN, dn.toString(), context);
             groups.add(SecurityRealm.AUTHENTICATED_AUTHORITY);
 
-            return new ActiveDirectoryUserDetail(id, password, true, true, true, true, groups.toArray(new GrantedAuthority[groups.size()]),
+            return new ActiveDirectoryUserDetail(username, password, true, true, true, true, groups.toArray(new GrantedAuthority[groups.size()]),
                     getStringAttribute(user, "displayName"),
                     getStringAttribute(user, "mail"),
                     getStringAttribute(user, "telephoneNumber")
@@ -348,7 +345,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
      * Returns the full user principal name of the form "joe@europe.contoso.com".
      * 
      * If people type in 'foo@bar' or 'bar\\foo', it should be treated as
-     * 'foo@bar.acme.org'
+     * 'foo@bar.acme.org' (where 'acme.org' part comes from the given domain name)
      */
     private String getPrincipalName(String username, String domainName) {
         String principalName;
