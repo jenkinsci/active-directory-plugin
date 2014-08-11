@@ -35,6 +35,9 @@
         <f:entry field="groupLookupStrategy" title="${%Group Membership Lookup Strategy}">
           <f:select />
         </f:entry>
+        <f:entry field="removeIrrelevantGroups" title="${%Remove irrelevant groups}">
+          <f:checkbox />
+        </f:entry>
       </f:advanced>
       <f:nested>
         <f:validateButton with="domain,site,bindName,bindPassword,server" title="${%Test}" method="validate"/>

@@ -26,6 +26,10 @@
     </developer>
   </developers>
 
+  <properties>
+    <powermock.version>1.5.5</powermock.version>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>org.jvnet.com4j.typelibs</groupId>
@@ -46,6 +50,18 @@
       <groupId>org.jenkins-ci.plugins</groupId>
       <artifactId>mailer</artifactId>
       <version>1.5</version>
+    </dependency>
+    <dependency>
+      <groupId>org.powermock</groupId>
+      <artifactId>powermock-module-junit4</artifactId>
+      <version>${powermock.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.powermock</groupId>
+      <artifactId>powermock-api-mockito</artifactId>
+      <version>${powermock.version}</version>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 
