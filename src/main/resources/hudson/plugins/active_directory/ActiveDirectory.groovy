@@ -9,7 +9,7 @@ import org.acegisecurity.providers.rememberme.RememberMeAuthenticationProvider
 import hudson.model.Hudson
 
 // global so that this bean can be retrieved as UserDetailsService
-if(realm.descriptor.canDoNativeAuth() && realm.domain==null)
+if (realm.domain == null && realm.descriptor.canDoNativeAuth())
     // Windows path requires com4j, which is currently only supported on Win32
     activeDirectory(ActiveDirectoryAuthenticationProvider)
 else
