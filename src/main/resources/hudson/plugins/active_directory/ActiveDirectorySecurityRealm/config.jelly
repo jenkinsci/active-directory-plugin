@@ -11,7 +11,10 @@
         </f:entry>
         <f:entry title="${%Domain controller}" field="server">
            <f:textbox />
-         </f:entry>
+        </f:entry>
+        <f:entry field="removeIrrelevantGroups" title="${%Remove irrelevant groups}">
+           <f:checkbox />
+        </f:entry>
       </f:advanced>
     </j:when>
     <j:otherwise>
@@ -34,6 +37,9 @@
         </f:entry>
         <f:entry field="groupLookupStrategy" title="${%Group Membership Lookup Strategy}">
           <f:select />
+        </f:entry>
+        <f:entry field="removeIrrelevantGroups" title="${%Remove irrelevant groups}">
+          <f:checkbox />
         </f:entry>
       </f:advanced>
       <f:nested>

@@ -34,6 +34,7 @@ import hudson.Util;
 import hudson.model.Descriptor;
 import hudson.model.Hudson;
 import hudson.security.AbstractPasswordBasedSecurityRealm;
+import hudson.security.AuthorizationStrategy;
 import hudson.security.GroupDetails;
 import hudson.security.SecurityRealm;
 import hudson.security.TokenBasedRememberMeServices2;
@@ -134,24 +135,38 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
     private GroupLookupStrategy groupLookupStrategy;
 
+    /**
+     * If true, Jenkins ignores Active Directory groups that are not being used by the active Authorization Strategy.
+     * This can significantly improve performance in environments with a large number of groups
+     * but a small number of corresponding rules defined by the Authorization Strategy.
+     * Groups are considered as used if they are returned by {@link AuthorizationStrategy#getGroups()}.
+     */
+    public final boolean removeIrrelevantGroups;
+
     public ActiveDirectorySecurityRealm(String domain, String site, String bindName, String bindPassword, String server) {
-        this(domain,site,bindName,bindPassword,server,GroupLookupStrategy.AUTO);
+        this(domain,site,bindName,bindPassword,server,GroupLookupStrategy.AUTO,false);
+    }
+
+    public ActiveDirectorySecurityRealm(String domain, String site, String bindName, String bindPassword, String server, GroupLookupStrategy groupLookupStrategy) {
+        this(domain,site,bindName,bindPassword,server,groupLookupStrategy,false);
     }
 
     @DataBoundConstructor
-    public ActiveDirectorySecurityRealm(String domain, String site, String bindName, String bindPassword, String server, GroupLookupStrategy groupLookupStrategy) {
+    public ActiveDirectorySecurityRealm(String domain, String site, String bindName,
+                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups) {
         this.domain = fixEmpty(domain);
         this.site = fixEmpty(site);
         this.bindName = fixEmpty(bindName);
         this.bindPassword = Secret.fromString(fixEmpty(bindPassword));
         this.groupLookupStrategy = groupLookupStrategy;
+        this.removeIrrelevantGroups = removeIrrelevantGroups;
 
         // append default port if not specified
         server = fixEmpty(server);
         if (server != null) {
             if (!server.contains(":")) server += ":3268";
         }
-        
+
         this.server = server;
     }
 

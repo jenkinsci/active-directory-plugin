@@ -24,14 +24,22 @@
 package hudson.plugins.active_directory;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import hudson.security.SecurityRealm;
 import hudson.tasks.Mailer;
 import hudson.tasks.Mailer.UserProperty;
+import jenkins.model.Jenkins;
 import org.acegisecurity.GrantedAuthority;
 import org.acegisecurity.userdetails.User;
 import org.acegisecurity.userdetails.UserDetails;
+import org.apache.commons.collections.CollectionUtils;
 
 /**
  * @author Kohsuke Kawaguchi
@@ -78,6 +86,29 @@ public class ActiveDirectoryUserDetail extends User {
 
     @Override
     protected void setAuthorities(GrantedAuthority[] authorities) {
+        SecurityRealm realm = Jenkins.getInstance().getSecurityRealm();
+        if ((realm instanceof ActiveDirectorySecurityRealm)) {
+            ActiveDirectorySecurityRealm activeDirectoryRealm = (ActiveDirectorySecurityRealm)realm;
+            if (activeDirectoryRealm.removeIrrelevantGroups) {
+                Set<String> referencedGroups = new HashSet<String>();
+                for (String group : Jenkins.getInstance().getAuthorizationStrategy().getGroups()) {
+                    referencedGroups.add(group.toLowerCase());
+                }
+                // We remove irrelevant groups only if the active AuthorizationStrategy has any referenced groups:
+                if (!referencedGroups.isEmpty()) {
+                    List<GrantedAuthority> relevantGroups = new ArrayList<GrantedAuthority>();
+
+                    for (GrantedAuthority group : authorities) {
+                        String groupName = group.getAuthority();
+                        if (groupName != null && referencedGroups.contains(groupName.toLowerCase())) {
+                            relevantGroups.add(group);
+                        }
+                    }
+                    authorities = relevantGroups.toArray(new GrantedAuthority[relevantGroups.size()]);
+                }
+            }
+        }
+
         super.setAuthorities(authorities);
         StringBuffer sb = new StringBuffer();
         sb.append(super.toString()).append(": ");
