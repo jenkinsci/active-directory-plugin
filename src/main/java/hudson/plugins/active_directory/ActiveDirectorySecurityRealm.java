@@ -23,9 +23,7 @@
  */
 package hudson.plugins.active_directory;
 
-import static hudson.Util.fixEmpty;
-import static hudson.plugins.active_directory.ActiveDirectoryUnixAuthenticationProvider.toDC;
-
+import com.sun.jndi.ldap.LdapCtxFactory;
 import com4j.typelibs.ado20.ClassFactory;
 import groovy.lang.Binding;
 import hudson.Extension;
@@ -40,36 +38,8 @@ import hudson.security.SecurityRealm;
 import hudson.security.TokenBasedRememberMeServices2;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
-import hudson.util.ListBoxModel.Option;
 import hudson.util.Secret;
 import hudson.util.spring.BeanBuilder;
-
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Hashtable;
-import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
-import javax.naming.Context;
-import javax.naming.NamingEnumeration;
-import javax.naming.NamingException;
-import javax.naming.directory.Attribute;
-import javax.naming.directory.Attributes;
-import javax.naming.directory.DirContext;
-import javax.naming.directory.InitialDirContext;
-import javax.naming.ldap.LdapContext;
-import javax.naming.ldap.StartTlsRequest;
-import javax.naming.ldap.StartTlsResponse;
-import javax.net.ssl.SSLSocketFactory;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
 import org.acegisecurity.Authentication;
 import org.acegisecurity.AuthenticationException;
 import org.acegisecurity.AuthenticationManager;
@@ -85,7 +55,33 @@ import org.kohsuke.stapler.StaplerResponse;
 import org.springframework.dao.DataAccessException;
 import org.springframework.web.context.WebApplicationContext;
 
-import com.sun.jndi.ldap.LdapCtxFactory;
+import javax.naming.Context;
+import javax.naming.NamingEnumeration;
+import javax.naming.NamingException;
+import javax.naming.directory.Attribute;
+import javax.naming.directory.Attributes;
+import javax.naming.directory.DirContext;
+import javax.naming.directory.InitialDirContext;
+import javax.naming.ldap.LdapContext;
+import javax.naming.ldap.StartTlsRequest;
+import javax.naming.ldap.StartTlsResponse;
+import javax.net.ssl.SSLSocketFactory;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Hashtable;
+import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import static hudson.Util.*;
+import static hudson.plugins.active_directory.ActiveDirectoryUnixAuthenticationProvider.*;
 
 /**
  * {@link SecurityRealm} that talks to Active Directory.
@@ -144,16 +140,24 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     public final boolean removeIrrelevantGroups;
 
     public ActiveDirectorySecurityRealm(String domain, String site, String bindName, String bindPassword, String server) {
-        this(domain,site,bindName,bindPassword,server,GroupLookupStrategy.AUTO,false);
+        this(domain, site, bindName, bindPassword, server, GroupLookupStrategy.AUTO, false);
     }
 
     public ActiveDirectorySecurityRealm(String domain, String site, String bindName, String bindPassword, String server, GroupLookupStrategy groupLookupStrategy) {
         this(domain,site,bindName,bindPassword,server,groupLookupStrategy,false);
     }
 
-    @DataBoundConstructor
     public ActiveDirectorySecurityRealm(String domain, String site, String bindName,
                                         String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups) {
+        this(domain,site,bindName,bindPassword,server,groupLookupStrategy,removeIrrelevantGroups,domain!=null);
+    }
+    
+    @DataBoundConstructor
+    // as Java signature, this binding doesn't make sense, so please don't use this constructor
+    public ActiveDirectorySecurityRealm(String domain, String site, String bindName,
+                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain) {
+        if (customDomain!=null && !customDomain)
+            domain = null;
         this.domain = fixEmpty(domain);
         this.site = fixEmpty(site);
         this.bindName = fixEmpty(bindName);
@@ -634,7 +638,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                 throw x;
             }
 
-            LOGGER.fine(ldapServer+" resolved to "+result);
+            LOGGER.fine(ldapServer + " resolved to " + result);
             return result;
         }
     }

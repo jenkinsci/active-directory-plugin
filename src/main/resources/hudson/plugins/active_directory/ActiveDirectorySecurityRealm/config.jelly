@@ -2,49 +2,25 @@
   <j:choose>
     <j:when test="${descriptor.canDoNativeAuth()}">
       <!-- code path for ActiveDirectoryAuthenticationProvider: running on Windows -->
-      <f:nested>
-        <f:validateButton with="domain,server" title="${%Test}" method="validate"/>
-      </f:nested>
-      <f:advanced>
-        <f:entry title="${%Domain Name}" field="domain" help="/plugin/active-directory/help/domain-name-windows.html">
-          <f:textbox />
-        </f:entry>
-        <f:entry title="${%Domain controller}" field="server">
-           <f:textbox />
-        </f:entry>
-        <f:entry field="removeIrrelevantGroups" title="${%Remove irrelevant groups}">
-           <f:checkbox />
-        </f:entry>
-      </f:advanced>
+      <f:entry><!-- get some indentation -->
+        <table style="width:100%">
+          <f:optionalBlock title="${%Specify custom Active Directory domain name}"
+                           inline="true" name="customDomain" checked="${instance.domain!=null}"
+                           help="/plugin/active-directory/help/domain-name-windows.html">
+            <f:entry title="${%Domain Name}" field="domain">
+              <f:textbox />
+            </f:entry>
+            <st:include page="configAdvanced.jelly" class="${descriptor.clazz}"/>
+          </f:optionalBlock>
+        </table>
+      </f:entry>
     </j:when>
     <j:otherwise>
       <!-- code path for ActiveDirectoryUnixAuthenticationProvider: running on Unix -->
       <f:entry title="${%Domain Name}" field="domain" help="/plugin/active-directory/help/domain-name-unix.html">
         <f:textbox />
       </f:entry>
-      <f:advanced>
-        <f:entry title="${%Domain controller}" field="server">
-           <f:textbox />
-         </f:entry>
-        <f:entry field="site" title="${%Site}">
-          <f:textbox />
-        </f:entry>
-        <f:entry field="bindName" title="${%Bind DN}">
-          <f:textbox />
-        </f:entry>
-        <f:entry field="bindPassword" title="${%Bind Password}">
-          <f:password />
-        </f:entry>
-        <f:entry field="groupLookupStrategy" title="${%Group Membership Lookup Strategy}">
-          <f:select />
-        </f:entry>
-        <f:entry field="removeIrrelevantGroups" title="${%Remove irrelevant groups}">
-          <f:checkbox />
-        </f:entry>
-      </f:advanced>
-      <f:nested>
-        <f:validateButton with="domain,site,bindName,bindPassword,server" title="${%Test}" method="validate"/>
-      </f:nested>
+      <st:include page="configAdvanced.jelly" class="${descriptor.clazz}"/>
     </j:otherwise>
   </j:choose>
 </j:jelly>
