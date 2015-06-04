@@ -9,7 +9,7 @@
 
   <artifactId>active-directory</artifactId>
   <packaging>hpi</packaging>
-  <version>1.41</version>
+  <version>1.42-SNAPSHOT</version>
   <name>Jenkins Active Directory plugin</name>
   <url>http://wiki.jenkins-ci.org/display/JENKINS/Active+Directory+Plugin</url>
 
@@ -17,7 +17,7 @@
    <connection>scm:git:git://github.com/jenkinsci/active-directory-plugin.git</connection>
    <developerConnection>scm:git:git@github.com:jenkinsci/active-directory-plugin.git</developerConnection>
    <url>https://github.com/jenkinsci/active-directory-plugin</url>
-    <tag>active-directory-1.41</tag>
+    <tag>HEAD</tag>
   </scm>
 
   <developers>
