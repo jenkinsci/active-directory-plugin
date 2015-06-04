@@ -9,7 +9,7 @@
 
   <artifactId>active-directory</artifactId>
   <packaging>hpi</packaging>
-  <version>1.40-SNAPSHOT</version>
+  <version>1.41-SNAPSHOT</version>
   <name>Jenkins Active Directory plugin</name>
   <url>http://wiki.jenkins-ci.org/display/JENKINS/Active+Directory+Plugin</url>
 
