@@ -24,6 +24,7 @@
 package hudson.plugins.active_directory;
 
 import com.google.common.collect.ImmutableList;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.util.FlushProofOutputStream;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
 
@@ -46,6 +47,7 @@ public class MultiCauseUserNotFoundException extends UsernameNotFoundException {
     }
 
     @Override
+    @SuppressFBWarnings(value = "DM_DEFAULT_ENCODING", justification = "It seems that encoding selection is not supported.")
     public void printStackTrace(PrintStream s) {
         PrintWriter w = new PrintWriter(new FlushProofOutputStream(s));
         printStackTrace(w);

@@ -25,6 +25,7 @@ package hudson.plugins.active_directory;
 
 import com.sun.jndi.ldap.LdapCtxFactory;
 import com4j.typelibs.ado20.ClassFactory;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import groovy.lang.Binding;
 import hudson.Extension;
 import hudson.Functions;
@@ -48,6 +49,7 @@ import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
 import org.acegisecurity.userdetails.UserDetails;
 import org.acegisecurity.userdetails.UserDetailsService;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
+import org.apache.commons.io.IOUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
@@ -70,6 +72,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
@@ -183,10 +186,16 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         BeanBuilder builder = new BeanBuilder(getClass().getClassLoader());
         Binding binding = new Binding();
         binding.setVariable("realm", this);
-        builder.parse(getClass().getResourceAsStream("ActiveDirectory.groovy"), binding);
+        InputStream i = getClass().getResourceAsStream("ActiveDirectory.groovy");
+        try {
+            builder.parse(i, binding);
+        } finally {
+            IOUtils.closeQuietly(i);
+        }
         WebApplicationContext context = builder.createApplicationContext();
 
-        final AbstractActiveDirectoryAuthenticationProvider adp = findBean(AbstractActiveDirectoryAuthenticationProvider.class, context);
+        //final AbstractActiveDirectoryAuthenticationProvider adp = findBean(AbstractActiveDirectoryAuthenticationProvider.class, context);
+        findBean(AbstractActiveDirectoryAuthenticationProvider.class, context); //Keeping the call because there might be side effects?
         final UserDetailsService uds = findBean(UserDetailsService.class, context);
 
         TokenBasedRememberMeServices2 rms = new TokenBasedRememberMeServices2() {
@@ -539,7 +548,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
         // domain name prefixes
         // see http://technet.microsoft.com/en-us/library/cc759550(WS.10).aspx
-        private static final List<String> CANDIDATES = Arrays.asList("_gc._tcp.","_ldap._tcp.");
+        private static final List<String> CANDIDATES = Arrays.asList("_gc._tcp.", "_ldap._tcp.");
 
         /**
          * Use DNS and obtains the LDAP servers that we should try.
@@ -600,7 +609,25 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                     }
 
                     public int compareTo(PrioritizedSocketInfo that) {
-                        return that.priority-this.priority; // sort them so that bigger priority comes first
+                        int prio = that.priority - this.priority; // sort them so that bigger priority comes first
+                        if (prio != 0) {
+                            return prio;
+                        }
+                        String s1 = socket != null ? socket.toString() : "";
+                        String s2 = that.socket != null ? that.socket.toString() : "";
+                        return s1.compareTo(s2);
+                    }
+
+                    @Override
+                    public boolean equals(Object obj) {
+                        return obj instanceof PrioritizedSocketInfo && compareTo((PrioritizedSocketInfo)obj) == 0;
+                    }
+
+                    @Override
+                    public int hashCode() {
+                        int result = socket != null ? socket.hashCode() : 0;
+                        result = 31 * result + priority;
+                        return result;
                     }
                 }
                 List<PrioritizedSocketInfo> plist = new ArrayList<PrioritizedSocketInfo>();
@@ -676,6 +703,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
      * @deprecated as of 1.28
      *      Use the UI field.
      */
+    @SuppressFBWarnings(value = "MS_SHOULD_BE_FINAL", justification = "It should, but changing would break backwards compatibility.")
     public static String DOMAIN_CONTROLLERS = System.getProperty(ActiveDirectorySecurityRealm.class.getName()+".domainControllers");
 
     /**
@@ -686,5 +714,6 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
      * One legitimate use case is when the domain controller is Windows 2000, which doesn't support TLS
      * (according to http://support.microsoft.com/kb/321051).
      */
+    @SuppressFBWarnings(value = "MS_SHOULD_BE_FINAL", justification = "It should, but changing would break backwards compatibility.")
     public static boolean FORCE_LDAPS = Boolean.getBoolean(ActiveDirectorySecurityRealm.class.getName()+".forceLdaps");
 }

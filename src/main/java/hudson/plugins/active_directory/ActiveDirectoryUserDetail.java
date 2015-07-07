@@ -85,6 +85,37 @@ public class ActiveDirectoryUserDetail extends User {
     }
 
     @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof ActiveDirectoryUserDetail)) return false;
+        if (!super.equals(o)) return false;
+
+        ActiveDirectoryUserDetail that = (ActiveDirectoryUserDetail)o;
+
+        if (displayName != null ? !displayName.equals(that.displayName) : that.displayName != null) {
+            return false;
+        }
+        if (mail != null ? !mail.equals(that.mail) : that.mail != null) {
+            return false;
+        }
+        if (telephoneNumber != null ? !telephoneNumber.equals(that.telephoneNumber) : that.telephoneNumber != null) {
+            return false;
+        }
+        return !(toStringValue != null ? !toStringValue.equals(that.toStringValue) : that.toStringValue != null);
+
+    }
+
+    @Override
+    public int hashCode() {
+        int result = super.hashCode();
+        result = 31 * result + (displayName != null ? displayName.hashCode() : 0);
+        result = 31 * result + (mail != null ? mail.hashCode() : 0);
+        result = 31 * result + (telephoneNumber != null ? telephoneNumber.hashCode() : 0);
+        result = 31 * result + (toStringValue != null ? toStringValue.hashCode() : 0);
+        return result;
+    }
+
+    @Override
     protected void setAuthorities(GrantedAuthority[] authorities) {
         SecurityRealm realm = Jenkins.getInstance().getSecurityRealm();
         if ((realm instanceof ActiveDirectorySecurityRealm)) {
