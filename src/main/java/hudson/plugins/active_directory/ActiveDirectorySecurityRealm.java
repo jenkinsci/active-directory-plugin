@@ -608,26 +608,9 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                         this.priority = priority;
                     }
 
+                    @SuppressFBWarnings(value = "EQ_COMPARETO_USE_OBJECT_EQUALS", justification = "Weird and unpredictable behaviour intentional for load balancing.")
                     public int compareTo(PrioritizedSocketInfo that) {
-                        int prio = that.priority - this.priority; // sort them so that bigger priority comes first
-                        if (prio != 0) {
-                            return prio;
-                        }
-                        String s1 = socket != null ? socket.toString() : "";
-                        String s2 = that.socket != null ? that.socket.toString() : "";
-                        return s1.compareTo(s2);
-                    }
-
-                    @Override
-                    public boolean equals(Object obj) {
-                        return obj instanceof PrioritizedSocketInfo && compareTo((PrioritizedSocketInfo)obj) == 0;
-                    }
-
-                    @Override
-                    public int hashCode() {
-                        int result = socket != null ? socket.hashCode() : 0;
-                        result = 31 * result + priority;
-                        return result;
+                        return that.priority - this.priority; // sort them so that bigger priority comes first
                     }
                 }
                 List<PrioritizedSocketInfo> plist = new ArrayList<PrioritizedSocketInfo>();
