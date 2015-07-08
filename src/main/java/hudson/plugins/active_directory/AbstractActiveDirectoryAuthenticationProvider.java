@@ -62,6 +62,6 @@ public abstract class AbstractActiveDirectoryAuthenticationProvider extends Abst
     /**
      * Setting this to true might help with diagnosing login problem.
      */
-    @SuppressFBWarnings(value = "MS_SHOULD_BE_FINAL", justification = "It should, but changing would break backwards compatibility.")
+    @SuppressFBWarnings(value = "MS_SHOULD_BE_FINAL", justification = "Diagnostic fields are left mutable so that groovy console can be used to dynamically turn/off probes.")
     public static boolean SHOW_USER_NOT_FOUND_EXCEPTION = Boolean.getBoolean(AbstractActiveDirectoryAuthenticationProvider.class.getName()+".showUserNotFoundException");
 }

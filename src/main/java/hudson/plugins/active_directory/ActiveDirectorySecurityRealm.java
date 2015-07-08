@@ -703,7 +703,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
      * @deprecated as of 1.28
      *      Use the UI field.
      */
-    @SuppressFBWarnings(value = "MS_SHOULD_BE_FINAL", justification = "It should, but changing would break backwards compatibility.")
+    @SuppressFBWarnings(value = "MS_SHOULD_BE_FINAL", justification = "Diagnostic fields are left mutable so that groovy console can be used to dynamically turn/off probes.")
     public static String DOMAIN_CONTROLLERS = System.getProperty(ActiveDirectorySecurityRealm.class.getName()+".domainControllers");
 
     /**
@@ -714,6 +714,6 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
      * One legitimate use case is when the domain controller is Windows 2000, which doesn't support TLS
      * (according to http://support.microsoft.com/kb/321051).
      */
-    @SuppressFBWarnings(value = "MS_SHOULD_BE_FINAL", justification = "It should, but changing would break backwards compatibility.")
+    @SuppressFBWarnings(value = "MS_SHOULD_BE_FINAL", justification = "Diagnostic fields are left mutable so that groovy console can be used to dynamically turn/off probes.")
     public static boolean FORCE_LDAPS = Boolean.getBoolean(ActiveDirectorySecurityRealm.class.getName()+".forceLdaps");
 }
