@@ -23,6 +23,7 @@
  */
 package hudson.plugins.active_directory;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Util;
 import hudson.security.GroupDetails;
 import hudson.security.SecurityRealm;
@@ -245,6 +246,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
      *      The user didn't exist.
      * @return never null
      */
+    @SuppressFBWarnings(value = "ES_COMPARING_PARAMETER_STRING_WITH_EQ", justification = "Intentional instance check.")
     public UserDetails retrieveUser(String username, String password, String domainName, List<SocketInfo> ldapServers) {
         DirContext context;
         boolean anonymousBind;    // did we bind anonymously?
