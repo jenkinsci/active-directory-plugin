@@ -104,6 +104,14 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
         if(authentication!=null)
             password = (String) authentication.getCredentials();
 
+        // We need to check a password is provided to prevent an annonymous bind
+        // See https://tools.ietf.org/html/rfc4513#section-5.1.2 for more details.
+        if(password == null || password.isEmpty()) {
+            String msg = String.format("No password provided for %s", username);
+            LOGGER.log(Level.FINE, "Login failure: "+msg);
+            throw (BadCredentialsException)new BadCredentialsException(msg);
+        }
+
         String dn = getDnOfUserOrGroup(username);
 
         ComObjectCollector col = new ComObjectCollector();
