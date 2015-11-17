@@ -19,6 +19,59 @@
       <f:checkbox />
     </f:entry>
   </f:advanced>
+  <f:optionalBlock title="${%SSO Enabled}" field="ssoOptions" name="ssoOptions"  checked="${instance.ssoOptions!=null}">
+    <f:entry title="${%Portion of DN to use for the username}" field="userField" >
+      <f:textbox default="CN" value="${instance.ssoOptions.userField}"/>
+    </f:entry>
+
+    <f:entry title="${%Check SSO Username against Active Directory}" field="checkMode">    
+      <select name="checkMode">
+		<j:choose>
+            <j:when test="${instance.ssoOptions.checkMode eq 'no_change'}">
+                <option value="no_change" selected="selected">no change</option>
+            </j:when>
+            <j:otherwise>
+    	       <option value="no_change">no change</option>
+    	    </j:otherwise>
+    	</j:choose>      
+		<j:choose>
+            <j:when test="${instance.ssoOptions.checkMode eq 'lower'}">
+                <option value="lower" selected="selected">in lower case</option>
+            </j:when>
+            <j:otherwise>
+    	       <option value="lower">in lower case</option>
+    	    </j:otherwise>
+    	</j:choose>      
+		<j:choose>
+            <j:when test="${instance.ssoOptions.checkMode eq 'upper'}">
+                <option value="upper" selected="selected">in upper case</option>
+            </j:when>
+            <j:otherwise>
+    	       <option value="upper">in upper case</option>
+    	    </j:otherwise>
+    	</j:choose>      
+		<j:choose>
+            <j:when test="${instance.ssoOptions.checkMode eq 'no_check'}">
+                <option value="no_check" selected="selected">no check</option>
+            </j:when>
+            <j:otherwise>
+    	       <option value="no_check">no check</option>
+    	    </j:otherwise>
+    	</j:choose>      
+      </select>
+    </f:entry>
+    <f:entry align="left">
+    	<font color="red">${%IMPORTANT: Bind DN and password are mandatory when 'Check SSO Username against Active Directory' is enabled}</font>
+   	</f:entry>
+    <f:section title="${%Options when no SSO Username check against Active Directory is set}" align="left">
+      <f:entry title="${%Default group}" field="defaultGroup">
+        <f:textbox default="SSOUsers.no_check" value="${instance.ssoOptions.defaultGroup}" />
+      </f:entry>
+      <f:entry title="${%Jenkins username suffix}" field="jenkinsUsernameSuffix" >
+        <f:textbox default="@sso" value="${instance.ssoOptions.jenkinsUsernameSuffix}" />
+      </f:entry>
+    </f:section>
+  </f:optionalBlock>  
   <f:nested>
     <f:validateButton with="domain,server,site,bindName,bindPassword" title="${%Test}" method="validate"/>
   </f:nested>

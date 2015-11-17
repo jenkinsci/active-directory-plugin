@@ -141,6 +141,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     };
     
     public ActiveDirectoryUnixAuthenticationProvider(ActiveDirectorySecurityRealm realm) {
+        super(realm);
         if (realm.domain==null) throw new IllegalArgumentException("Active Directory domain name is required but it is not set");
         this.domainNames = realm.domain.split(",");
         this.site = realm.site;
@@ -339,7 +340,8 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         }
     }
 
-    public GroupDetails loadGroupByGroupname(String groupname) {
+    @Override
+    public GroupDetails retrieveGroup(String groupname) {
         if (bindName==null)
             throw new UserMayOrMayNotExistException("Unable to retrieve group information without bind DN/password configured");
 

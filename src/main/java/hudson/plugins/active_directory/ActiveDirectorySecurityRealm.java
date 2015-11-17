@@ -32,6 +32,7 @@ import hudson.Functions;
 import hudson.Util;
 import hudson.model.Descriptor;
 import hudson.model.Hudson;
+import hudson.plugins.active_directory.sso.SSOOptions;
 import hudson.security.AbstractPasswordBasedSecurityRealm;
 import hudson.security.AuthorizationStrategy;
 import hudson.security.GroupDetails;
@@ -92,7 +93,15 @@ import static hudson.plugins.active_directory.ActiveDirectoryUnixAuthenticationP
  * @author Kohsuke Kawaguchi
  */
 public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityRealm {
-    /**
+  private final SSOOptions ssoOptions;
+  /**
+   * Is SSO Enabled
+   */
+  public SSOOptions getSsoOptions() {
+      return this.ssoOptions;
+  }
+
+  /**
      * Active directory domain name to authenticate against.
      * 
      * <p>
@@ -152,13 +161,13 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
     public ActiveDirectorySecurityRealm(String domain, String site, String bindName,
                                         String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups) {
-        this(domain,site,bindName,bindPassword,server,groupLookupStrategy,removeIrrelevantGroups,domain!=null);
+        this(domain,site,bindName,bindPassword,server,groupLookupStrategy,removeIrrelevantGroups,domain!=null,null);
     }
     
     @DataBoundConstructor
     // as Java signature, this binding doesn't make sense, so please don't use this constructor
     public ActiveDirectorySecurityRealm(String domain, String site, String bindName,
-                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain) {
+                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain, SSOOptions ssoOptions) {
         if (customDomain!=null && !customDomain)
             domain = null;
         this.domain = fixEmpty(domain);
@@ -175,6 +184,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         }
 
         this.server = server;
+        this.ssoOptions=ssoOptions;
     }
 
     public GroupLookupStrategy getGroupLookupStrategy() {
@@ -324,7 +334,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                     // this check must be identical to that of ActiveDirectory.groovy
                     try {
                         // make sure we can connect via ADSI
-                        new ActiveDirectoryAuthenticationProvider();
+                        new ActiveDirectoryAuthenticationProvider(null);
                         return FormValidation.ok("OK");
                     } catch (Exception e) {
                         return FormValidation.error(e, "Failed to contact Active Directory");
