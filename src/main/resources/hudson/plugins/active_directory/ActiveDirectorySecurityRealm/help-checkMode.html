@@ -1,0 +1,32 @@
+<div>
+    <p>
+    Determines how Client certificate is checked against Active Directory. 
+    Except in "no check" mode, groups membership will be downloaded for the authenticated user from Active Directory. 
+    When a "check mode" is enabled against Active Directory, Bind DN and password fields are mandatory.
+
+    <p>
+    This option is available because, sometimes, the case of the "Portion of DN to use for the username" value can differ from the Active Directory username.
+
+    <dl>
+    <dt>no change
+    <dd>
+    The "Portion of DN to use for the username" value will be compared in a case sensitive mode against Active Directory. 
+
+
+    <dt>in lower case
+    <dd>
+    The "Portion of DN to use for the username" value will be converted in lower case before being compared against Active Directory. 
+
+    <dt>in upper case
+    <dd>
+    The "Portion of DN to use for the username" value will be converted in upper case before being compared against Active Directory. 
+
+    <dt>no check
+    <dd>
+    The "Portion of DN to use for the username" value will not be compared against Active Directory.
+    In this mode, groups membership will not be also downloaded from Active Directory. 
+
+    </dl>
+
+    <p>
+</div>

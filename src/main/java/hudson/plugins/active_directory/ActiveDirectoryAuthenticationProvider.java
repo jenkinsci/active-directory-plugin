@@ -68,7 +68,8 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
      */
     private final _Connection con;
 
-    public ActiveDirectoryAuthenticationProvider() throws IOException {
+    public ActiveDirectoryAuthenticationProvider(ActiveDirectorySecurityRealm realm) throws IOException {
+        super(realm);
         try {
             IADs rootDSE = COM4J.getObject(IADs.class, "LDAP://RootDSE", null);
 
@@ -223,7 +224,8 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
 		return dn;
 	}
 
-	public GroupDetails loadGroupByGroupname(String groupname) {
+	@Override
+  public GroupDetails retrieveGroup(String groupname) {
         ActiveDirectoryGroupDetails details = groupCache.get(groupname);
         if (details!=null)      return details;
         throw new UsernameNotFoundException("Group not found: " + groupname);

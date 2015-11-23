@@ -24,7 +24,12 @@
 package hudson.plugins.active_directory;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import hudson.plugins.active_directory.sso.SSOOptions;
+import hudson.security.GroupDetails;
+import hudson.security.SecurityRealm;
 import org.acegisecurity.AuthenticationException;
+import org.acegisecurity.GrantedAuthority;
+import org.acegisecurity.GrantedAuthorityImpl;
 import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
 import org.acegisecurity.providers.dao.AbstractUserDetailsAuthenticationProvider;
 import org.acegisecurity.userdetails.UserDetails;
@@ -36,8 +41,11 @@ import org.springframework.dao.DataAccessException;
  * @author Kohsuke Kawaguchi
  */
 public abstract class AbstractActiveDirectoryAuthenticationProvider extends AbstractUserDetailsAuthenticationProvider implements UserDetailsService, GroupDetailsService {
-    protected AbstractActiveDirectoryAuthenticationProvider() {
-        setHideUserNotFoundExceptions(SHOW_USER_NOT_FOUND_EXCEPTION);
+    private final ActiveDirectorySecurityRealm realm;
+    
+    public AbstractActiveDirectoryAuthenticationProvider(ActiveDirectorySecurityRealm realm) {
+      setHideUserNotFoundExceptions(SHOW_USER_NOT_FOUND_EXCEPTION);
+      this.realm=realm;
     }
 
     /**
@@ -45,13 +53,46 @@ public abstract class AbstractActiveDirectoryAuthenticationProvider extends Abst
      */
     protected abstract UserDetails retrieveUser(String username, UsernamePasswordAuthenticationToken authentication) throws AuthenticationException;
 
+    protected abstract GroupDetails retrieveGroup(String groupname);
+
     /**
      * Returns true if we can retrieve user just from the name without supplying any credential.
      */
     protected abstract boolean canRetrieveUserByName();
+    
+    /**
+     * isSsoCheckedAgainstAD():  Facilitator for making the code more readable in loadGroupByGroupname & loadUserByUsername
+     */
+    private boolean isSsoNoCheckedAgainstADEnabled() {
+      if(this.realm!=null && this.realm.getSsoOptions()!=null &&
+            SSOOptions.SSO_MODE_NOCHECK.equalsIgnoreCase(this.realm.getSsoOptions().getCheckMode())) return true;
+      return false;
+    }
 
+    public GroupDetails loadGroupByGroupname(String groupname) {
+      if(this.isSsoNoCheckedAgainstADEnabled() && groupname.equals(this.realm.getSsoOptions().getDefaultGroup()))    
+        return new ActiveDirectoryGroupDetails(groupname);
+      else return retrieveGroup(groupname);
+    }
+   
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException, DataAccessException {
-        return retrieveUser(username,null);
+      // SSO Enabled in no_check mode, find suffix and return ActiveDirectoryDetails
+      if(this.isSsoNoCheckedAgainstADEnabled()) {
+        if(this.realm.getSsoOptions().getJenkinsUsernameSuffix()!=null  &&  
+              !this.realm.getSsoOptions().getJenkinsUsernameSuffix().isEmpty() && 
+              username.endsWith(this.realm.getSsoOptions().getJenkinsUsernameSuffix())) 
+          return new ActiveDirectoryUserDetail(username, null,
+                true, true,
+                true, true,
+                new GrantedAuthority[] {
+                    SecurityRealm.AUTHENTICATED_AUTHORITY,
+                    new GrantedAuthorityImpl(realm.getSsoOptions().getDefaultGroup())
+                  },
+                username, null, null);
+        else if(username.equals(this.realm.getSsoOptions().getDefaultGroup())) throw new UsernameNotFoundException("User is the SSO Default group");
+        else return retrieveUser(username,null);                  
+      }
+      else return retrieveUser(username,null);
     }
 
     protected void additionalAuthenticationChecks(UserDetails userDetails, UsernamePasswordAuthenticationToken authentication) throws AuthenticationException {
