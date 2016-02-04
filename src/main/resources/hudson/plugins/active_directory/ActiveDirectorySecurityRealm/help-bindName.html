@@ -10,4 +10,8 @@
     <p>
     This field must be the full user principal name with domain name, like "joe@europe.contoso.com", or
     a LDAP-style distinguished name, such as "CN=Joe Chin,OU=europe,DC=contoso,DC=com".
+
+    <p>
+    In case you are using DN in the bind, Active Directory requires that the <a href="http://social.technet.microsoft.com/wiki/contents/articles/5312.active-directory-characters-to-escape.aspx">following ten characters</a>
+    are escaped with the backslash "\" escape character if they appear in any of the individual components of a distinguished name.
 </div>

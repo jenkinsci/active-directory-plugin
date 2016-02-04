@@ -70,11 +70,26 @@ class LDAPSearchBuilder {
         return this;
     }
 
+    /**
+     * Add all the attributes returned by the search
+     *
+     * @param filter
+     *      The filter to be used for the search
+     * @param args
+     *      Arguments to be used for the search
+     *
+     * @return Return all the attributes of the search and adds the DN correctly formatted per RFC 2253
+     */
     public Attributes searchOne(String filter, Object... args) throws NamingException {
         NamingEnumeration<SearchResult> r = search(filter,args);
         try {
             if (r.hasMore()) {
-                Attributes attrs = r.next().getAttributes();
+                SearchResult searchResult = r.next();
+                Attributes attrs = searchResult.getAttributes();
+                //We need to use getNameInNamespace in order to correctly format everything
+                //to be able to use LdapName later and get the DN correctly formatted with escaped
+                //characters like slash
+                attrs.put(ActiveDirectoryUnixAuthenticationProvider.DN_FORMATTED, searchResult.getNameInNamespace());
                 LOG.log(Level.FINER, "found {0}", attrs);
                 return attrs;
             } else {
