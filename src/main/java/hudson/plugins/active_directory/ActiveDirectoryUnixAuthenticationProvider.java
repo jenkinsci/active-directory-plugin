@@ -45,6 +45,7 @@ import org.apache.commons.lang.StringUtils;
 
 import javax.naming.NamingEnumeration;
 import javax.naming.NamingException;
+import javax.naming.TimeLimitExceededException;
 import javax.naming.directory.Attribute;
 import javax.naming.directory.Attributes;
 import javax.naming.directory.DirContext;
@@ -437,8 +438,15 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                 case AUTO:
                     // try the accurate one first, and if it's too slow fall back to recursive in the hope that it's faster
                     long start = System.currentTimeMillis();
-                    boolean found = chainGroupLookup(domainDN, userDN, context, groups);
-                    long duration = (System.currentTimeMillis() - start) / TimeUnit2.SECONDS.toMillis(1);
+                    boolean found = false;
+                    long duration = 0;
+
+                    try {
+                        found = chainGroupLookup(domainDN, userDN, context, groups);
+                        duration = TimeUnit2.NANOSECONDS.toSeconds(System.nanoTime() - start);
+                    } catch (TimeLimitExceededException e) {
+                        LOGGER.log(Level.WARNING, "LDAP response read time out. AD will fall back to recursive lookup", e);
+                    }
                     if (!found || duration >= 10) {
                         LOGGER.warning(String.format("AD chain lookup is taking too long (%dms). Falling back to recursive lookup", duration));
                         groupLookupStrategy = GroupLookupStrategy.RECURSIVE;
