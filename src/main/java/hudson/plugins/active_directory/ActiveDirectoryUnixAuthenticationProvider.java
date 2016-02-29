@@ -437,7 +437,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                 switch (groupLookupStrategy) {
                 case AUTO:
                     // try the accurate one first, and if it's too slow fall back to recursive in the hope that it's faster
-                    long start = System.currentTimeMillis();
+                    long start = System.nanoTime();
                     boolean found = false;
                     long duration = 0;
 
