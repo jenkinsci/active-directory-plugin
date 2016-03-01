@@ -440,7 +440,6 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                     long start = System.nanoTime();
                     boolean found = false;
                     long duration = 0;
-
                     try {
                         found = chainGroupLookup(domainDN, userDN, context, groups);
                         duration = TimeUnit2.NANOSECONDS.toSeconds(System.nanoTime() - start);
