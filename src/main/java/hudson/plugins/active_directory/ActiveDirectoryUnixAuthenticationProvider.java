@@ -446,6 +446,12 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                         duration = TimeUnit2.NANOSECONDS.toSeconds(System.nanoTime() - start);
                     } catch (TimeLimitExceededException e) {
                         LOGGER.log(Level.WARNING, "LDAP response read time out. AD will fall back to recursive lookup", e);
+                    } catch (NamingException e) {
+                        if (e.getMessage().contains("LDAP response read timed out")) {
+                            LOGGER.log(Level.WARNING, "LDAP response read time out. AD will fall back to recursive lookup", e);
+                        } else {
+                            throw e;
+                        }
                     }
                     if (!found || duration >= 10) {
                         LOGGER.warning(String.format("AD chain lookup is taking too long (%dms). Falling back to recursive lookup", duration));
