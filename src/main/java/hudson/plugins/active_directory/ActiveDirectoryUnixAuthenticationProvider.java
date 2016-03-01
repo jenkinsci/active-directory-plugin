@@ -444,7 +444,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                         found = chainGroupLookup(domainDN, userDN, context, groups);
                         duration = TimeUnit2.NANOSECONDS.toSeconds(System.nanoTime() - start);
                     } catch (TimeLimitExceededException e) {
-                        LOGGER.log(Level.WARNING, "LDAP response read time out. AD will fall back to recursive lookup", e);
+                        LOGGER.log(Level.WARNING, "The LDAP request did not terminate within the specified time limit. AD will fall back to recursive lookup", e);
                     } catch (NamingException e) {
                         if (e.getMessage().contains("LDAP response read timed out")) {
                             LOGGER.log(Level.WARNING, "LDAP response read time out. AD will fall back to recursive lookup", e);
