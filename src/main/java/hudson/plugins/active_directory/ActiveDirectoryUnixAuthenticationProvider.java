@@ -436,9 +436,19 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                 switch (groupLookupStrategy) {
                 case AUTO:
                     // try the accurate one first, and if it's too slow fall back to recursive in the hope that it's faster
-                    long start = System.currentTimeMillis();
-                    boolean found = chainGroupLookup(domainDN, userDN, context, groups);
-                    long duration = (System.currentTimeMillis() - start) / TimeUnit2.SECONDS.toMillis(1);
+                    long start = System.nanoTime();
+                    boolean found = false;
+                    long duration = 0;
+                    try {
+                        found = chainGroupLookup(domainDN, userDN, context, groups);
+                        duration = TimeUnit2.NANOSECONDS.toSeconds(System.nanoTime() - start);
+                    } catch (NamingException e) {
+                        if (e.getMessage().contains("LDAP response read timed out")) {
+                            LOGGER.log(Level.WARNING, "LDAP response read time out. AD will fall back to recursive lookup", e);
+                        } else {
+                            throw e;
+                        }
+                    }
                     if (!found || duration >= 10) {
                         LOGGER.warning(String.format("AD chain lookup is taking too long (%dms). Falling back to recursive lookup", duration));
                         groupLookupStrategy = GroupLookupStrategy.RECURSIVE;
