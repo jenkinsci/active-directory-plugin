@@ -45,6 +45,7 @@ import org.apache.commons.lang.StringUtils;
 
 import javax.naming.NamingEnumeration;
 import javax.naming.NamingException;
+import javax.naming.TimeLimitExceededException;
 import javax.naming.directory.Attribute;
 import javax.naming.directory.Attributes;
 import javax.naming.directory.DirContext;
@@ -442,6 +443,8 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                     try {
                         found = chainGroupLookup(domainDN, userDN, context, groups);
                         duration = TimeUnit2.NANOSECONDS.toSeconds(System.nanoTime() - start);
+                    } catch (TimeLimitExceededException e) {
+                        LOGGER.log(Level.WARNING, "The LDAP request did not terminate within the specified time limit. AD will fall back to recursive lookup", e);
                     } catch (NamingException e) {
                         if (e.getMessage().contains("LDAP response read timed out")) {
                             LOGGER.log(Level.WARNING, "LDAP response read time out. AD will fall back to recursive lookup", e);
