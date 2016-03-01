@@ -83,6 +83,8 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
 
     private GroupLookupStrategy groupLookupStrategy;
 
+    protected static final String DN_FORMATTED = "distinguishedNameFormatted";
+
     /**
      * {@link ActiveDirectoryGroupDetails} cache.
      */
@@ -300,25 +302,29 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
             }
             LOGGER.fine("Found user "+username+" : "+user);
 
-            Object dn = user.get("distinguishedName").get();
-            if (dn==null)
+            Object dnObject = user.get(DN_FORMATTED).get();
+            if (dnObject==null)
                 throw new AuthenticationServiceException("No distinguished name for "+username);
+
+            String dn = dnObject.toString();
+            LdapName ldapName = new LdapName(dn);
+            String dnFormatted = ldapName.toString();
 
             if (bindName!=null && password!=NO_AUTHENTICATION) {
                 // if we've used the credential specifically for the bind, we
                 // need to verify the provided password to do authentication
                 LOGGER.fine("Attempting to validate password for DN="+dn);
-                DirContext test = descriptor.bind(dn.toString(), password, ldapServers);
+                DirContext test = descriptor.bind(dnFormatted, password,ldapServers);
                 // Binding alone is not enough to test the credential. Need to actually perform some query operation.
                 // but if the authentication fails this throws an exception
                 try {
-                    new LDAPSearchBuilder(test,domainDN).searchOne("(& (userPrincipalName={0})(objectCategory=user))",userPrincipalName);
+                    new LDAPSearchBuilder(test,domainDN).searchOne("(& (userPrincipalName={0})(objectCategory=user))", userPrincipalName);
                 } finally {
                     closeQuietly(test);
                 }
             }
 
-            Set<GrantedAuthority> groups = resolveGroups(domainDN, dn.toString(), context);
+            Set<GrantedAuthority> groups = resolveGroups(domainDN, dnFormatted, context);
             groups.add(SecurityRealm.AUTHENTICATED_AUTHORITY);
 
             return new ActiveDirectoryUserDetail(username, password, true, true, true, true, groups.toArray(new GrantedAuthority[groups.size()]),
@@ -397,6 +403,9 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
      * @param context Used for making queries.
      */
     private Set<GrantedAuthority> resolveGroups(String domainDN, String userDN, DirContext context) throws NamingException {
+        if (userDN.contains("/")) {
+            userDN = userDN.replace("/","\\/");
+        }
         LOGGER.finer("Looking up group of "+userDN);
         Attributes id = context.getAttributes(userDN,new String[]{"tokenGroups","memberOf","CN"});
         Attribute tga = id.get("tokenGroups");
