@@ -461,8 +461,16 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                             throw e;
                         }
                     }
-                    if (!found || duration >= 10) {
-                        LOGGER.warning(String.format("AD chain lookup is taking too long (%dms). Falling back to recursive lookup", duration));
+                    if (!found && duration >= 10) {
+                        LOGGER.log(Level.WARNING, "Group lookup via Active Directory's 'LDAP_MATCHING_RULE_IN_CHAIN' extension timed out after {0} seconds. Falling back to recursive group lookup strategy for this and future queries", duration);
+                        groupLookupStrategy = GroupLookupStrategy.RECURSIVE;
+                        continue;
+                    } else if (found && duration >= 10) {
+                        LOGGER.log(Level.WARNING, "Group lookup via Active Directory's 'LDAP_MATCHING_RULE_IN_CHAIN' extension matched user's groups but took {0} seconds to run. Switching to recursive lookup for future group lookup queries", duration);
+                        groupLookupStrategy = GroupLookupStrategy.RECURSIVE;
+                        return groups;
+                    } else if (!found) {
+                        LOGGER.log(Level.WARNING, "Group lookup via Active Directory's 'LDAP_MATCHING_RULE_IN_CHAIN' extension failed. Falling back to recursive group lookup strategy for this and future queries");
                         groupLookupStrategy = GroupLookupStrategy.RECURSIVE;
                         continue;
                     } else {
