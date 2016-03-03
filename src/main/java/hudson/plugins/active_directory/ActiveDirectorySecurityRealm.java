@@ -50,6 +50,7 @@ import org.acegisecurity.userdetails.UserDetails;
 import org.acegisecurity.userdetails.UserDetailsService;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
@@ -171,7 +172,13 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         // append default port if not specified
         server = fixEmpty(server);
         if (server != null) {
-            if (!server.contains(":")) server += ":3268";
+            String[] servers = server.split(",");
+            for (int i = 0; i < servers.length; i++) {
+                if (!servers[i].contains(":")) {
+                    servers[i] += ":3268";
+                }
+            }
+            server = StringUtils.join(servers, ",");
         }
 
         this.server = server;
