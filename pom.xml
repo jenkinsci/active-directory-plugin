@@ -25,6 +25,10 @@
       <id>kohsuke</id>
       <name>Kohsuke Kawaguchi</name>
     </developer>
+    <developer>
+      <id>fbelzunc</id>
+      <name>Felix Belzunce Arcos</name>
+    </developer>
   </developers>
 
   <properties>
