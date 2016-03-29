@@ -18,6 +18,14 @@
     <f:entry field="removeIrrelevantGroups" title="${%Remove irrelevant groups}">
       <f:checkbox />
     </f:entry>
+    <f:optionalBlock name="cache" title="${%Enable cache}" checked="${instance.cache != null}">
+      <f:entry field="size" title="${%Cache Size}">
+        <f:select default="256"/>
+      </f:entry>
+      <f:entry field="ttl" title="${%Cache TTL}">
+        <f:select default="600"/>
+      </f:entry>
+    </f:optionalBlock>
   </f:advanced>
   <f:nested>
     <f:validateButton with="domain,server,site,bindName,bindPassword" title="${%Test}" method="validate"/>

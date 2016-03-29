@@ -23,6 +23,8 @@
  */
 package hudson.plugins.active_directory;
 
+import com.google.common.cache.Cache;
+import com.google.common.util.concurrent.UncheckedExecutionException;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Util;
 import hudson.security.GroupDetails;
@@ -56,6 +58,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.Stack;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -86,63 +90,20 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     protected static final String DN_FORMATTED = "distinguishedNameFormatted";
 
     /**
-     * {@link ActiveDirectoryGroupDetails} cache.
+     * To specify the TTL and Size used for caching users and groups
      */
-    private final Cache<String,ActiveDirectoryGroupDetails,UsernameNotFoundException> groupCache = new Cache<String,ActiveDirectoryGroupDetails,UsernameNotFoundException>() {
-        @Override
-        protected ActiveDirectoryGroupDetails compute(String groupname) {
-            boolean problem = false;
-            for (String domainName : domainNames) {
-                // when we use custom socket factory below, every LDAP operations result
-                // in a classloading via context classloader, so we need it to resolve.
-                ClassLoader ccl = Thread.currentThread().getContextClassLoader();
-                Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
-                try {
-                    DirContext context = descriptor.bind(bindName, bindPassword, obtainLDAPServers(domainName));
+    private CacheConfiguration cache;
 
-                    try {
-                        final String domainDN = toDC(domainName);
+    /**
+     * The {@link UserDetails} cache.
+     */
+    private final Cache<String, UserDetails> userCache;
 
-                        Attributes group = new LDAPSearchBuilder(context,domainDN).subTreeScope().searchOne("(& (cn={0})(objectCategory=group))",groupname);
-                        if (group==null) {
-                            // failed to find it. Fall back to sAMAccountName.
-                            // see http://www.nabble.com/Re%3A-Hudson-AD-plug-in-td21428668.html
-                            LOGGER.fine("Failed to find "+groupname+" in cn. Trying sAMAccountName");
-                            group = new LDAPSearchBuilder(context,domainDN).subTreeScope().searchOne("(& (sAMAccountName={0})(objectCategory=group))",groupname);
-                            if (group==null) {
-                                // Group not found in this domain, try next
-                                continue;
-                            }
-                        }
-                        LOGGER.fine("Found group " + groupname + " : " + group);
-                        return new ActiveDirectoryGroupDetails(groupname);
-                    } catch (NamingException e) {
-                        LOGGER.log(Level.WARNING, "Failed to retrieve user information for "+groupname, e);
-                        throw new BadCredentialsException("Failed to retrieve user information for "+groupname, e);
-                    } finally {
-                        closeQuietly(context);
-                    }
-                } catch (UsernameNotFoundException e) {
-                    // everything worked OK but we just didn't find it. This could be just a typo in group name.
-                    LOGGER.log(Level.FINE, "Failed to find the group "+groupname+" in "+domainName+" domain", e);
-                } catch (AuthenticationException e) {
-                    // something went wrong talking to the server. This should be reported
-                    LOGGER.log(Level.WARNING, "Failed to find the group "+groupname+" in "+domainName+" domain", e);
-                    problem = true;
-                } finally {
-                    Thread.currentThread().setContextClassLoader(ccl);
-                }
-            }
+    /**
+     * The {@link ActiveDirectoryGroupDetails} cache.
+     */
+    private final Cache<String, ActiveDirectoryGroupDetails> groupCache;
 
-            if (!problem) {
-                return null; // group not found anywhere. cache this result
-            } else {
-                LOGGER.log(Level.WARNING, "Exhausted all configured domains and could not authenticate against any.");
-                throw new UserMayOrMayNotExistException(groupname);
-            }
-        }
-    };
-    
     public ActiveDirectoryUnixAuthenticationProvider(ActiveDirectorySecurityRealm realm) {
         if (realm.domain==null) throw new IllegalArgumentException("Active Directory domain name is required but it is not set");
         this.domainNames = realm.domain.split(",");
@@ -152,51 +113,136 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         this.bindPassword = Secret.toString(realm.bindPassword);
         this.groupLookupStrategy = realm.getGroupLookupStrategy();
         this.descriptor = realm.getDescriptor();
+        this.cache = realm.cache;
+
+        if (cache == null) {
+            this.cache = new CacheConfiguration(0, 0);
+        }
+
+        // On startup userCache and groupCache are not created and cache is different from null
+        if (cache.getUserCache() == null || cache.getGroupCache() == null) {
+            this.cache = new CacheConfiguration(cache.getSize(), cache.getTtl());
+        }
+
+        this.userCache = cache.getUserCache();
+        this.groupCache = cache.getGroupCache();
     }
 
-    protected UserDetails retrieveUser(String username, UsernamePasswordAuthenticationToken authentication) throws AuthenticationException {
-        try {
-            // this is more seriously error, indicating a failure to search
-            List<BadCredentialsException> errors = new ArrayList<BadCredentialsException>();
+    protected UserDetails retrieveUser(final String username, final UsernamePasswordAuthenticationToken authentication) throws AuthenticationException {
+        if(authentication == null) {
+                // If the key wasn't in the "easy to compute" group, we need to
+                // do things the hard way.
+            try {
+                return userCache.get(username, new Callable<UserDetails>() {
+                    public UserDetails call() {
+                        try {
+                            // this is more seriously error, indicating a failure to search
+                            List<BadCredentialsException> errors = new ArrayList<BadCredentialsException>();
 
-            // this is lesser error, in that we searched and the user was not found
-            List<UsernameNotFoundException> notFound = new ArrayList<UsernameNotFoundException>();
+                            // this is lesser error, in that we searched and the user was not found
+                            List<UsernameNotFoundException> notFound = new ArrayList<UsernameNotFoundException>();
 
-            for (String domainName : domainNames) {
-                try {
-                    return retrieveUser(username, authentication, domainName);
-                } catch (UsernameNotFoundException e) {
-                    notFound.add(e);
-                } catch (BadCredentialsException bce) {
-                    LOGGER.log(Level.WARNING, "Credential exception trying to authenticate against "+domainName+" domain", bce);
-                    errors.add(bce);
+                            for (String domainName : domainNames) {
+                                try {
+                                    return retrieveUser(username, null, domainName);
+                                } catch (UsernameNotFoundException e) {
+                                    notFound.add(e);
+                                } catch (BadCredentialsException bce) {
+                                    LOGGER.log(Level.WARNING, String.format("Credential exception trying to authenticate against %s domain", domainName), bce);
+                                    errors.add(bce);
+                                }
+                            }
+
+                            switch (errors.size()) {
+                                case 0:
+                                    break;  // fall through
+                                case 1:
+                                    throw errors.get(0); // preserve the original exception
+                                default:
+                                    throw new MultiCauseBadCredentialsException("Either no such user '" + username + "' or incorrect password", errors);
+                            }
+
+                            if (notFound.size()==1) {
+                                throw notFound.get(0);  // preserve the original exception
+                            }
+
+                            if (!Util.filter(notFound,UserMayOrMayNotExistException.class).isEmpty()) {
+                                // if one domain responds with UserMayOrMayNotExistException, then it might actually exist there,
+                                // so our response will be "can't tell"
+                                throw new MultiCauseUserMayOrMayNotExistException("We can't tell if the user exists or not: " + username, notFound);
+                            }
+
+                            if (!notFound.isEmpty()) {
+                                throw new MultiCauseUserNotFoundException("No such user: " + username, notFound);
+                            }
+
+                            throw new AssertionError("No domain is configured");
+                        } catch (AuthenticationException e) {
+                            //We need throw the AuthenticationException to re-throw later in UncheckedExecutionException
+                            LOGGER.log(Level.WARNING, String.format("Failed to retrieve user %s domain", username), e);
+                            throw e;
+                        }
+                    }
+                });
+            } catch (UncheckedExecutionException e) {
+                Throwable t = e.getCause();
+                if (t instanceof AuthenticationException) {
+                    AuthenticationException authenticationException = (AuthenticationException)t;
+                    throw authenticationException;
+                } else {
+                    LOGGER.log(Level.FINE, String.format("Failed to retrieve user %s", username), e);
+                    throw new CacheAuthenticationException("Authentication failed caching user " +  username, e);
                 }
+            } catch (ExecutionException e) {
+                LOGGER.log(Level.SEVERE, "There was a problem caching user "+ username, e);
+                throw new CacheAuthenticationException("Authentication failed because there was a problem caching user " +  username, e);
             }
+        } else {
+            try {
+                // this is more seriously error, indicating a failure to search
+                List<BadCredentialsException> errors = new ArrayList<BadCredentialsException>();
 
-            switch (errors.size()) {
-            case 0:
-                break;  // fall through
-            case 1:
-                throw errors.get(0); // preserve the original exception
-            default:
-                throw new MultiCauseBadCredentialsException("Either no such user '"+username+"' or incorrect password",errors);
+                // this is lesser error, in that we searched and the user was not found
+                List<UsernameNotFoundException> notFound = new ArrayList<UsernameNotFoundException>();
+
+                for (String domainName : domainNames) {
+                    try {
+                        return retrieveUser(username, authentication, domainName);
+                    } catch (UsernameNotFoundException e) {
+                        notFound.add(e);
+                    } catch (BadCredentialsException bce) {
+                        LOGGER.log(Level.WARNING, String.format("Credential exception trying to authenticate against %s domain", domainName), bce);
+                        errors.add(bce);
+                    }
+                }
+
+                switch (errors.size()) {
+                case 0:
+                    break;  // fall through
+                case 1:
+                    throw errors.get(0); // preserve the original exception
+                default:
+                    throw new MultiCauseBadCredentialsException("Either no such user '" + username + "' or incorrect password", errors);
+                }
+
+                if (notFound.size()==1) {
+                    throw notFound.get(0);  // preserve the original exception
+                }
+
+                if (!Util.filter(notFound,UserMayOrMayNotExistException.class).isEmpty()) {
+                    // if one domain responds with UserMayOrMayNotExistException, then it might actually exist there,
+                    // so our response will be "can't tell"
+                    throw new MultiCauseUserMayOrMayNotExistException("We can't tell if the user exists or not: " + username, notFound);
+                }
+                if (!notFound.isEmpty()) {
+                    throw new MultiCauseUserNotFoundException("No such user: " + username, notFound);
+                }
+
+                throw new AssertionError("No domain is configured");
+            } catch (AuthenticationException e) {
+                LOGGER.log(Level.FINE, String.format("Failed to retrieve user %s", username), e);
+                throw e;
             }
-
-            if (notFound.size()==1)
-                throw notFound.get(0);  // preserve the original exception
-
-            if (!Util.filter(notFound,UserMayOrMayNotExistException.class).isEmpty())
-                // if one domain responds with UserMayOrMayNotExistException, then it might actually exist there,
-                // so our response will be "can't tell"
-                throw new MultiCauseUserMayOrMayNotExistException("We can't tell if the user exists or not: "+username,notFound);
-
-            if (!notFound.isEmpty())
-                throw new MultiCauseUserNotFoundException("No such user: "+username,notFound);
-
-            throw new AssertionError("no domain is configured");
-        } catch (AuthenticationException e) {
-            LOGGER.log(Level.FINE, "Failed to retrieve user "+username, e);
-            throw e;
         }
     }
 
@@ -250,109 +296,202 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
      * @return never null
      */
     @SuppressFBWarnings(value = "ES_COMPARING_PARAMETER_STRING_WITH_EQ", justification = "Intentional instance check.")
-    public UserDetails retrieveUser(String username, String password, String domainName, List<SocketInfo> ldapServers) {
-        DirContext context;
-        boolean anonymousBind;    // did we bind anonymously?
+    public UserDetails retrieveUser(final String username, final String password, final String domainName, final List<SocketInfo> ldapServers) {
+        UserDetails userDetails;
+        try {
+            userDetails = userCache.get(username, new Callable<UserDetails>() {
+                public UserDetails call() throws AuthenticationException {
+                    DirContext context;
+                    boolean anonymousBind = false;    // did we bind anonymously?
 
-        // LDAP treats empty password as anonymous bind, so we need to reject it
-        if (StringUtils.isEmpty(password))
-            throw new BadCredentialsException("Empty password");
+                    // LDAP treats empty password as anonymous bind, so we need to reject it
+                    if (StringUtils.isEmpty(password)) {
+                        throw new BadCredentialsException("Empty password");
+                    }
 
-        String userPrincipalName = getPrincipalName(username, domainName);
-        String samAccountName = userPrincipalName.substring(0, userPrincipalName.indexOf('@'));
+                    String userPrincipalName = getPrincipalName(username, domainName);
+                    String samAccountName = userPrincipalName.substring(0, userPrincipalName.indexOf('@'));
 
-        if (bindName!=null) {
-            // two step approach. Use a special credential to obtain DN for the
-            // user trying to login, then authenticate.
-            try {
-                context = descriptor.bind(bindName, bindPassword, ldapServers);
-                anonymousBind = false;
-            } catch (BadCredentialsException e) {
-                throw new AuthenticationServiceException("Failed to bind to LDAP server with the bind name/password", e);
+                    if (bindName != null) {
+                        // two step approach. Use a special credential to obtain DN for the
+                        // user trying to login, then authenticate.
+                        try {
+                            context = descriptor.bind(bindName, bindPassword, ldapServers);
+                            anonymousBind = false;
+                        } catch (BadCredentialsException e) {
+                            throw new AuthenticationServiceException("Failed to bind to LDAP server with the bind name/password", e);
+                        }
+                    } else {
+                        if (password.equals(NO_AUTHENTICATION)) {
+                            anonymousBind = true;
+                        }
+
+                        try {
+                            // if we are just retrieving the user, try using anonymous bind by empty password (see RFC 2829 5.1)
+                            // but if that fails, that's not BadCredentialException but UserMayOrMayNotExistException
+                            context = descriptor.bind(userPrincipalName, anonymousBind ? "" : password, ldapServers);
+                        } catch (BadCredentialsException e) {
+                            if (anonymousBind)
+                                // in my observation, if we attempt an anonymous bind and AD doesn't allow it, it still passes the bind method
+                                // and only fail later when we actually do a query. So perhaps this is a dead path, but I'm leaving it here
+                                // anyway as a precaution.
+                                throw new UserMayOrMayNotExistException("Unable to retrieve the user information without bind DN/password configured");
+                            throw e;
+                        }
+                    }
+
+                    try {
+                        // locate this user's record
+                        final String domainDN = toDC(domainName);
+
+                        Attributes user = new LDAPSearchBuilder(context, domainDN).subTreeScope().searchOne("(& (userPrincipalName={0})(objectCategory=user))", userPrincipalName);
+                        if (user == null) {
+                            // failed to find it. Fall back to sAMAccountName.
+                            // see http://www.nabble.com/Re%3A-Hudson-AD-plug-in-td21428668.html
+                            LOGGER.log(Level.FINE, "Failed to find {0} in userPrincipalName. Trying sAMAccountName", userPrincipalName);
+                            user = new LDAPSearchBuilder(context, domainDN).subTreeScope().searchOne("(& (sAMAccountName={0})(objectCategory=user))", samAccountName);
+                            if (user == null) {
+                                throw new UsernameNotFoundException("Authentication was successful but cannot locate the user information for " + username);
+                            }
+                        }
+                        LOGGER.fine("Found user " + username + " : " + user);
+
+                        Object dnObject = user.get(DN_FORMATTED).get();
+                        if (dnObject == null) {
+                            throw new AuthenticationServiceException("No distinguished name for " + username);
+                        }
+
+                        String dn = dnObject.toString();
+                        LdapName ldapName = new LdapName(dn);
+                        String dnFormatted = ldapName.toString();
+
+                        if (bindName != null && !password.equals(NO_AUTHENTICATION)) {
+                            // if we've used the credential specifically for the bind, we
+                            // need to verify the provided password to do authentication
+                            LOGGER.log(Level.FINE, "Attempting to validate password for DN={0}", dn);
+                            DirContext test = descriptor.bind(dnFormatted, password, ldapServers);
+                            // Binding alone is not enough to test the credential. Need to actually perform some query operation.
+                            // but if the authentication fails this throws an exception
+                            try {
+                                new LDAPSearchBuilder(test, domainDN).searchOne("(& (userPrincipalName={0})(objectCategory=user))", userPrincipalName);
+                            } finally {
+                                closeQuietly(test);
+                            }
+                        }
+
+                        Set<GrantedAuthority> groups = resolveGroups(domainDN, dnFormatted, context);
+                        groups.add(SecurityRealm.AUTHENTICATED_AUTHORITY);
+
+                        return new ActiveDirectoryUserDetail(username, password, true, true, true, true, groups.toArray(new GrantedAuthority[groups.size()]),
+                                getStringAttribute(user, "displayName"),
+                                getStringAttribute(user, "mail"),
+                                getStringAttribute(user, "telephoneNumber")
+                        ).updateUserInfo();
+                    } catch (NamingException e) {
+                        if (anonymousBind && e.getMessage().contains("successful bind must be completed") && e.getMessage().contains("000004DC")) {
+                            // sometimes (or always?) anonymous bind itself will succeed but the actual query will fail.
+                            // see JENKINS-12619. On my AD the error code is DSID-0C0906DC
+                            throw new UserMayOrMayNotExistException("Unable to retrieve the user information without bind DN/password configured");
+                        }
+
+                        LOGGER.log(Level.WARNING, String.format("Failed to retrieve user information for %s", username), e);
+                        throw new BadCredentialsException("Failed to retrieve user information for " + username, e);
+                    } finally {
+                        closeQuietly(context);
+                    }
+                }
+            });
+        } catch (UncheckedExecutionException e) {
+           Throwable t = e.getCause();
+            if (t instanceof AuthenticationException) {
+                AuthenticationException authenticationException= (AuthenticationException)t;
+                throw authenticationException;
+            } else {
+                throw new CacheAuthenticationException("Authentication failed because there was a problem caching user " +  username, e);
             }
-        } else {
-            anonymousBind = password == NO_AUTHENTICATION;
-            try {
-                // if we are just retrieving the user, try using anonymous bind by empty password (see RFC 2829 5.1)
-                // but if that fails, that's not BadCredentialException but UserMayOrMayNotExistException
-                context = descriptor.bind(userPrincipalName, anonymousBind ? "" : password, ldapServers);
-            } catch (BadCredentialsException e) {
-                if (anonymousBind)
-                    // in my observation, if we attempt an anonymous bind and AD doesn't allow it, it still passes the bind method
-                    // and only fail later when we actually do a query. So perhaps this is a dead path, but I'm leaving it here
-                    // anyway as a precaution.
-                    throw new UserMayOrMayNotExistException("Unable to retrieve the user information without bind DN/password configured");
-                throw e;
-            }
+        } catch (ExecutionException e) {
+            LOGGER.log(Level.SEVERE, "There was a problem caching user "+ username, e);
+            throw new CacheAuthenticationException("Authentication failed because there was a problem caching user " +  username, e);
+        }
+        // We need to check the password when the user is cached so it doesn't get automatically authenticated
+        // without verifying the credentials
+        if (password != null && userDetails != null && !password.equals(userDetails.getPassword())) {
+            throw new BadCredentialsException("Failed to retrieve user information from the cache for "+ username);
+        }
+        return userDetails;
+    }
+
+    public GroupDetails loadGroupByGroupname(final String groupname) {
+        if (bindName==null) {
+            throw new UserMayOrMayNotExistException("Unable to retrieve group information without bind DN/password configured");
         }
 
         try {
-            // locate this user's record
-            final String domainDN = toDC(domainName);
+            return groupCache.get(groupname, new Callable<ActiveDirectoryGroupDetails>() {
+                        public ActiveDirectoryGroupDetails call() {
+                            boolean problem = false;
+                            for (String domainName : domainNames) {
+                                // when we use custom socket factory below, every LDAP operations result
+                                // in a classloading via context classloader, so we need it to resolve.
+                                ClassLoader ccl = Thread.currentThread().getContextClassLoader();
+                                Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
+                                try {
+                                    DirContext context = descriptor.bind(bindName, bindPassword, obtainLDAPServers(domainName));
 
-            Attributes user = new LDAPSearchBuilder(context,domainDN).subTreeScope().searchOne("(& (userPrincipalName={0})(objectCategory=user))",userPrincipalName);
-            if (user==null) {
-                // failed to find it. Fall back to sAMAccountName.
-                // see http://www.nabble.com/Re%3A-Hudson-AD-plug-in-td21428668.html
-                LOGGER.fine("Failed to find "+userPrincipalName+" in userPrincipalName. Trying sAMAccountName");
-                user = new LDAPSearchBuilder(context,domainDN).subTreeScope().searchOne("(& (sAMAccountName={0})(objectCategory=user))",samAccountName);
-                if (user==null) {
-                    throw new UsernameNotFoundException("Authentication was successful but cannot locate the user information for "+username);
-                }
+                                    try {
+                                        final String domainDN = toDC(domainName);
+
+                                        Attributes group = new LDAPSearchBuilder(context,domainDN).subTreeScope().searchOne("(& (cn={0})(objectCategory=group))", groupname);
+                                        if (group==null) {
+                                            // failed to find it. Fall back to sAMAccountName.
+                                            // see http://www.nabble.com/Re%3A-Hudson-AD-plug-in-td21428668.html
+                                            LOGGER.log(Level.FINE, "Failed to find {0} in cn. Trying sAMAccountName", groupname);
+                                            group = new LDAPSearchBuilder(context,domainDN).subTreeScope().searchOne("(& (sAMAccountName={0})(objectCategory=group))", groupname);
+                                            if (group==null) {
+                                                // Group not found in this domain, try next
+                                                continue;
+                                            }
+                                        }
+                                        LOGGER.log(Level.FINE, "Found group {0} : {1}", new Object[] {groupname, group});
+                                        return new ActiveDirectoryGroupDetails(groupname);
+                                    } catch (NamingException e) {
+                                        LOGGER.log(Level.WARNING, String.format("Failed to retrieve user information for %s", groupname), e);
+                                        throw new BadCredentialsException("Failed to retrieve user information for "+ groupname, e);
+                                    } finally {
+                                        closeQuietly(context);
+                                    }
+                                } catch (UsernameNotFoundException e) {
+                                    // everything worked OK but we just didn't find it. This could be just a typo in group name.
+                                    LOGGER.log(Level.WARNING, String.format("Failed to find the group %s in %s domain", groupname, domainName), e);
+                                } catch (AuthenticationException e) {
+                                    // something went wrong talking to the server. This should be reported
+                                    LOGGER.log(Level.WARNING, String.format("Failed to find the group %s in %s domain", groupname, domainName), e);
+                                    problem = true;
+                                } finally {
+                                    Thread.currentThread().setContextClassLoader(ccl);
+                                }
+                            }
+
+                            if (!problem) {
+                                return null; // group not found anywhere. cache this result
+                            } else {
+                                LOGGER.log(Level.WARNING, "Exhausted all configured domains and could not authenticate against any");
+                                throw new UserMayOrMayNotExistException(groupname);
+                            }
+                        }
+                    });
+        } catch (UncheckedExecutionException e) {
+            Throwable t = e.getCause();
+            if (t instanceof AuthenticationException) {
+                AuthenticationException authenticationException= (AuthenticationException)t;
+                throw authenticationException;
+            } else {
+                throw new CacheAuthenticationException("Authentication failed because there was a problem caching group " +  groupname, e);
             }
-            LOGGER.fine("Found user "+username+" : "+user);
-
-            Object dnObject = user.get(DN_FORMATTED).get();
-            if (dnObject==null)
-                throw new AuthenticationServiceException("No distinguished name for "+username);
-
-            String dn = dnObject.toString();
-            LdapName ldapName = new LdapName(dn);
-            String dnFormatted = ldapName.toString();
-
-            if (bindName!=null && password!=NO_AUTHENTICATION) {
-                // if we've used the credential specifically for the bind, we
-                // need to verify the provided password to do authentication
-                LOGGER.fine("Attempting to validate password for DN="+dn);
-                DirContext test = descriptor.bind(dnFormatted, password,ldapServers);
-                // Binding alone is not enough to test the credential. Need to actually perform some query operation.
-                // but if the authentication fails this throws an exception
-                try {
-                    new LDAPSearchBuilder(test,domainDN).searchOne("(& (userPrincipalName={0})(objectCategory=user))", userPrincipalName);
-                } finally {
-                    closeQuietly(test);
-                }
-            }
-
-            Set<GrantedAuthority> groups = resolveGroups(domainDN, dnFormatted, context);
-            groups.add(SecurityRealm.AUTHENTICATED_AUTHORITY);
-
-            return new ActiveDirectoryUserDetail(username, password, true, true, true, true, groups.toArray(new GrantedAuthority[groups.size()]),
-                    getStringAttribute(user, "displayName"),
-                    getStringAttribute(user, "mail"),
-                    getStringAttribute(user, "telephoneNumber")
-                    ).updateUserInfo();
-        } catch (NamingException e) {
-            if (anonymousBind && e.getMessage().contains("successful bind must be completed") && e.getMessage().contains("000004DC")) {
-                // sometimes (or always?) anonymous bind itself will succeed but the actual query will fail.
-                // see JENKINS-12619. On my AD the error code is DSID-0C0906DC
-                throw new UserMayOrMayNotExistException("Unable to retrieve the user information without bind DN/password configured");
-            }
-
-            LOGGER.log(Level.WARNING, "Failed to retrieve user information for "+username, e);
-            throw new BadCredentialsException("Failed to retrieve user information for "+username, e);
-        } finally {
-            closeQuietly(context);
+        } catch (ExecutionException e) {
+            LOGGER.log(Level.SEVERE, String.format("There was a problem caching group %s", groupname), e);
+            throw new CacheAuthenticationException("Authentication failed because there was a problem caching group " +  groupname, e);
         }
-    }
-
-    public GroupDetails loadGroupByGroupname(String groupname) {
-        if (bindName==null)
-            throw new UserMayOrMayNotExistException("Unable to retrieve group information without bind DN/password configured");
-
-        ActiveDirectoryGroupDetails details = groupCache.get(groupname);
-        if (details==null)  throw new UsernameNotFoundException(groupname);
-        else                return details;
     }
 
     private void closeQuietly(DirContext context) {

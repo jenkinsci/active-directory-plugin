@@ -51,6 +51,8 @@ import org.acegisecurity.userdetails.UserDetailsService;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
@@ -143,6 +145,11 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
      */
     public final boolean removeIrrelevantGroups;
 
+    /**
+     *  Cache of the Active Directory plugin
+     */
+    protected CacheConfiguration cache;
+
     public ActiveDirectorySecurityRealm(String domain, String site, String bindName, String bindPassword, String server) {
         this(domain, site, bindName, bindPassword, server, GroupLookupStrategy.AUTO, false);
     }
@@ -153,13 +160,13 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
     public ActiveDirectorySecurityRealm(String domain, String site, String bindName,
                                         String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups) {
-        this(domain,site,bindName,bindPassword,server,groupLookupStrategy,removeIrrelevantGroups,domain!=null);
+        this(domain,site,bindName,bindPassword,server,groupLookupStrategy,removeIrrelevantGroups,domain!=null, null);
     }
     
     @DataBoundConstructor
     // as Java signature, this binding doesn't make sense, so please don't use this constructor
     public ActiveDirectorySecurityRealm(String domain, String site, String bindName,
-                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain) {
+                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache) {
         if (customDomain!=null && !customDomain)
             domain = null;
         this.domain = fixEmpty(domain);
@@ -182,6 +189,23 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         }
 
         this.server = server;
+        this.cache = cache;
+    }
+
+    @Restricted(NoExternalUse.class)
+    public CacheConfiguration getCache() {
+        if (cache != null && (cache.getSize() == 0 || cache.getTtl() == 0)) {
+            return null;
+        }
+        return cache;
+    }
+
+    public Integer getSize() {
+        return cache == null ? null : cache.getSize();
+    }
+
+    public Integer getTtl() {
+        return cache == null ? null : cache.getTtl();
     }
 
     public GroupLookupStrategy getGroupLookupStrategy() {
@@ -307,6 +331,32 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                 }
                 return false;
             }
+        }
+
+        public ListBoxModel doFillSizeItems() {
+            ListBoxModel listBoxModel = new ListBoxModel();
+            listBoxModel.add("10 elements", "10");
+            listBoxModel.add("20 elements", "20");
+            listBoxModel.add("50 elements", "50");
+            listBoxModel.add("100 elements", "100");
+            listBoxModel.add("200 elements", "200");
+            listBoxModel.add("256 elements", "256");
+            listBoxModel.add("500 elements", "500");
+            listBoxModel.add("1000 elements", "1000");
+            return listBoxModel;
+        }
+
+        public ListBoxModel doFillTtlItems() {
+            ListBoxModel listBoxModel = new ListBoxModel();
+            listBoxModel.add("30 sec", "30");
+            listBoxModel.add("1 min", "60");
+            listBoxModel.add("5 min", "300");
+            listBoxModel.add("10 min", "600");
+            listBoxModel.add("15 min", "900");
+            listBoxModel.add("30 min", "1800");
+            listBoxModel.add("1 hour", "3600");
+
+            return listBoxModel;
         }
 
         public ListBoxModel doFillGroupLookupStrategyItems() {
