@@ -23,6 +23,8 @@
  */
 package hudson.plugins.active_directory;
 
+import com.google.common.cache.Cache;
+import com.google.common.util.concurrent.UncheckedExecutionException;
 import com4j.COM4J;
 import com4j.Com4jObject;
 import com4j.ComException;
@@ -53,6 +55,7 @@ import org.kohsuke.stapler.framework.io.IOException2;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Callable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -68,7 +71,26 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
      */
     private final _Connection con;
 
+    /**
+     * The cache configuration
+     */
+    private CacheConfiguration cache;
+
+    /**
+     * The {@link UserDetails} cache.
+     */
+    private final Cache<String, UserDetails> userCache;
+
+    /**
+     * The {@link ActiveDirectoryGroupDetails} cache.
+     */
+    private final Cache<String, ActiveDirectoryGroupDetails> groupCache;
+
     public ActiveDirectoryAuthenticationProvider() throws IOException {
+        this(null);
+    }
+
+    public ActiveDirectoryAuthenticationProvider(ActiveDirectorySecurityRealm realm)throws IOException {
         try {
             IADs rootDSE = COM4J.getObject(IADs.class, "LDAP://RootDSE", null);
 
@@ -78,6 +100,22 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
             con = ClassFactory.createConnection();
             con.provider("ADsDSOObject");
             con.open("Active Directory Provider",""/*default*/,""/*default*/,-1/*default*/);
+
+            if (realm != null) {
+                this.cache = realm.cache;
+            }
+
+            if (this.cache == null) {
+                this.cache = new CacheConfiguration(0, 0);
+            }
+
+            // On startup userCache and groupCache are not created and cache is different from null
+            if (cache.getUserCache() == null || cache.getGroupCache() == null) {
+                this.cache = new CacheConfiguration(cache.getSize(), cache.getTtl());
+            }
+
+            this.userCache = cache.getUserCache();
+            this.groupCache = cache.getGroupCache();
         } catch (ExecutionException e) {
             throw new IOException2("Failed to connect to Active Directory. Does this machine belong to Active Directory?",e);
         }
@@ -99,63 +137,80 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
         return "LDAP://"+dn.replace("/","\\/");
     }
 
-    protected UserDetails retrieveUser(String username, UsernamePasswordAuthenticationToken authentication) throws AuthenticationException {
-        String password = null;
-        if(authentication!=null)
-            password = (String) authentication.getCredentials();
-
-        String dn = getDnOfUserOrGroup(username);
-
-        ComObjectCollector col = new ComObjectCollector();
-        COM4J.addListener(col);
+    protected UserDetails retrieveUser(final String username,final  UsernamePasswordAuthenticationToken authentication) throws AuthenticationException {
         try {
-            // now we got the DN of the user
-            IADsOpenDSObject dso = COM4J.getObject(IADsOpenDSObject.class,"LDAP:",null);
+            return  userCache.get(username, new Callable<UserDetails>() {
+                public UserDetails call() {
+                    String password = null;
+                    if(authentication!=null) {
+                        password = (String) authentication.getCredentials();
+                    }
 
-            // turns out we don't need DN for authentication
-            // we can bind with the user name
-            // dso.openDSObject("LDAP://"+context,args[0],args[1],1);
+                    String dn = getDnOfUserOrGroup(username);
 
-            // to do bind with DN as the user name, the flag must be 0
-            IADsUser usr;
-            try {
-                usr = (authentication==null
-                    ? dso.openDSObject(dnToLdapUrl(dn), null, null, ADS_READONLY_SERVER)
-                    : dso.openDSObject(dnToLdapUrl(dn), dn, password, ADS_READONLY_SERVER))
-                        .queryInterface(IADsUser.class);
-            } catch (ComException e) {
-                // this is failing
-                String msg = String.format("Incorrect password for %s DN=%s: error=%08X", username, dn, e.getHRESULT());
-                LOGGER.log(Level.FINE, "Login failure: "+msg,e);
-                throw (BadCredentialsException)new BadCredentialsException(msg).initCause(e);
+                    ComObjectCollector col = new ComObjectCollector();
+                    COM4J.addListener(col);
+                    try {
+                        // now we got the DN of the user
+                        IADsOpenDSObject dso = COM4J.getObject(IADsOpenDSObject.class,"LDAP:",null);
+
+                        // turns out we don't need DN for authentication
+                        // we can bind with the user name
+                        // dso.openDSObject("LDAP://"+context,args[0],args[1],1);
+
+                        // to do bind with DN as the user name, the flag must be 0
+                        IADsUser usr;
+                        try {
+                            usr = (authentication==null
+                                    ? dso.openDSObject(dnToLdapUrl(dn), null, null, ADS_READONLY_SERVER)
+                                    : dso.openDSObject(dnToLdapUrl(dn), dn, password, ADS_READONLY_SERVER))
+                                    .queryInterface(IADsUser.class);
+                        } catch (ComException e) {
+                            // this is failing
+                            String msg = String.format("Incorrect password for %s DN=%s: error=%08X", username, dn, e.getHRESULT());
+                            LOGGER.log(Level.FINE, String.format("Login failure: Incorrect password for %s DN=%s: error=%08X", username, dn, e.getHRESULT()), e);
+                            throw (BadCredentialsException)new BadCredentialsException(msg).initCause(e);
+                        }
+                        if (usr == null)    // the user name was in fact a group
+                            throw new UsernameNotFoundException("User not found: "+ username);
+
+                        List<GrantedAuthority> groups = new ArrayList<GrantedAuthority>();
+                        for( Com4jObject g : usr.groups() ) {
+                            if (g==null) {
+                                continue;   // according to JENKINS-17357 in some environment the collection contains null
+                            }
+                            IADsGroup grp = g.queryInterface(IADsGroup.class);
+                            // cut "CN=" and make that the role name
+                            groups.add(new GrantedAuthorityImpl(grp.name().substring(3)));
+                        }
+                        groups.add(SecurityRealm.AUTHENTICATED_AUTHORITY);
+
+                        LOGGER.log(Level.FINE, "Login successful: {0} dn={1}", new Object[] {username, dn});
+
+                        return new ActiveDirectoryUserDetail(
+                                username, password,
+                                !isAccountDisabled(usr),
+                                true, true, true,
+                                groups.toArray(new GrantedAuthority[groups.size()]),
+                                getFullName(usr), getEmailAddress(usr), getTelephoneNumber(usr)
+                        ).updateUserInfo();
+                    } finally {
+                        col.disposeAll();
+                        COM4J.removeListener(col);
+                    }
+                }
+            });
+        } catch (UncheckedExecutionException e) {
+            Throwable t = e.getCause();
+            if (t instanceof AuthenticationException) {
+                AuthenticationException authenticationException = (AuthenticationException)t;
+                throw authenticationException;
+            } else {
+                throw new CacheAuthenticationException("Authentication failed because there was a problem caching user " + username, e);
             }
-            if (usr == null)    // the user name was in fact a group
-                throw new UsernameNotFoundException("User not found: "+username);
-
-            List<GrantedAuthority> groups = new ArrayList<GrantedAuthority>();
-            for( Com4jObject g : usr.groups() ) {
-                if (g==null)        continue;   // according to JENKINS-17357 in some environment the collection contains null
-                IADsGroup grp = g.queryInterface(IADsGroup.class);
-                // cut "CN=" and make that the role name
-                groups.add(new GrantedAuthorityImpl(grp.name().substring(3)));
-            }
-            groups.add(SecurityRealm.AUTHENTICATED_AUTHORITY);
-
-            LOGGER.log(Level.FINER, "Login successful: "+username+" dn="+dn);
-
-            return new ActiveDirectoryUserDetail(
-                username, password,
-                !isAccountDisabled(usr),
-                true, true, true,
-                groups.toArray(new GrantedAuthority[groups.size()]),
-                    getFullName(usr), getEmailAddress(usr), getTelephoneNumber(usr)
-            ).updateUserInfo();
-        } catch (AuthenticationException e) {
-            LOGGER.log(Level.FINE, "Failed toretrieve user "+username, e);
-            throw e;
-        } finally {
-            col.disposeAll();
-            COM4J.removeListener(col);
+        } catch (java.util.concurrent.ExecutionException e) {
+            LOGGER.log(Level.SEVERE, String.format("There was a problem caching user %s", username), e);
+            throw new CacheAuthenticationException("Authentication failed because there was a problem caching user " + username, e);
         }
     }
 
@@ -223,42 +278,50 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
 		return dn;
 	}
 
-	public GroupDetails loadGroupByGroupname(String groupname) {
-        ActiveDirectoryGroupDetails details = groupCache.get(groupname);
-        if (details!=null)      return details;
-        throw new UsernameNotFoundException("Group not found: " + groupname);
-	}
+	public GroupDetails loadGroupByGroupname(final String groupname) {
+        try {
+            return groupCache.get(groupname, new Callable<ActiveDirectoryGroupDetails>() {
+                public ActiveDirectoryGroupDetails call() throws Exception {
+                    ComObjectCollector col = new ComObjectCollector();
+                    COM4J.addListener(col);
+                    try {
+                        // First get the distinguishedName
+                        String dn = getDnOfUserOrGroup(groupname);
+                        IADsOpenDSObject dso = COM4J.getObject(IADsOpenDSObject.class, "LDAP:", null);
+                        IADsGroup group = dso.openDSObject(dnToLdapUrl(dn), null, null, ADS_READONLY_SERVER)
+                                .queryInterface(IADsGroup.class);
 
-    /**
-     * {@link ActiveDirectoryGroupDetails} cache.
-     */
-    private final Cache<String,ActiveDirectoryGroupDetails,UsernameNotFoundException> groupCache = new Cache<String,ActiveDirectoryGroupDetails,UsernameNotFoundException>() {
-        @Override
-        protected ActiveDirectoryGroupDetails compute(String groupname) {
-            ComObjectCollector col = new ComObjectCollector();
-            COM4J.addListener(col);
-            try {
-                // First get the distinguishedName
-                String dn = getDnOfUserOrGroup(groupname);
-                IADsOpenDSObject dso = COM4J.getObject(IADsOpenDSObject.class, "LDAP:", null);
-                IADsGroup group = dso.openDSObject(dnToLdapUrl(dn), null, null, ADS_READONLY_SERVER)
-                        .queryInterface(IADsGroup.class);
-
-                // If not a group will return null
-                if (group == null)  return null;
-                return new ActiveDirectoryGroupDetails(groupname);
-            } catch (UsernameNotFoundException e) {
-                return null; // failed to convert group name to DN
-            } catch (ComException e) {
-                // recover gracefully since AD might behave in a way we haven't anticipated
-                LOGGER.log(Level.WARNING, "Failed to figure out details of AD group: "+groupname,e);
-                return null;
-            } finally {
-                col.disposeAll();
-                COM4J.removeListener(col);
+                        // If not a group will return null
+                        if (group == null) {
+                            return null;
+                        }
+                        return new ActiveDirectoryGroupDetails(groupname);
+                    } catch (UsernameNotFoundException e) {
+                        return null; // failed to convert group name to DN
+                    } catch (ComException e) {
+                        // recover gracefully since AD might behave in a way we haven't anticipated
+                        LOGGER.log(Level.WARNING, String.format("Failed to figure out details of AD group: %s", groupname), e);
+                        return null;
+                    } finally {
+                        col.disposeAll();
+                        COM4J.removeListener(col);
+                    }
+                }
+            });
+        } catch (UncheckedExecutionException e) {
+            Throwable t = e.getCause();
+            if (t instanceof AuthenticationException) {
+                AuthenticationException authenticationException = (AuthenticationException)t;
+                throw authenticationException;
+            } else {
+                throw new CacheAuthenticationException("Authentication failed because there was a problem caching group " +  groupname, e);
             }
+        } catch (java.util.concurrent.ExecutionException e) {
+            LOGGER.log(Level.SEVERE, String.format("There was a problem caching group %s", groupname), e);
+
+            throw new CacheAuthenticationException("Authentication failed because there was a problem caching group " +  groupname, e);
         }
-    };
+    }
 
     private static final Logger LOGGER = Logger.getLogger(ActiveDirectoryAuthenticationProvider.class.getName());
 
