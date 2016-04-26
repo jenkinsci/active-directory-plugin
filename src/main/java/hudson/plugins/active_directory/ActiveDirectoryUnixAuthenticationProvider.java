@@ -129,120 +129,50 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     }
 
     protected UserDetails retrieveUser(final String username, final UsernamePasswordAuthenticationToken authentication) throws AuthenticationException {
-        if(authentication == null) {
-                // If the key wasn't in the "easy to compute" group, we need to
-                // do things the hard way.
-            try {
-                return userCache.get(username, new Callable<UserDetails>() {
-                    public UserDetails call() {
-                        try {
-                            // this is more seriously error, indicating a failure to search
-                            List<BadCredentialsException> errors = new ArrayList<BadCredentialsException>();
+        try {
+            // this is more seriously error, indicating a failure to search
+            List<BadCredentialsException> errors = new ArrayList<BadCredentialsException>();
 
-                            // this is lesser error, in that we searched and the user was not found
-                            List<UsernameNotFoundException> notFound = new ArrayList<UsernameNotFoundException>();
+            // this is lesser error, in that we searched and the user was not found
+            List<UsernameNotFoundException> notFound = new ArrayList<UsernameNotFoundException>();
 
-                            for (String domainName : domainNames) {
-                                try {
-                                    return retrieveUser(username, null, domainName);
-                                } catch (UsernameNotFoundException e) {
-                                    notFound.add(e);
-                                } catch (BadCredentialsException bce) {
-                                    LOGGER.log(Level.WARNING, String.format("Credential exception trying to authenticate against %s domain", domainName), bce);
-                                    errors.add(bce);
-                                }
-                            }
-
-                            switch (errors.size()) {
-                                case 0:
-                                    break;  // fall through
-                                case 1:
-                                    throw errors.get(0); // preserve the original exception
-                                default:
-                                    throw new MultiCauseBadCredentialsException("Either no such user '" + username + "' or incorrect password", errors);
-                            }
-
-                            if (notFound.size()==1) {
-                                throw notFound.get(0);  // preserve the original exception
-                            }
-
-                            if (!Util.filter(notFound,UserMayOrMayNotExistException.class).isEmpty()) {
-                                // if one domain responds with UserMayOrMayNotExistException, then it might actually exist there,
-                                // so our response will be "can't tell"
-                                throw new MultiCauseUserMayOrMayNotExistException("We can't tell if the user exists or not: " + username, notFound);
-                            }
-
-                            if (!notFound.isEmpty()) {
-                                throw new MultiCauseUserNotFoundException("No such user: " + username, notFound);
-                            }
-
-                            throw new AssertionError("No domain is configured");
-                        } catch (AuthenticationException e) {
-                            //We need throw the AuthenticationException to re-throw later in UncheckedExecutionException
-                            LOGGER.log(Level.WARNING, String.format("Failed to retrieve user %s domain", username), e);
-                            throw e;
-                        }
-                    }
-                });
-            } catch (UncheckedExecutionException e) {
-                Throwable t = e.getCause();
-                if (t instanceof AuthenticationException) {
-                    AuthenticationException authenticationException = (AuthenticationException)t;
-                    throw authenticationException;
-                } else {
-                    LOGGER.log(Level.FINE, String.format("Failed to retrieve user %s", username), e);
-                    throw new CacheAuthenticationException("Authentication failed caching user " +  username, e);
+            for (String domainName : domainNames) {
+                try {
+                    return retrieveUser(username, authentication, domainName);
+                } catch (UsernameNotFoundException e) {
+                    notFound.add(e);
+                } catch (BadCredentialsException bce) {
+                    LOGGER.log(Level.WARNING, String.format("Credential exception trying to authenticate against %s domain", domainName), bce);
+                    errors.add(bce);
                 }
-            } catch (ExecutionException e) {
-                LOGGER.log(Level.SEVERE, "There was a problem caching user "+ username, e);
-                throw new CacheAuthenticationException("Authentication failed because there was a problem caching user " +  username, e);
             }
-        } else {
-            try {
-                // this is more seriously error, indicating a failure to search
-                List<BadCredentialsException> errors = new ArrayList<BadCredentialsException>();
 
-                // this is lesser error, in that we searched and the user was not found
-                List<UsernameNotFoundException> notFound = new ArrayList<UsernameNotFoundException>();
-
-                for (String domainName : domainNames) {
-                    try {
-                        return retrieveUser(username, authentication, domainName);
-                    } catch (UsernameNotFoundException e) {
-                        notFound.add(e);
-                    } catch (BadCredentialsException bce) {
-                        LOGGER.log(Level.WARNING, String.format("Credential exception trying to authenticate against %s domain", domainName), bce);
-                        errors.add(bce);
-                    }
-                }
-
-                switch (errors.size()) {
+            switch (errors.size()) {
                 case 0:
                     break;  // fall through
                 case 1:
                     throw errors.get(0); // preserve the original exception
                 default:
                     throw new MultiCauseBadCredentialsException("Either no such user '" + username + "' or incorrect password", errors);
-                }
-
-                if (notFound.size()==1) {
-                    throw notFound.get(0);  // preserve the original exception
-                }
-
-                if (!Util.filter(notFound,UserMayOrMayNotExistException.class).isEmpty()) {
-                    // if one domain responds with UserMayOrMayNotExistException, then it might actually exist there,
-                    // so our response will be "can't tell"
-                    throw new MultiCauseUserMayOrMayNotExistException("We can't tell if the user exists or not: " + username, notFound);
-                }
-                if (!notFound.isEmpty()) {
-                    throw new MultiCauseUserNotFoundException("No such user: " + username, notFound);
-                }
-
-                throw new AssertionError("No domain is configured");
-            } catch (AuthenticationException e) {
-                LOGGER.log(Level.FINE, String.format("Failed to retrieve user %s", username), e);
-                throw e;
             }
+
+            if (notFound.size()==1) {
+                throw notFound.get(0);  // preserve the original exception
+            }
+
+            if (!Util.filter(notFound,UserMayOrMayNotExistException.class).isEmpty()) {
+                // if one domain responds with UserMayOrMayNotExistException, then it might actually exist there,
+                // so our response will be "can't tell"
+                throw new MultiCauseUserMayOrMayNotExistException("We can't tell if the user exists or not: " + username, notFound);
+            }
+            if (!notFound.isEmpty()) {
+                throw new MultiCauseUserNotFoundException("No such user: " + username, notFound);
+            }
+
+            throw new AssertionError("No domain is configured");
+        } catch (AuthenticationException e) {
+            LOGGER.log(Level.FINE, String.format("Failed to retrieve user %s", username), e);
+            throw e;
         }
     }
 
