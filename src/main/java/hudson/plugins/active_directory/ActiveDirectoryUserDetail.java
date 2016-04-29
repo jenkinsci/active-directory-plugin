@@ -41,6 +41,8 @@ import org.acegisecurity.userdetails.User;
 import org.acegisecurity.userdetails.UserDetails;
 import org.apache.commons.collections.CollectionUtils;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 /**
  * @author Kohsuke Kawaguchi
  */
@@ -115,7 +117,7 @@ public class ActiveDirectoryUserDetail extends User {
         return result;
     }
 
-    @Override
+    @Override @SuppressFBWarnings(value="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE", justification="https://github.com/jenkinsci/jenkins/pull/2094")
     protected void setAuthorities(GrantedAuthority[] authorities) {
         SecurityRealm realm = Jenkins.getInstance().getSecurityRealm();
         if ((realm instanceof ActiveDirectorySecurityRealm)) {
