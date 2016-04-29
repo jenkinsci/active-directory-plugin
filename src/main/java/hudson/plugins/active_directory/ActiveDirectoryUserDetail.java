@@ -117,7 +117,8 @@ public class ActiveDirectoryUserDetail extends User {
         return result;
     }
 
-    @Override @SuppressFBWarnings(value="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE", justification="https://github.com/jenkinsci/jenkins/pull/2094")
+    @Override 
+    @SuppressFBWarnings(value="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE", justification="https://github.com/jenkinsci/jenkins/pull/2094")
     protected void setAuthorities(GrantedAuthority[] authorities) {
         SecurityRealm realm = Jenkins.getInstance().getSecurityRealm();
         if ((realm instanceof ActiveDirectorySecurityRealm)) {
