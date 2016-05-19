@@ -229,6 +229,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     public UserDetails retrieveUser(final String username, final String password, final String domainName, final List<SocketInfo> ldapServers) {
         UserDetails userDetails;
         try {
+            final ActiveDirectoryUserDetail[] cacheMiss = new ActiveDirectoryUserDetail[1];
             userDetails = userCache.get(username, new Callable<UserDetails>() {
                 public UserDetails call() throws AuthenticationException {
                     DirContext context;
@@ -312,11 +313,12 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                         Set<GrantedAuthority> groups = resolveGroups(domainDN, dnFormatted, context);
                         groups.add(SecurityRealm.AUTHENTICATED_AUTHORITY);
 
-                        return new ActiveDirectoryUserDetail(username, password, true, true, true, true, groups.toArray(new GrantedAuthority[groups.size()]),
+                        cacheMiss[0] = new ActiveDirectoryUserDetail(username, password, true, true, true, true, groups.toArray(new GrantedAuthority[groups.size()]),
                                 getStringAttribute(user, "displayName"),
                                 getStringAttribute(user, "mail"),
                                 getStringAttribute(user, "telephoneNumber")
-                        ).updateUserInfo();
+                        );
+                        return cacheMiss[0];
                     } catch (NamingException e) {
                         if (anonymousBind && e.getMessage().contains("successful bind must be completed") && e.getMessage().contains("000004DC")) {
                             // sometimes (or always?) anonymous bind itself will succeed but the actual query will fail.
@@ -331,6 +333,9 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                     }
                 }
             });
+            if (cacheMiss[0] != null) {
+                cacheMiss[0].updateUserInfo();
+            }
         } catch (UncheckedExecutionException e) {
            Throwable t = e.getCause();
             if (t instanceof AuthenticationException) {
