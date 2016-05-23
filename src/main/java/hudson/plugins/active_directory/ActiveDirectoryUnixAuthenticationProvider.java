@@ -451,17 +451,18 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
      * Returns the full user principal name of the form "joe@europe.contoso.com".
      * 
      * If people type in 'foo@bar' or 'bar\foo' or just 'foo', it should be treated as
-     * 'foo@bar' (where 'bar' represents the given domain name)
+     * 'foo@bar.acme.org' (where 'acme.org' part comes from the given domain name in the AD configuration page)
      */
     private String getPrincipalName(String username, String domainName) {
         String principalName;
         int slash = username.indexOf('\\');
         if (slash>0) {
-            principalName = username.substring(slash+1)+'@'+domainName;
-        } else if (username.contains("@"))
+            principalName = username.substring(slash+1) + '@' + username.substring(0, slash) + '.' + domainName;
+        } else if (username.contains("@")) {
             principalName = username;
-        else
-            principalName = username+'@'+domainName;
+        } else {
+            principalName = username + '@' + domainName;
+        }
         return principalName;
     }
 
