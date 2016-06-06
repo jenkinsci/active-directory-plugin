@@ -229,7 +229,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     @SuppressFBWarnings(value = "ES_COMPARING_PARAMETER_STRING_WITH_EQ", justification = "Intentional instance check.")
     public UserDetails retrieveUser(final String username, final String password, final String domainName, final List<SocketInfo> ldapServers) {
         UserDetails userDetails;
-        String hashKey = DigestUtils.sha1Hex(username + "@@" + password);
+        String hashKey = username + "@@" + DigestUtils.sha1Hex(password);
         try {
             final ActiveDirectoryUserDetail[] cacheMiss = new ActiveDirectoryUserDetail[1];
             userDetails = userCache.get(hashKey, new Callable<UserDetails>() {
