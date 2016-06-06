@@ -43,6 +43,7 @@ import org.acegisecurity.providers.AuthenticationProvider;
 import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
 import org.acegisecurity.userdetails.UserDetails;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang.StringUtils;
 
 import javax.naming.NamingEnumeration;
@@ -228,9 +229,10 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     @SuppressFBWarnings(value = "ES_COMPARING_PARAMETER_STRING_WITH_EQ", justification = "Intentional instance check.")
     public UserDetails retrieveUser(final String username, final String password, final String domainName, final List<SocketInfo> ldapServers) {
         UserDetails userDetails;
+        String hashKey = username + "@@" + DigestUtils.sha1Hex(password);
         try {
             final ActiveDirectoryUserDetail[] cacheMiss = new ActiveDirectoryUserDetail[1];
-            userDetails = userCache.get(username, new Callable<UserDetails>() {
+            userDetails = userCache.get(hashKey, new Callable<UserDetails>() {
                 public UserDetails call() throws AuthenticationException {
                     DirContext context;
                     boolean anonymousBind = false;    // did we bind anonymously?
@@ -350,7 +352,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         }
         // We need to check the password when the user is cached so it doesn't get automatically authenticated
         // without verifying the credentials
-        if (password != null && userDetails != null && !password.equals(userDetails.getPassword())) {
+        if (password != null && !password.equals(NO_AUTHENTICATION) && userDetails != null && !password.equals(userDetails.getPassword())) {
             throw new BadCredentialsException("Failed to retrieve user information from the cache for "+ username);
         }
         return userDetails;
