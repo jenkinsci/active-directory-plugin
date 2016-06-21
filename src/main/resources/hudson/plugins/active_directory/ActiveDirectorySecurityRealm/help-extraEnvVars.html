@@ -1,0 +1,14 @@
+<div>
+    It may be necessary to set additional LDAP provider properties (<a href="http://docs.oracle.com/javase/7/docs/technotes/guides/jndi/jndi-ldap.html">see the Oracle documentation for a full list</a>) in order to ensure optimum performance. Two specific values you should
+    consider setting are:
+    <dl>
+        <dt><code>com.sun.jndi.ldap.connect.timeout</code></dt>
+        <dd>The value is the number of milliseconds to use as the connection timeout. <br />
+            <b>Note:</b> As of version 1.48 of the AD plugin this value has a default, if not set, of 30 seconds.
+        </dd>
+        <dt><code>com.sun.jndi.ldap.read.timeout</code></dt>
+        <dd>The value is the number of milliseconds to use as the read timeout. <br />
+            <b>Note:</b> As of version 1.48 of the AD plugin this value has a default, if not set, of 60 seconds
+        </dd>
+    </dl>
+</div>

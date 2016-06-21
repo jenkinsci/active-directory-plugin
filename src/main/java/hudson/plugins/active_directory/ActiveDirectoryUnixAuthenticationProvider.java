@@ -31,6 +31,8 @@ import hudson.security.GroupDetails;
 import hudson.security.SecurityRealm;
 import hudson.security.UserMayOrMayNotExistException;
 import hudson.util.Secret;
+
+import javax.naming.Context;
 import javax.naming.NameNotFoundException;
 
 import hudson.util.TimeUnit2;
@@ -56,7 +58,9 @@ import javax.naming.directory.SearchResult;
 import javax.naming.ldap.LdapName;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Hashtable;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
 import java.util.concurrent.Callable;
@@ -105,6 +109,36 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
      */
     private final Cache<String, ActiveDirectoryGroupDetails> groupCache;
 
+    /**
+     *  Ldap extra properties added in Active Directory Configure Global Security UI
+     */
+    private List<ActiveDirectorySecurityRealm.EnvironmentProperty> extraEnvVars;
+
+    /**
+     * Properties to be passed to the current LDAP context
+     */
+    private Hashtable<String, String> props = new Hashtable<String, String>();
+
+    /**
+     * Timeout if no connection after 30 seconds
+     */
+    protected final static String DEFAULT_LDAP_CONNECTION_TIMEOUT = "30000";
+
+    /**
+     * Timeout if no response after 60 seconds
+     */
+    protected final static String DEFAULT_LDAP_READ_TIMEOUT = "60000";
+
+    /**
+     * Represents com.sun.jndi.ldap.connect.timeout
+     */
+    protected final static String LDAP_CONNECT_TIMEOUT = "com.sun.jndi.ldap.connect.timeout";
+
+    /**
+     * Represents com.sun.jndi.ldap.read.timeout
+     */
+    protected final static String LDAP_READ_TIMEOUT = "com.sun.jndi.ldap.read.timeout";
+
     public ActiveDirectoryUnixAuthenticationProvider(ActiveDirectorySecurityRealm realm) {
         if (realm.domain==null) throw new IllegalArgumentException("Active Directory domain name is required but it is not set");
         this.domainNames = realm.domain.split(",");
@@ -127,6 +161,26 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
 
         this.userCache = cache.getUserCache();
         this.groupCache = cache.getGroupCache();
+
+        props.put(Context.REFERRAL, "follow");
+        props.put("java.naming.ldap.attributes.binary","tokenGroups objectSid");
+        props.put("java.naming.ldap.factory.socket",TrustAllSocketFactory.class.getName());
+
+        this.extraEnvVars = realm.extraEnvVars;
+
+        if (extraEnvVars != null) {
+            Map<String, String> extraEnvVarsMap = ActiveDirectorySecurityRealm.EnvironmentProperty.toMap(extraEnvVars);
+            if (!extraEnvVarsMap.containsKey(LDAP_CONNECT_TIMEOUT)) {
+                System.getProperty(LDAP_CONNECT_TIMEOUT, DEFAULT_LDAP_CONNECTION_TIMEOUT);
+            }
+            if (!extraEnvVarsMap.containsKey(LDAP_READ_TIMEOUT)) {
+                System.getProperty(LDAP_READ_TIMEOUT, DEFAULT_LDAP_READ_TIMEOUT);
+            }
+            props.putAll(extraEnvVarsMap);
+        } else {
+            System.getProperty(LDAP_CONNECT_TIMEOUT, DEFAULT_LDAP_CONNECTION_TIMEOUT);
+            System.getProperty(LDAP_READ_TIMEOUT, DEFAULT_LDAP_READ_TIMEOUT);
+        }
     }
 
     protected UserDetails retrieveUser(final String username, final UsernamePasswordAuthenticationToken authentication) throws AuthenticationException {
@@ -249,7 +303,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                         // two step approach. Use a special credential to obtain DN for the
                         // user trying to login, then authenticate.
                         try {
-                            context = descriptor.bind(bindName, bindPassword, ldapServers);
+                            context = descriptor.bind(bindName, bindPassword, ldapServers, props);
                             anonymousBind = false;
                         } catch (BadCredentialsException e) {
                             throw new AuthenticationServiceException("Failed to bind to LDAP server with the bind name/password", e);
@@ -262,7 +316,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                         try {
                             // if we are just retrieving the user, try using anonymous bind by empty password (see RFC 2829 5.1)
                             // but if that fails, that's not BadCredentialException but UserMayOrMayNotExistException
-                            context = descriptor.bind(userPrincipalName, anonymousBind ? "" : password, ldapServers);
+                            context = descriptor.bind(userPrincipalName, anonymousBind ? "" : password, ldapServers, props);
                         } catch (BadCredentialsException e) {
                             if (anonymousBind)
                                 // in my observation, if we attempt an anonymous bind and AD doesn't allow it, it still passes the bind method
@@ -302,7 +356,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                             // if we've used the credential specifically for the bind, we
                             // need to verify the provided password to do authentication
                             LOGGER.log(Level.FINE, "Attempting to validate password for DN={0}", dn);
-                            DirContext test = descriptor.bind(dnFormatted, password, ldapServers);
+                            DirContext test = descriptor.bind(dnFormatted, password, ldapServers, props);
                             // Binding alone is not enough to test the credential. Need to actually perform some query operation.
                             // but if the authentication fails this throws an exception
                             try {
@@ -373,7 +427,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                                 ClassLoader ccl = Thread.currentThread().getContextClassLoader();
                                 Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
                                 try {
-                                    DirContext context = descriptor.bind(bindName, bindPassword, obtainLDAPServers(domainName));
+                                    DirContext context = descriptor.bind(bindName, bindPassword, obtainLDAPServers(domainName), props);
 
                                     try {
                                         final String domainDN = toDC(domainName);
