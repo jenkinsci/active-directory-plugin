@@ -56,6 +56,7 @@ import org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
@@ -158,7 +159,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     /**
      *  Ldap extra properties
      */
-    protected List<EnvironmentProperty> extraEnvVars;
+    protected List<EnvironmentProperty> environmentProperties;
 
     public ActiveDirectorySecurityRealm(String domain, String site, String bindName, String bindPassword, String server) {
         this(domain, site, bindName, bindPassword, server, GroupLookupStrategy.AUTO, false);
@@ -172,16 +173,11 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                                         String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups) {
         this(domain, site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups, domain!=null, null);
     }
-
-    public ActiveDirectorySecurityRealm(String domain, String site, String bindName,
-                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache) {
-        this(domain,site,bindName,bindPassword,server,groupLookupStrategy,removeIrrelevantGroups, customDomain, cache, null);
-    }
     
     @DataBoundConstructor
     // as Java signature, this binding doesn't make sense, so please don't use this constructor
     public ActiveDirectorySecurityRealm(String domain, String site, String bindName, String bindPassword, String server, GroupLookupStrategy groupLookupStrategy,
-                                        boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache, List<EnvironmentProperty> extraEnvVars) {
+                                        boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache) {
         if (customDomain!=null && !customDomain)
             domain = null;
         this.domain = fixEmpty(domain);
@@ -205,7 +201,11 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
         this.server = server;
         this.cache = cache;
-        this.extraEnvVars = extraEnvVars;
+    }
+
+    @DataBoundSetter
+    public void setEnvironmentProperties(List<EnvironmentProperty> environmentProperties) {
+        this.environmentProperties = environmentProperties;
     }
 
     @Restricted(NoExternalUse.class)
@@ -224,9 +224,10 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         return cache == null ? null : cache.getTtl();
     }
 
+    // for jelly use only
     @Restricted(NoExternalUse.class)
-    public List<EnvironmentProperty> getExtraEnvVars() {
-        return extraEnvVars;
+    public List<EnvironmentProperty> getEnvironmentProperties() {
+        return environmentProperties;
     }
 
     public GroupLookupStrategy getGroupLookupStrategy() {
@@ -512,6 +513,9 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             // in a AD forest, it'd be mighty nice to be able to login as "joe"
             // as opposed to "joe@europe",
             // but the bind operation doesn't appear to allow me to do so.
+            props.put(Context.REFERRAL, "follow");
+            props.put("java.naming.ldap.attributes.binary","tokenGroups objectSid");
+            props.put("java.naming.ldap.factory.socket",TrustAllSocketFactory.class.getName());
             NamingException error = null;
 
             for (SocketInfo ldapServer : ldapServers) {

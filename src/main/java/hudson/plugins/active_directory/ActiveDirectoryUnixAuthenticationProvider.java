@@ -110,11 +110,6 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     private final Cache<String, ActiveDirectoryGroupDetails> groupCache;
 
     /**
-     *  Ldap extra properties added in Active Directory Configure Global Security UI
-     */
-    private List<ActiveDirectorySecurityRealm.EnvironmentProperty> extraEnvVars;
-
-    /**
      * Properties to be passed to the current LDAP context
      */
     private Hashtable<String, String> props = new Hashtable<String, String>();
@@ -122,22 +117,22 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     /**
      * Timeout if no connection after 30 seconds
      */
-    protected final static String DEFAULT_LDAP_CONNECTION_TIMEOUT = "30000";
+    private final static String DEFAULT_LDAP_CONNECTION_TIMEOUT = "30000";
 
     /**
      * Timeout if no response after 60 seconds
      */
-    protected final static String DEFAULT_LDAP_READ_TIMEOUT = "60000";
+    private final static String DEFAULT_LDAP_READ_TIMEOUT = "60000";
 
     /**
      * Represents com.sun.jndi.ldap.connect.timeout
      */
-    protected final static String LDAP_CONNECT_TIMEOUT = "com.sun.jndi.ldap.connect.timeout";
+    private final static String LDAP_CONNECT_TIMEOUT = "com.sun.jndi.ldap.connect.timeout";
 
     /**
      * Represents com.sun.jndi.ldap.read.timeout
      */
-    protected final static String LDAP_READ_TIMEOUT = "com.sun.jndi.ldap.read.timeout";
+    private final static String LDAP_READ_TIMEOUT = "com.sun.jndi.ldap.read.timeout";
 
     public ActiveDirectoryUnixAuthenticationProvider(ActiveDirectorySecurityRealm realm) {
         if (realm.domain==null) throw new IllegalArgumentException("Active Directory domain name is required but it is not set");
@@ -162,24 +157,25 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         this.userCache = cache.getUserCache();
         this.groupCache = cache.getGroupCache();
 
-        props.put(Context.REFERRAL, "follow");
-        props.put("java.naming.ldap.attributes.binary","tokenGroups objectSid");
-        props.put("java.naming.ldap.factory.socket",TrustAllSocketFactory.class.getName());
-
-        this.extraEnvVars = realm.extraEnvVars;
-
-        if (extraEnvVars != null) {
-            Map<String, String> extraEnvVarsMap = ActiveDirectorySecurityRealm.EnvironmentProperty.toMap(extraEnvVars);
+        String ldapConnectTimeout;
+        String ldapReadTimeout;
+        if (realm.environmentProperties != null) {
+            Map<String, String> extraEnvVarsMap = ActiveDirectorySecurityRealm.EnvironmentProperty.toMap(realm.environmentProperties);
             if (!extraEnvVarsMap.containsKey(LDAP_CONNECT_TIMEOUT)) {
-                System.getProperty(LDAP_CONNECT_TIMEOUT, DEFAULT_LDAP_CONNECTION_TIMEOUT);
+                ldapConnectTimeout = System.getProperty(LDAP_CONNECT_TIMEOUT, DEFAULT_LDAP_CONNECTION_TIMEOUT);
+                props.put(LDAP_CONNECT_TIMEOUT, ldapConnectTimeout);
             }
             if (!extraEnvVarsMap.containsKey(LDAP_READ_TIMEOUT)) {
-                System.getProperty(LDAP_READ_TIMEOUT, DEFAULT_LDAP_READ_TIMEOUT);
+                ldapReadTimeout = System.getProperty(LDAP_READ_TIMEOUT, DEFAULT_LDAP_READ_TIMEOUT);
+                props.put(LDAP_READ_TIMEOUT, ldapReadTimeout);
+
             }
             props.putAll(extraEnvVarsMap);
         } else {
-            System.getProperty(LDAP_CONNECT_TIMEOUT, DEFAULT_LDAP_CONNECTION_TIMEOUT);
-            System.getProperty(LDAP_READ_TIMEOUT, DEFAULT_LDAP_READ_TIMEOUT);
+            ldapConnectTimeout = System.getProperty(LDAP_CONNECT_TIMEOUT, DEFAULT_LDAP_CONNECTION_TIMEOUT);
+            props.put(LDAP_CONNECT_TIMEOUT, ldapConnectTimeout);
+            ldapReadTimeout = System.getProperty(LDAP_READ_TIMEOUT, DEFAULT_LDAP_READ_TIMEOUT);
+            props.put(LDAP_READ_TIMEOUT, ldapReadTimeout);
         }
     }
 

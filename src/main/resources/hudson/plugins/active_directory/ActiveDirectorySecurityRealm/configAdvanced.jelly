@@ -27,8 +27,8 @@
         <f:select default="600"/>
       </f:entry>
     </f:optionalBlock>
-    <f:entry field="extraEnvVars" title="${%Environment Properties}">
-      <f:repeatableProperty field="extraEnvVars" />
+    <f:entry field="environmentProperties" title="${%Environment Properties}">
+      <f:repeatableProperty field="environmentProperties" />
     </f:entry>
   </f:advanced>
   <f:nested>
