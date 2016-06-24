@@ -171,13 +171,13 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
     public ActiveDirectorySecurityRealm(String domain, String site, String bindName,
                                         String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups) {
-        this(domain, site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups, domain!=null, null);
+        this(domain,site,bindName,bindPassword,server,groupLookupStrategy,removeIrrelevantGroups,domain!=null,null);
     }
     
     @DataBoundConstructor
     // as Java signature, this binding doesn't make sense, so please don't use this constructor
-    public ActiveDirectorySecurityRealm(String domain, String site, String bindName, String bindPassword, String server, GroupLookupStrategy groupLookupStrategy,
-                                        boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache) {
+    public ActiveDirectorySecurityRealm(String domain, String site, String bindName,
+                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache) {
         if (customDomain!=null && !customDomain)
             domain = null;
         this.domain = fixEmpty(domain);
