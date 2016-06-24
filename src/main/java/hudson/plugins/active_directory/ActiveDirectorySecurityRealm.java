@@ -171,7 +171,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
     public ActiveDirectorySecurityRealm(String domain, String site, String bindName,
                                         String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups) {
-        this(domain,site,bindName,bindPassword,server,groupLookupStrategy,removeIrrelevantGroups,domain!=null,null);
+        this(domain,site,bindName,bindPassword,server,groupLookupStrategy,removeIrrelevantGroups,domain!=null, null);
     }
     
     @DataBoundConstructor
