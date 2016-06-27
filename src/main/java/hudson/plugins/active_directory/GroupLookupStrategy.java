@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright (c) 2008-2014, Kohsuke Kawaguchi, CloudBees, Inc., and contributors
+ * Copyright (c) 2008-2016, Kohsuke Kawaguchi, CloudBees, Inc., and contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -38,9 +38,10 @@ import org.jvnet.localizer.Localizable;
  * @author Kohsuke Kawaguchi
  */
 /*hidden*/ enum GroupLookupStrategy {
-    AUTO     (Messages._GroupLookupStrategy_Auto()),
-    RECURSIVE(Messages._GroupLookupStrategy_Recursive()),
-    CHAIN    (Messages._GroupLookupStrategy_ChainMatch()),
+    AUTO           (Messages._GroupLookupStrategy_Auto()),
+    RECURSIVE      (Messages._GroupLookupStrategy_Recursive()),
+    CHAIN          (Messages._GroupLookupStrategy_ChainMatch()),
+    TOKENGROUPS    (Messages._GroupLookupStrategy_TokenGroups())
     ;
 
     public final Localizable msg;

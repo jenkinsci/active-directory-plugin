@@ -36,6 +36,17 @@
     The general consensus in the developer community appears to be that <a href="http://www.networksteve.com/forum/topic.php/?TopicId=43899">this is the way to go</a>,
     but several Jenkins users have reported that <a href="https://issues.jenkins-ci.org/browse/JENKINS-22830">this approach makes lookup intolerably slow</a>.
 
+    <dt>Token-Groups user attribute
+    <dd>
+    Use only the <a href="https://msdn.microsoft.com/en-us/library/ms680275(v=vs.85).aspx">Token-Groups</a> attribute.
+    This attribute will contain all the <a href="https://technet.microsoft.com/en-gb/library/cc781446(v=ws.10).aspx">security groups</a> that a user is a member of, 
+    including all security groups via recursion of other security groups.
+    If the user is a member of any <a href="https://technet.microsoft.com/en-gb/library/cc781446(v=ws.10).aspx">distribution groups</a>, or security groups via membership of a 
+    distribution group then these will not be included in the returned groups.
+    However if users are members of large number of distribution groups and your security setup does not require the use of distribution groups 
+    then this will provide the ultimate performance.
+
+
     </dl>
 
     <p>
