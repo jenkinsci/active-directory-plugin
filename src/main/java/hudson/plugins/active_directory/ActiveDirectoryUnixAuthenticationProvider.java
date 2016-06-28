@@ -159,9 +159,8 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
 
         Map<String, String> extraEnvVarsMap = ActiveDirectorySecurityRealm.EnvironmentProperty.toMap(realm.environmentProperties);
         props.put(LDAP_CONNECT_TIMEOUT, System.getProperty(LDAP_CONNECT_TIMEOUT, DEFAULT_LDAP_CONNECTION_TIMEOUT));
-        props.put(LDAP_READ_TIMEOUT, System.getProperty(LDAP_READ_TIMEOUT, DEFAULT_LDAP_READ_TIMEOUT);
+        props.put(LDAP_READ_TIMEOUT, System.getProperty(LDAP_READ_TIMEOUT, DEFAULT_LDAP_READ_TIMEOUT));
         // put all the user defined properties into our context environment replacing any mappings that already exist.
-        props.putAll(ActiveDirectorySecurityRealm.EnvironmentProperty.toMap(realm.environmentProperties));
         props.putAll(extraEnvVarsMap);
     }
 
