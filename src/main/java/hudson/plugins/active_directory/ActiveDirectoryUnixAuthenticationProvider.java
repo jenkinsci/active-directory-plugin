@@ -482,44 +482,49 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         if (userDN.contains("/")) {
             userDN = userDN.replace("/","\\/");
         }
-        LOGGER.finer("Looking up group of "+userDN);
-        Attributes id = context.getAttributes(userDN,new String[]{"tokenGroups","memberOf","CN"});
-        Attribute tga = id.get("tokenGroups");
-        if (tga==null) {// see JENKINS-11644. still trying to figure out when this happens
-            LOGGER.warning("Failed to retrieve tokenGroups for "+userDN);
-            HashSet<GrantedAuthority> r = new HashSet<GrantedAuthority>();
-            r.add(new GrantedAuthorityImpl("unable-to-retrieve-tokenGroups"));
-            return r;
-        }
-
-        // build up the query to retrieve all the groups
-        StringBuilder query = new StringBuilder("(|");
-        List<byte[]> sids = new ArrayList<byte[]>();
-
-        NamingEnumeration<?> tokenGroups = tga.getAll();
-        while (tokenGroups.hasMore()) {
-            byte[] gsid = (byte[])tokenGroups.next();
-            query.append("(objectSid={"+sids.size()+"})");
-            sids.add(gsid);
-        }
-        tokenGroups.close();
-
-        query.append(")");
-
         Set<GrantedAuthority> groups = new HashSet<GrantedAuthority>();
 
-        NamingEnumeration<SearchResult> renum = new LDAPSearchBuilder(context,domainDN).subTreeScope().returns("cn").search(query.toString(), sids.toArray());
-        parseMembers(userDN, groups, renum);
-        renum.close();
+        LOGGER.log(Level.FINER, "Looking up group of {0}", userDN);
+        Attributes id = context.getAttributes(userDN,new String[]{"tokenGroups","memberOf","CN"});
+        Attribute tga = id.get("tokenGroups");
 
+        if (tga==null) {
+            // tga will be null if you are not using a global catalogue
+            // or if the user is not actually a member of any security groups.
+            LOGGER.log(Level.FINE, "Failed to retrieve tokenGroups for {0}", userDN);
+            // keep on trucking as we can still use memberOf for Distribution Groups.
+        }
+        else {
+            // build up the query to retrieve all the groups
+            StringBuilder query = new StringBuilder("(|");
+            List<byte[]> sids = new ArrayList<byte[]>();
+    
+            NamingEnumeration<?> tokenGroups = tga.getAll();
+            while (tokenGroups.hasMore()) {
+                byte[] gsid = (byte[])tokenGroups.next();
+                query.append("(objectSid={"+sids.size()+"})");
+                sids.add(gsid);
+            }
+            tokenGroups.close();
+    
+            query.append(")");
+    
+            NamingEnumeration<SearchResult> renum = new LDAPSearchBuilder(context,domainDN).subTreeScope().returns("cn").search(query.toString(), sids.toArray());
+            parseMembers(userDN, groups, renum);
+            renum.close();
+        }
+        
         {/*
-            stage 2: use memberOf to find groups that aren't picked up by tokenGroups.
-            This includes distribution groups
-        */
+                stage 2: use memberOf to find groups that aren't picked up by tokenGroups.
+                This includes distribution groups
+            */
             LOGGER.fine("Stage 2: looking up via memberOf");
 
             while (true) {
                 switch (groupLookupStrategy) {
+                case TOKENGROUPS:
+                    // no extra lookup - ever.
+                    return groups;
                 case AUTO:
                     // try the accurate one first, and if it's too slow fall back to recursive in the hope that it's faster
                     long start = System.nanoTime();
