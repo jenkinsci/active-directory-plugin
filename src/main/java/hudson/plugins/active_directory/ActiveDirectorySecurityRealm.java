@@ -554,11 +554,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
          */
         @Deprecated
         public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers) {
-            Hashtable<String, String> props = new Hashtable<String, String>();
-            props.put(Context.REFERRAL, "follow");
-            props.put("java.naming.ldap.attributes.binary", "tokenGroups objectSid");
-            props.put("java.naming.ldap.factory.socket", TrustAllSocketFactory.class.getName());
-            return bind(principalName, password, ldapServers, props);
+            return bind(principalName, password, ldapServers, new Hashtable<String, String>());
         }
 
         private void customizeLdapProperty(Hashtable<String, String> props, String propName) {
@@ -818,14 +814,14 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         }
 
         public static Map<String,String> toMap(List<EnvironmentProperty> properties) {
+            final Map<String, String> result = new LinkedHashMap<String, String>();
             if (properties != null) {
-                final Map<String, String> result = new LinkedHashMap<String, String>();
                 for (EnvironmentProperty property:properties) {
                     result.put(property.getName(), property.getValue());
                 }
                 return result;
             }
-            return null;
+            return result;
         }
 
         @Extension

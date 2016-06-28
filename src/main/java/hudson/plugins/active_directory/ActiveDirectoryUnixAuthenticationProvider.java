@@ -157,26 +157,12 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         this.userCache = cache.getUserCache();
         this.groupCache = cache.getGroupCache();
 
-        String ldapConnectTimeout;
-        String ldapReadTimeout;
-        if (realm.environmentProperties != null) {
-            Map<String, String> extraEnvVarsMap = ActiveDirectorySecurityRealm.EnvironmentProperty.toMap(realm.environmentProperties);
-            if (!extraEnvVarsMap.containsKey(LDAP_CONNECT_TIMEOUT)) {
-                ldapConnectTimeout = System.getProperty(LDAP_CONNECT_TIMEOUT, DEFAULT_LDAP_CONNECTION_TIMEOUT);
-                props.put(LDAP_CONNECT_TIMEOUT, ldapConnectTimeout);
-            }
-            if (!extraEnvVarsMap.containsKey(LDAP_READ_TIMEOUT)) {
-                ldapReadTimeout = System.getProperty(LDAP_READ_TIMEOUT, DEFAULT_LDAP_READ_TIMEOUT);
-                props.put(LDAP_READ_TIMEOUT, ldapReadTimeout);
-
-            }
-            props.putAll(extraEnvVarsMap);
-        } else {
-            ldapConnectTimeout = System.getProperty(LDAP_CONNECT_TIMEOUT, DEFAULT_LDAP_CONNECTION_TIMEOUT);
-            props.put(LDAP_CONNECT_TIMEOUT, ldapConnectTimeout);
-            ldapReadTimeout = System.getProperty(LDAP_READ_TIMEOUT, DEFAULT_LDAP_READ_TIMEOUT);
-            props.put(LDAP_READ_TIMEOUT, ldapReadTimeout);
-        }
+        Map<String, String> extraEnvVarsMap = ActiveDirectorySecurityRealm.EnvironmentProperty.toMap(realm.environmentProperties);
+        props.put(LDAP_CONNECT_TIMEOUT, System.getProperty(LDAP_CONNECT_TIMEOUT, DEFAULT_LDAP_CONNECTION_TIMEOUT));
+        props.put(LDAP_READ_TIMEOUT, System.getProperty(LDAP_READ_TIMEOUT, DEFAULT_LDAP_READ_TIMEOUT);
+        // put all the user defined properties into our context environment replacing any mappings that already exist.
+        props.putAll(ActiveDirectorySecurityRealm.EnvironmentProperty.toMap(realm.environmentProperties));
+        props.putAll(extraEnvVarsMap);
     }
 
     protected UserDetails retrieveUser(final String username, final UsernamePasswordAuthenticationToken authentication) throws AuthenticationException {
