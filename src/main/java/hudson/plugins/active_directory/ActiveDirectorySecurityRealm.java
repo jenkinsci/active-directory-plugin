@@ -513,9 +513,11 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             // in a AD forest, it'd be mighty nice to be able to login as "joe"
             // as opposed to "joe@europe",
             // but the bind operation doesn't appear to allow me to do so.
-            props.put(Context.REFERRAL, "follow");
-            props.put("java.naming.ldap.attributes.binary","tokenGroups objectSid");
-            props.put("java.naming.ldap.factory.socket",TrustAllSocketFactory.class.getName());
+            Hashtable<String, String> newProps = new Hashtable<String, String>();
+            newProps.put(Context.REFERRAL, "follow");
+            newProps.put("java.naming.ldap.attributes.binary","tokenGroups objectSid");
+            newProps.put("java.naming.ldap.factory.socket",TrustAllSocketFactory.class.getName());
+            newProps.putAll(props);
             NamingException error = null;
 
             for (SocketInfo ldapServer : ldapServers) {
