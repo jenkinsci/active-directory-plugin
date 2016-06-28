@@ -522,7 +522,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
             for (SocketInfo ldapServer : ldapServers) {
                 try {
-                    LdapContext context = bind(principalName, password, ldapServer, props);
+                    LdapContext context = bind(principalName, password, ldapServer, newProps);
                     LOGGER.fine("Bound to " + ldapServer);
                     return context;
                 } catch (javax.naming.AuthenticationException e) {
