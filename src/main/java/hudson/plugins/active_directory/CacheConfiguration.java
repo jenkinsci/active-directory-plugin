@@ -17,12 +17,12 @@ public class CacheConfiguration<K,V,E extends Exception> {
     /**
      * The {@link UserDetails} cache.
      */
-    private final Cache<String, UserDetails> userCache;
+    private transient final Cache<String, UserDetails> userCache;
 
     /**
      * The {@link ActiveDirectoryGroupDetails} cache.
      */
-    private final Cache<String, ActiveDirectoryGroupDetails> groupCache;
+    private transient final Cache<String, ActiveDirectoryGroupDetails> groupCache;
 
     /**
      * CacheConfiguration DataBoundConstructor
