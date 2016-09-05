@@ -366,7 +366,6 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         try {
             return groupCache.get(groupname, new Callable<ActiveDirectoryGroupDetails>() {
                         public ActiveDirectoryGroupDetails call() {
-                            boolean problem = false;
                             for (String domainName : domainNames) {
                                 // when we use custom socket factory below, every LDAP operations result
                                 // in a classloading via context classloader, so we need it to resolve.
@@ -403,18 +402,12 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                                 } catch (AuthenticationException e) {
                                     // something went wrong talking to the server. This should be reported
                                     LOGGER.log(Level.WARNING, String.format("Failed to find the group %s in %s domain", groupname, domainName), e);
-                                    problem = true;
                                 } finally {
                                     Thread.currentThread().setContextClassLoader(ccl);
                                 }
                             }
-
-                            if (!problem) {
-                                return null; // group not found anywhere. cache this result
-                            } else {
-                                LOGGER.log(Level.WARNING, "Exhausted all configured domains and could not authenticate against any");
-                                throw new UserMayOrMayNotExistException(groupname);
-                            }
+                            LOGGER.log(Level.WARNING, "Exhausted all configured domains and could not authenticate against any");
+                            throw new UserMayOrMayNotExistException(groupname);
                         }
                     });
         } catch (UncheckedExecutionException e) {

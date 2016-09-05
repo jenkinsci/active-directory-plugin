@@ -41,6 +41,7 @@ import com4j.typelibs.ado20._Recordset;
 import com4j.util.ComObjectCollector;
 import hudson.security.GroupDetails;
 import hudson.security.SecurityRealm;
+import hudson.security.UserMayOrMayNotExistException;
 import org.acegisecurity.AuthenticationException;
 import org.acegisecurity.BadCredentialsException;
 import org.acegisecurity.GrantedAuthority;
@@ -291,17 +292,18 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
                         IADsGroup group = dso.openDSObject(dnToLdapUrl(dn), null, null, ADS_READONLY_SERVER)
                                 .queryInterface(IADsGroup.class);
 
-                        // If not a group will return null
+                        // If not a group will throw UserMayOrMayNotExistException
                         if (group == null) {
-                            return null;
+                            throw new UserMayOrMayNotExistException(groupname);
                         }
                         return new ActiveDirectoryGroupDetails(groupname);
                     } catch (UsernameNotFoundException e) {
-                        return null; // failed to convert group name to DN
+                        // failed to convert group name to DN
+                        throw new UsernameNotFoundException("Failed to get the DN of the group " + groupname);
                     } catch (ComException e) {
                         // recover gracefully since AD might behave in a way we haven't anticipated
                         LOGGER.log(Level.WARNING, String.format("Failed to figure out details of AD group: %s", groupname), e);
-                        return null;
+                        throw new UserMayOrMayNotExistException(groupname);
                     } finally {
                         col.disposeAll();
                         COM4J.removeListener(col);
