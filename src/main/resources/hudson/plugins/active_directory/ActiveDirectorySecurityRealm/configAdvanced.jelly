@@ -27,6 +27,9 @@
         <f:select default="600"/>
       </f:entry>
     </f:optionalBlock>
+    <f:entry field="environmentProperties" title="${%Environment Properties}">
+      <f:repeatableProperty field="environmentProperties" />
+    </f:entry>
   </f:advanced>
   <f:nested>
     <f:validateButton with="domain,server,site,bindName,bindPassword" title="${%Test}" method="validate"/>

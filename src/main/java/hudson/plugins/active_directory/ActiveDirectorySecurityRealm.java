@@ -30,6 +30,7 @@ import groovy.lang.Binding;
 import hudson.Extension;
 import hudson.Functions;
 import hudson.Util;
+import hudson.model.AbstractDescribableImpl;
 import hudson.model.Descriptor;
 import hudson.model.Hudson;
 import hudson.security.AbstractPasswordBasedSecurityRealm;
@@ -55,6 +56,7 @@ import org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
@@ -78,12 +80,15 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
+import java.io.Serializable;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Hashtable;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -151,6 +156,11 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
      */
     protected CacheConfiguration cache;
 
+    /**
+     *  Ldap extra properties
+     */
+    protected List<EnvironmentProperty> environmentProperties;
+
     public ActiveDirectorySecurityRealm(String domain, String site, String bindName, String bindPassword, String server) {
         this(domain, site, bindName, bindPassword, server, GroupLookupStrategy.AUTO, false);
     }
@@ -193,6 +203,11 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         this.cache = cache;
     }
 
+    @DataBoundSetter
+    public void setEnvironmentProperties(List<EnvironmentProperty> environmentProperties) {
+        this.environmentProperties = environmentProperties;
+    }
+
     @Restricted(NoExternalUse.class)
     public CacheConfiguration getCache() {
         if (cache != null && (cache.getSize() == 0 || cache.getTtl() == 0)) {
@@ -207,6 +222,12 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
     public Integer getTtl() {
         return cache == null ? null : cache.getTtl();
+    }
+
+    // for jelly use only
+    @Restricted(NoExternalUse.class)
+    public List<EnvironmentProperty> getEnvironmentProperties() {
+        return environmentProperties;
     }
 
     public GroupLookupStrategy getGroupLookupStrategy() {
@@ -488,20 +509,20 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
          * In a real deployment, often there are servers that don't respond or
          * otherwise broken, so try all the servers.
          */
-        public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers) {
+        public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers, Hashtable<String, String> props) {
             // in a AD forest, it'd be mighty nice to be able to login as "joe"
             // as opposed to "joe@europe",
             // but the bind operation doesn't appear to allow me to do so.
-            Hashtable<String, String> props = new Hashtable<String, String>();
-            props.put(Context.REFERRAL, "follow");
-            props.put("java.naming.ldap.attributes.binary","tokenGroups objectSid");
-            props.put("java.naming.ldap.factory.socket",TrustAllSocketFactory.class.getName());
-
+            Hashtable<String, String> newProps = new Hashtable<String, String>();
+            newProps.put(Context.REFERRAL, "follow");
+            newProps.put("java.naming.ldap.attributes.binary","tokenGroups objectSid");
+            newProps.put("java.naming.ldap.factory.socket",TrustAllSocketFactory.class.getName());
+            newProps.putAll(props);
             NamingException error = null;
 
             for (SocketInfo ldapServer : ldapServers) {
                 try {
-                    LdapContext context = bind(principalName, password, ldapServer, props);
+                    LdapContext context = bind(principalName, password, ldapServer, newProps);
                     LOGGER.fine("Bound to " + ldapServer);
                     return context;
                 } catch (javax.naming.AuthenticationException e) {
@@ -525,6 +546,17 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
             // if all the attempts failed
             throw new BadCredentialsException("Either no such user '"+principalName+"' or incorrect password", error);
+        }
+
+        /**
+         * Binds to the server using the specified username/password.
+         * <p>
+         * In a real deployment, often there are servers that don't respond or
+         * otherwise broken, so try all the servers.
+         */
+        @Deprecated
+        public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers) {
+            return bind(principalName, password, ldapServers, new Hashtable<String, String>());
         }
 
         private void customizeLdapProperty(Hashtable<String, String> props, String propName) {
@@ -761,4 +793,47 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
      */
     @SuppressFBWarnings(value = "MS_SHOULD_BE_FINAL", justification = "Diagnostic fields are left mutable so that groovy console can be used to dynamically turn/off probes.")
     public static boolean FORCE_LDAPS = Boolean.getBoolean(ActiveDirectorySecurityRealm.class.getName()+".forceLdaps");
+
+    /**
+     * Store all the extra environment variable to be used on the LDAP Context
+     */
+    public static class EnvironmentProperty extends AbstractDescribableImpl<EnvironmentProperty> implements Serializable {
+        private final String name;
+        private final String value;
+
+        @DataBoundConstructor
+        public EnvironmentProperty(String name, String value) {
+            this.name = name;
+            this.value = value;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public String getValue() {
+            return value;
+        }
+
+        public static Map<String,String> toMap(List<EnvironmentProperty> properties) {
+            final Map<String, String> result = new LinkedHashMap<String, String>();
+            if (properties != null) {
+                for (EnvironmentProperty property:properties) {
+                    result.put(property.getName(), property.getValue());
+                }
+                return result;
+            }
+            return result;
+        }
+
+        @Extension
+        public static class DescriptorImpl extends Descriptor<EnvironmentProperty> {
+
+            @Override
+            public String getDisplayName() {
+                return null;
+            }
+        }
+    }
+
 }
