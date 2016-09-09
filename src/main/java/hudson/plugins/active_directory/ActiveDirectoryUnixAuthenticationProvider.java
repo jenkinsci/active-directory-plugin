@@ -158,7 +158,8 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         this.groupCache = cache.getGroupCache();
 
         Map<String, String> extraEnvVarsMap = ActiveDirectorySecurityRealm.EnvironmentProperty.toMap(realm.environmentProperties);
-        props.put(LDAP_CONNECT_TIMEOUT, System.getProperty(LDAP_CONNECT_TIMEOUT, DEFAULT_LDAP_CONNECTION_TIMEOUT));
+        // TODO In JDK 8u65 I am facing JDK-8139721, JDK-8139942 which makes the plugin to break. Uncomment line once it is fixed.
+        //props.put(LDAP_CONNECT_TIMEOUT, System.getProperty(LDAP_CONNECT_TIMEOUT, DEFAULT_LDAP_CONNECTION_TIMEOUT));
         props.put(LDAP_READ_TIMEOUT, System.getProperty(LDAP_READ_TIMEOUT, DEFAULT_LDAP_READ_TIMEOUT));
         // put all the user defined properties into our context environment replacing any mappings that already exist.
         props.putAll(extraEnvVarsMap);
