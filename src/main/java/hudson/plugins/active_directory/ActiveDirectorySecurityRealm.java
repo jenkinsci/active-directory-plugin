@@ -393,6 +393,15 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
         public FormValidation doValidate(@QueryParameter(fixEmpty = true) String domain, @QueryParameter(fixEmpty = true) String site, @QueryParameter(fixEmpty = true) String bindName,
                 @QueryParameter(fixEmpty = true) String bindPassword, @QueryParameter(fixEmpty = true) String server) throws IOException, ServletException, NamingException {
+            String [] domains = domain.split(",");
+            String[] DnItems = {"CN=", "DC=", "OU="};
+            if (domains.length > 1 ) {
+                for (String dnItem : DnItems) {
+                    if (bindName.contains(dnItem)) {
+                        return FormValidation.error("Use multiple domains require the bindName to be expressed with the displayedName");
+                    }
+                }
+            }
             ClassLoader ccl = Thread.currentThread().getContextClassLoader();
             Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
             try {
@@ -501,6 +510,19 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             } finally {
                 Thread.currentThread().setContextClassLoader(ccl);
             }
+        }
+
+        public FormValidation doCheckBindName(@QueryParameter String domain, @QueryParameter String bindName) {
+            String [] domains = domain.split(",");
+            String[] DnItems = {"CN=", "DC=", "OU="};
+            if (domains.length > 1 ) {
+                for (String dnItem : DnItems) {
+                    if (bindName.contains(dnItem)) {
+                        return FormValidation.warning("Please, use the displayedName");
+                    }
+                }
+            }
+            return FormValidation.ok();
         }
 
         /**
