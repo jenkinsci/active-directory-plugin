@@ -420,7 +420,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
                 String[] names = domain.split(",");
                 for (String name : names) {
-
+                    name = name.trim();
                     if (!name.endsWith("."))
                         name += '.';
 
