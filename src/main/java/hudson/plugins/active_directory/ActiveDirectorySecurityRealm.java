@@ -518,7 +518,8 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             newProps.put("java.naming.ldap.attributes.binary","tokenGroups objectSid");
             newProps.put("java.naming.ldap.factory.socket",TrustAllSocketFactory.class.getName());
             newProps.putAll(props);
-            NamingException error = null;
+            NamingException namingException = null;
+            javax.naming.AuthenticationException authenticationException = null;
 
             for (SocketInfo ldapServer : ldapServers) {
                 try {
@@ -537,15 +538,18 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                     // servers can be configured to hide the distinction between "no such user" and "bad password"
                     // to reveal what user names are available.
                     LOGGER.log(Level.WARNING, "Failed to authenticate while binding to "+ldapServer, e);
-                    throw new BadCredentialsException("Either no such user '"+principalName+"' or incorrect password",e);
+                    authenticationException = e; // retry
                 } catch (NamingException e) {
                     LOGGER.log(Level.WARNING, "Failed to bind to "+ldapServer, e);
-                    error = e; // retry
+                    namingException = e; // retry
                 }
             }
-
             // if all the attempts failed
-            throw new BadCredentialsException("Either no such user '"+principalName+"' or incorrect password", error);
+            if (authenticationException !=null ) {
+                throw new BadCredentialsException("Either no such user '" + principalName + "' or incorrect password", authenticationException);
+            } else {
+                throw new BadCredentialsException("Either no such user '" + principalName + "' or incorrect password", namingException);
+            }
         }
 
         /**
