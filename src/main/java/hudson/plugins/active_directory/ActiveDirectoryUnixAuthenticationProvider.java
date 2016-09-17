@@ -652,6 +652,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
 
             for (int i = 0; i < memberOf.size(); i++) {
                 try {
+                    LOGGER.log(Level.FINE, "Trying to get the CN of {0}", memberOf.get(i));
                     Attributes group = context.getAttributes(new LdapName(memberOf.get(i).toString()), new String[]{"CN", "memberOf"});
                     Attribute cn = group.get("CN");
                     if (cn == null) {
