@@ -398,7 +398,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             if (domains.length > 1 ) {
                 for (String dnItem : DnItems) {
                     if (bindName.contains(dnItem)) {
-                        return FormValidation.error("Use multiple domains require the bindName to be expressed with the displayedName");
+                        return FormValidation.error("Use multiple domains require the bindName to be expressed with the displayName");
                     }
                 }
             }
@@ -518,7 +518,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             if (domains.length > 1 ) {
                 for (String dnItem : DnItems) {
                     if (bindName.contains(dnItem)) {
-                        return FormValidation.warning("Please, use the displayedName");
+                        return FormValidation.warning("Please, use the displayName");
                     }
                 }
             }
