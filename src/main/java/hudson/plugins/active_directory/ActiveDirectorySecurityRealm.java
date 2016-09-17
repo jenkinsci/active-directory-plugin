@@ -536,7 +536,16 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             // as opposed to "joe@europe",
             // but the bind operation doesn't appear to allow me to do so.
             Hashtable<String, String> newProps = new Hashtable<String, String>();
-            newProps.put(Context.REFERRAL, "follow");
+
+            // Sometimes might be useful to ignore referral. Use this System property is under the user risk
+            Boolean ignoreReferrals = Boolean.valueOf(System.getProperty("hudson.plugins.active_directory.referral.ignore", "false"));
+
+            if (!ignoreReferrals) {
+                newProps.put(Context.REFERRAL, "follow");
+            } else {
+                newProps.put(Context.REFERRAL, "ignore");
+            }
+
             newProps.put("java.naming.ldap.attributes.binary","tokenGroups objectSid");
             newProps.put("java.naming.ldap.factory.socket",TrustAllSocketFactory.class.getName());
             newProps.putAll(props);
