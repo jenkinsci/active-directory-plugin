@@ -338,7 +338,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                             // if we've used the credential specifically for the bind, we
                             // need to verify the provided password to do authentication
                             LOGGER.log(Level.FINE, "Attempting to validate password for DN={0}", dn);
-                            DirContext test = descriptor.bind(dnFormatted, password, ldapServers, props);
+                            DirContext test = descriptor.bind(dnFormatted, password, server !=  null && !server.isEmpty(), ldapServers, props);
                             // Binding alone is not enough to test the credential. Need to actually perform some query operation.
                             // but if the authentication fails this throws an exception
                             try {
