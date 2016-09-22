@@ -525,13 +525,18 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             return FormValidation.ok();
         }
 
-        /**
-         * Binds to the server using the specified username/password.
-         * <p>
-         * In a real deployment, often there are servers that don't respond or
-         * otherwise broken, so try all the servers.
-         */
+        @Deprecated
         public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers, Hashtable<String, String> props) {
+        return bind(principalName, password, false, ldapServers, props);
+        }
+
+            /**
+             * Binds to the server using the specified username/password.
+             * <p>
+             * In a real deployment, often there are servers that don't respond or
+             * otherwise broken, so try all the servers.
+             */
+        public DirContext bind(String principalName, String password, boolean hasDefinedLdapServers, List<SocketInfo> ldapServers, Hashtable<String, String> props) {
             // in a AD forest, it'd be mighty nice to be able to login as "joe"
             // as opposed to "joe@europe",
             // but the bind operation doesn't appear to allow me to do so.
@@ -568,7 +573,11 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                     // servers can be configured to hide the distinction between "no such user" and "bad password"
                     // to reveal what user names are available.
                     LOGGER.log(Level.WARNING, "Failed to authenticate while binding to "+ldapServer, e);
-                    namingException = e; // retry
+                    if (!hasDefinedLdapServers) {
+                        throw new BadCredentialsException("Either no such user '" + principalName + "' or incorrect password", namingException);
+                    } else {
+                        namingException = e; // retry
+                    }
                 } catch (NamingException e) {
                     LOGGER.log(Level.WARNING, "Failed to bind to "+ldapServer, e);
                     namingException = e; // retry
