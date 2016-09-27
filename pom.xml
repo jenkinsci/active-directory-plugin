@@ -81,6 +81,16 @@
            <excludeFilterFile>findbugs-exclude.xml</excludeFilterFile>
          </configuration>
        </plugin>
+       <!-- https://wiki.jenkins-ci.org/display/JENKINS/Marking+a+new+plugin+version+as+incompatible+with+older+versions -->
+       <!-- The new version might break users set-up in case they are using multiple domains with multiple domains controllers available since 1.49 -->
+       <plugin>
+         <groupId>org.jenkins-ci.tools</groupId>
+         <artifactId>maven-hpi-plugin</artifactId>
+         <extensions>true</extensions>
+         <configuration>
+           <compatibleSinceVersion>2.0</compatibleSinceVersion>
+         </configuration>
+       </plugin>
      </plugins>
   </build>
 

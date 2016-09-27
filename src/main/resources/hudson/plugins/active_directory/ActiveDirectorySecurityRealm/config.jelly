@@ -6,10 +6,23 @@
       <f:entry><!-- get some indentation -->
         <table style="width:100%">
           <f:optionalBlock title="${%Specify custom Active Directory domain name}"
-                           inline="true" name="customDomain" checked="${instance.domain!=null}"
+                           inline="true" name="customDomain" checked="${instance.domains!=null}"
                            help="/plugin/active-directory/help/domain-name-windows.html">
-            <f:entry title="${%Domain Name}" field="domain">
-              <f:textbox />
+            <f:entry field="domains" title="${%Domains}">
+              <f:repeatable field="domains" add="${%Add Domain}">
+                <table width="100%">
+                  <br/>
+                  <f:entry title="${%Domain Name}" field="name">
+                    <f:textbox />
+                  </f:entry>
+                  <f:entry title="${%Domain controller}" field="servers">
+                    <f:textbox />
+                  </f:entry>
+                </table>
+                <div align="right">
+                  <input type="button" value="Delete Domain" class="repeatable-delete" style="margin-left: 1em;" />
+                </div>
+              </f:repeatable>
             </f:entry>
             <st:include page="configAdvanced.jelly" class="${descriptor.clazz}"/>
           </f:optionalBlock>
@@ -18,8 +31,21 @@
     </j:when>
     <j:otherwise>
       <!-- code path for ActiveDirectoryUnixAuthenticationProvider: running on Unix -->
-      <f:entry title="${%Domain Name}" field="domain" help="/plugin/active-directory/help/domain-name-unix.html">
-        <f:textbox />
+      <f:entry field="domains" title="${%Domains}">
+        <f:repeatable field="domains" add="${%Add Domain}">
+          <table width="100%">
+            <br/>
+            <f:entry title="${%Domain Name}" field="name" help="/plugin/active-directory/help/domain-name-unix.html">
+              <f:textbox />
+            </f:entry>
+            <f:entry title="${%Domain controller}" field="servers">
+              <f:textbox />
+            </f:entry>
+          </table>
+          <div align="right">
+            <input type="button" value="Delete Domain" class="repeatable-delete" style="margin-left: 1em;" />
+          </div>
+        </f:repeatable>
       </f:entry>
       <st:include page="configAdvanced.jelly" class="${descriptor.clazz}"/>
     </j:otherwise>
