@@ -23,6 +23,7 @@
  */
 package hudson.plugins.active_directory;
 
+import com.google.common.collect.Lists;
 import com.sun.jndi.ldap.LdapCtxFactory;
 import com4j.typelibs.ado20.ClassFactory;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -190,7 +191,8 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
     public ActiveDirectorySecurityRealm(String domain, String site, String bindName,
                                         String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, CacheConfiguration cache) {
-        this(domain, (List<ActiveDirectoryDomain>) new ActiveDirectoryDomain(domain, null),site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups, domain!=null, cache);
+        this(domain, Lists.newArrayList(new ActiveDirectoryDomain(domain, null)), site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups, domain!=null, cache);
+
     }
     
     @DataBoundConstructor
