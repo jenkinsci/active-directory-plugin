@@ -32,7 +32,6 @@ import hudson.security.SecurityRealm;
 import hudson.security.UserMayOrMayNotExistException;
 import hudson.util.Secret;
 
-import javax.naming.Context;
 import javax.naming.NameNotFoundException;
 
 import hudson.util.TimeUnit2;
@@ -76,15 +75,9 @@ import java.util.logging.Logger;
  */
 public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDirectoryAuthenticationProvider {
 
-    private final String[] domainNames;
+    private final List<ActiveDirectoryDomain> domains;
 
     private final String site;
-
-    /**
-     * The LDAP server that we should talk to first, regardless of the LDAP server discovery result.
-     * Conceptually there should be one per domain, but for historical reason we only support one here.
-     */
-    private final String server;
 
     private final String bindName, bindPassword;
 
@@ -135,11 +128,12 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     private final static String LDAP_READ_TIMEOUT = "com.sun.jndi.ldap.read.timeout";
 
     public ActiveDirectoryUnixAuthenticationProvider(ActiveDirectorySecurityRealm realm) {
-        if (realm.domain==null) throw new IllegalArgumentException("Active Directory domain name is required but it is not set");
-        this.domainNames = realm.domain.split(",");
+        if (realm.domains==null) {
+            throw new IllegalArgumentException("An Active Directory domain name is required but it is not set");
+        }
         this.site = realm.site;
         this.bindName = realm.bindName;
-        this.server = realm.server;
+        this.domains = realm.domains;
         this.bindPassword = Secret.toString(realm.bindPassword);
         this.groupLookupStrategy = realm.getGroupLookupStrategy();
         this.descriptor = realm.getDescriptor();
@@ -173,13 +167,13 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
             // this is lesser error, in that we searched and the user was not found
             List<UsernameNotFoundException> notFound = new ArrayList<UsernameNotFoundException>();
 
-            for (String domainName : domainNames) {
+            for (ActiveDirectoryDomain domain : domains) {
                 try {
-                    return retrieveUser(username, authentication, domainName);
+                    return retrieveUser(username, authentication, domain);
                 } catch (UsernameNotFoundException e) {
                     notFound.add(e);
                 } catch (BadCredentialsException bce) {
-                    LOGGER.log(Level.WARNING, String.format("Credential exception trying to authenticate against %s domain", domainName), bce);
+                    LOGGER.log(Level.WARNING, String.format("Credential exception trying to authenticate against %s domain", domain.getName()), bce);
                     errors.add(bce);
                 }
             }
@@ -223,7 +217,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
      * @param authentication
      *      null if we are just retrieving the said user, instead of trying to authenticate.
      */
-    private UserDetails retrieveUser(String username, UsernamePasswordAuthenticationToken authentication, String domainName) throws AuthenticationException {
+    private UserDetails retrieveUser(String username, UsernamePasswordAuthenticationToken authentication, ActiveDirectoryDomain domain) throws AuthenticationException {
         // when we use custom socket factory below, every LDAP operations result
         // in a classloading via context classloader, so we need it to resolve.
         ClassLoader ccl = Thread.currentThread().getContextClassLoader();
@@ -233,7 +227,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
             if (authentication!=null)
                 password = (String) authentication.getCredentials();
 
-            return retrieveUser(username, password, domainName, obtainLDAPServers(domainName));
+            return retrieveUser(username, password, domain, obtainLDAPServers(domain));
         } finally {
             Thread.currentThread().setContextClassLoader(ccl);
         }
@@ -243,12 +237,12 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
      * Obtains the list of the LDAP servers in the order we should talk to, given how this
      * {@link ActiveDirectoryUnixAuthenticationProvider} is configured.
      */
-    private List<SocketInfo> obtainLDAPServers(String domainName) throws AuthenticationServiceException {
+    private List<SocketInfo> obtainLDAPServers(ActiveDirectoryDomain domain) throws AuthenticationServiceException {
         try {
-            return descriptor.obtainLDAPServer(domainName, site, server);
+            return descriptor.obtainLDAPServer(domain.getName(), site, domain.getServers());
         } catch (NamingException e) {
             LOGGER.log(Level.WARNING, "Failed to find the LDAP service", e);
-            throw new AuthenticationServiceException("Failed to find the LDAP service for the domain "+domainName, e);
+            throw new AuthenticationServiceException("Failed to find the LDAP service for the domain "+ domain.getName(), e);
         }
     }
 
@@ -263,7 +257,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
      * @return never null
      */
     @SuppressFBWarnings(value = "ES_COMPARING_PARAMETER_STRING_WITH_EQ", justification = "Intentional instance check.")
-    public UserDetails retrieveUser(final String username, final String password, final String domainName, final List<SocketInfo> ldapServers) {
+    public UserDetails retrieveUser(final String username, final String password, final ActiveDirectoryDomain domain, final List<SocketInfo> ldapServers) {
         UserDetails userDetails;
         String hashKey = username + "@@" + DigestUtils.sha1Hex(password);
         try {
@@ -278,7 +272,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                         throw new BadCredentialsException("Empty password");
                     }
 
-                    String userPrincipalName = getPrincipalName(username, domainName);
+                    String userPrincipalName = getPrincipalName(username, domain.getName());
                     String samAccountName = userPrincipalName.substring(0, userPrincipalName.indexOf('@'));
 
                     if (bindName != null) {
@@ -311,7 +305,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
 
                     try {
                         // locate this user's record
-                        final String domainDN = toDC(domainName);
+                        final String domainDN = toDC(domain.getName());
 
                         Attributes user = new LDAPSearchBuilder(context, domainDN).subTreeScope().searchOne("(& (userPrincipalName={0})(objectCategory=user))", userPrincipalName);
                         if (user == null) {
@@ -402,16 +396,16 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         try {
             return groupCache.get(groupname, new Callable<ActiveDirectoryGroupDetails>() {
                         public ActiveDirectoryGroupDetails call() {
-                            for (String domainName : domainNames) {
+                            for (ActiveDirectoryDomain domain : domains) {
                                 // when we use custom socket factory below, every LDAP operations result
                                 // in a classloading via context classloader, so we need it to resolve.
                                 ClassLoader ccl = Thread.currentThread().getContextClassLoader();
                                 Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
                                 try {
-                                    DirContext context = descriptor.bind(bindName, bindPassword, obtainLDAPServers(domainName), props);
+                                    DirContext context = descriptor.bind(bindName, bindPassword, obtainLDAPServers(domain));
 
                                     try {
-                                        final String domainDN = toDC(domainName);
+                                        final String domainDN = toDC(domain.getName());
 
                                         Attributes group = new LDAPSearchBuilder(context,domainDN).subTreeScope().searchOne("(& (cn={0})(objectCategory=group))", groupname);
                                         if (group==null) {
@@ -434,10 +428,10 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                                     }
                                 } catch (UsernameNotFoundException e) {
                                     // everything worked OK but we just didn't find it. This could be just a typo in group name.
-                                    LOGGER.log(Level.WARNING, String.format("Failed to find the group %s in %s domain", groupname, domainName), e);
+                                    LOGGER.log(Level.WARNING, String.format("Failed to find the group %s in %s domain", groupname, domain.getName()), e);
                                 } catch (AuthenticationException e) {
                                     // something went wrong talking to the server. This should be reported
-                                    LOGGER.log(Level.WARNING, String.format("Failed to find the group %s in %s domain", groupname, domainName), e);
+                                    LOGGER.log(Level.WARNING, String.format("Failed to find the group %s in %s domain", groupname, domain.getName()), e);
                                 } finally {
                                     Thread.currentThread().setContextClassLoader(ccl);
                                 }
