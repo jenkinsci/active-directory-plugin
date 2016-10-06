@@ -700,10 +700,10 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     /**
      * Thread used to update the ActiveDirectoryUserDetail on a different thread
      */
-    public static class UpdateActiveDirectoryUserDetail extends Thread {
+    private static class UpdateActiveDirectoryUserDetail extends Thread {
         ActiveDirectoryUserDetail activeDirectoryUserDetail;
 
-        public UpdateActiveDirectoryUserDetail(ActiveDirectoryUserDetail activeDirectoryUserDetail) {
+        private UpdateActiveDirectoryUserDetail(ActiveDirectoryUserDetail activeDirectoryUserDetail) {
             this.activeDirectoryUserDetail = activeDirectoryUserDetail;
         }
 
