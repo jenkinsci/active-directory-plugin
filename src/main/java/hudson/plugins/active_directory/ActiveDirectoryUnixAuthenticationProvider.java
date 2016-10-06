@@ -366,7 +366,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                 }
             });
             if (cacheMiss[0] != null) {
-                cacheMiss[0].updateUserInfo();
+                new UpdateActiveDirectoryUserDetail(cacheMiss[0]).start();
             }
         } catch (UncheckedExecutionException e) {
            Throwable t = e.getCause();
@@ -695,4 +695,20 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
      * without authentication.
      */
     private static final String NO_AUTHENTICATION = "\u0000\u0000\u0000\u0000\u0000\u0000";
+
+
+    /**
+     * Thread used to update the ActiveDirectoryUserDetail on a different thread
+     */
+    public static class UpdateActiveDirectoryUserDetail extends Thread {
+        ActiveDirectoryUserDetail activeDirectoryUserDetail;
+
+        public UpdateActiveDirectoryUserDetail(ActiveDirectoryUserDetail activeDirectoryUserDetail) {
+            this.activeDirectoryUserDetail = activeDirectoryUserDetail;
+        }
+
+        public void run() {
+            activeDirectoryUserDetail.updateUserInfo();
+        }
+    }
 }
