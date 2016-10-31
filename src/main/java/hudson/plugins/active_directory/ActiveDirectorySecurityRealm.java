@@ -142,14 +142,27 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     public final String site;
 
     /**
-     * If non-null, use this name and password to bind to LDAP to obtain the DN
-     * of the user trying to login. This is unnecessary in a single-domain mode,
-     * where we can just bind with the user name and password provided during
-     * the login, but in a forest mode, without some known credential, we cannot
-     * figure out which domain in the forest the user belongs to.
+     * Represent the old bindName
+     *
+     * <p>
+     * We need to keep this as transient in order to be able to use readResolve
+     * to migrate the old descriptor to the new one.
+     *
+     * <p>
+     * This has been deprecated @since Jenkins 2.1
      */
-    public final String bindName;
+    public transient String bindName;
 
+    /**
+     * Represent the old bindPassword
+     *
+     * <p>
+     * We need to keep this as transient in order to be able to use readResolve
+     * to migrate the old descriptor to the new one.
+     *
+     * <p>
+     * This has been deprecated @since Jenkins 2.1
+     */
     public final Secret bindPassword;
 
     private GroupLookupStrategy groupLookupStrategy;
@@ -192,7 +205,6 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     public ActiveDirectorySecurityRealm(String domain, String site, String bindName,
                                         String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, CacheConfiguration cache) {
         this(domain, Lists.newArrayList(new ActiveDirectoryDomain(domain, null)), site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups, domain!=null, cache);
-
     }
     
     @DataBoundConstructor
@@ -302,6 +314,13 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                 this.domains.add(new ActiveDirectoryDomain(oldDomain, server));
             }
         }
+        // JENKINS-39375 Support a different bindUser per domain
+        if (bindName != null && bindPassword != null) {
+            for (ActiveDirectoryDomain activeDirectoryDomain : this.getDomains()) {
+                activeDirectoryDomain.bindName = bindName;
+                activeDirectoryDomain.bindPassword = bindPassword;
+            }
+        }
         return this;
     }
 
@@ -359,16 +378,6 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
         req.setAttribute("output", out.toString());
         req.getView(this, "test.jelly").forward(req, rsp);
-    }
-
-    public FormValidation doCheckBindName(@QueryParameter String bindName) {
-        String[] DnItems = {"CN=", "DC=", "OU="};
-        for (String dnItem : DnItems) {
-            if (bindName.contains(dnItem)) {
-                return FormValidation.warning("If you are using multiple domains the display name must be used");
-            }
-        }
-        return FormValidation.ok();
     }
 
     @Extension

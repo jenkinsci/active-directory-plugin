@@ -18,6 +18,12 @@
                   <f:entry title="${%Domain controller}" field="servers">
                     <f:textbox />
                   </f:entry>
+                  <f:entry field="bindName" title="${%Bind DN}">
+                    <f:textbox />
+                  </f:entry>
+                  <f:entry field="bindPassword" title="${%Bind Password}">
+                    <f:password />
+                  </f:entry>
                 </table>
                 <div align="right">
                   <input type="button" value="Delete Domain" class="repeatable-delete" style="margin-left: 1em;" />
@@ -40,6 +46,12 @@
             </f:entry>
             <f:entry title="${%Domain controller}" field="servers">
               <f:textbox />
+            </f:entry>
+            <f:entry field="bindName" title="${%Bind DN}" help="/plugin/active-directory/help/help-bindName.html">
+              <f:textbox />
+            </f:entry>
+            <f:entry field="bindPassword" title="${%Bind Password}">
+              <f:password />
             </f:entry>
           </table>
           <div align="right">

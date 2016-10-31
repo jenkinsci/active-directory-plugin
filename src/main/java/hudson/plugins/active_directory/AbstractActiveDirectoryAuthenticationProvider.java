@@ -48,7 +48,8 @@ public abstract class AbstractActiveDirectoryAuthenticationProvider extends Abst
     /**
      * Returns true if we can retrieve user just from the name without supplying any credential.
      */
-    protected abstract boolean canRetrieveUserByName();
+    @Deprecated
+    protected abstract boolean canRetrieveUserByName(ActiveDirectoryDomain domain);
 
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException, DataAccessException {
         return retrieveUser(username,null);
