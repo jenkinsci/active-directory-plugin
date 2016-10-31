@@ -163,7 +163,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
      * <p>
      * This has been deprecated @since Jenkins 2.1
      */
-    public final Secret bindPassword;
+    public transient Secret bindPassword;
 
     private GroupLookupStrategy groupLookupStrategy;
 
