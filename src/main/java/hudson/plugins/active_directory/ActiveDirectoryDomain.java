@@ -27,6 +27,7 @@ package hudson.plugins.active_directory;
 import hudson.Extension;
 import hudson.model.AbstractDescribableImpl;
 import hudson.model.Descriptor;
+import hudson.util.Secret;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -62,8 +63,23 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
      */
     public String servers;
 
-    @DataBoundConstructor
+    /**
+     * If non-null, use this name and password to bind to LDAP to obtain the DN
+     * of the user trying to login. This is unnecessary in a single-domain mode,
+     * where we can just bind with the user name and password provided during
+     * the login, but in a forest mode, without some known credential, we cannot
+     * figure out which domain in the forest the user belongs to.
+     */
+    public String bindName;
+
+    public Secret bindPassword;
+
     public ActiveDirectoryDomain(String name, String servers) {
+        this(name, servers, null, null);
+    }
+
+    @DataBoundConstructor
+    public ActiveDirectoryDomain(String name, String servers, String bindName, String bindPassword) {
         this.name = name;
         // Append default port if not specified
         servers = fixEmpty(servers);
@@ -77,6 +93,8 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
             servers = StringUtils.join(serversArray, ",");
         }
         this.servers = servers;
+        this.bindName = fixEmpty(bindName);
+        this.bindPassword = Secret.fromString(fixEmpty(bindPassword));
     }
 
     @Restricted(NoExternalUse.class)
@@ -87,6 +105,16 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
     @Restricted(NoExternalUse.class)
     public String getServers() {
         return servers;
+    }
+
+    @Restricted(NoExternalUse.class)
+    public String getBindName() {
+        return bindName;
+    }
+
+    @Restricted(NoExternalUse.class)
+    public Secret getBindPassword() {
+        return bindPassword;
     }
 
     /**

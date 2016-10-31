@@ -216,7 +216,7 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
     }
 
     @Override
-    protected boolean canRetrieveUserByName() {
+    protected boolean canRetrieveUserByName(ActiveDirectoryDomain domain) {
         return true;
     }
 
