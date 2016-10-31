@@ -404,17 +404,6 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         return userDetails;
     }
 
-    public ActiveDirectoryUserDetail getUserFromJenkinsInternalDatabase(String username, String password) {
-        LOGGER.log(Level.FINEST, String.format("Falling back into Jenkins Internal Database for %s", username));
-        User internalUser = hudson.model.User.get(username);
-        HudsonPrivateSecurityRealm.Details hudsonPrivateSecurityRealm = internalUser.getProperty(HudsonPrivateSecurityRealm.Details.class);
-        GrantedAuthority[] grantedAuthorities = new GrantedAuthority[1];
-        if (hudsonPrivateSecurityRealm.equals(password)) {
-            return new ActiveDirectoryUserDetail(username, password, true, true, true, true, grantedAuthorities, internalUser.getDisplayName(), "", "");
-        }
-        return null;
-    }
-
     public GroupDetails loadGroupByGroupname(final String groupname) {
         try {
             return groupCache.get(groupname, new Callable<ActiveDirectoryGroupDetails>() {
