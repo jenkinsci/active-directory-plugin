@@ -27,7 +27,9 @@ import com.google.common.cache.Cache;
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Util;
+import hudson.model.User;
 import hudson.security.GroupDetails;
+import hudson.security.HudsonPrivateSecurityRealm;
 import hudson.security.SecurityRealm;
 import hudson.security.UserMayOrMayNotExistException;
 import hudson.util.Secret;
@@ -83,6 +85,8 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
 
     private GroupLookupStrategy groupLookupStrategy;
 
+    private final boolean useJenkinsInternalDatabase;
+
     protected static final String DN_FORMATTED = "distinguishedNameFormatted";
 
     /**
@@ -132,6 +136,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         this.site = realm.site;
         this.domains = realm.domains;
         this.groupLookupStrategy = realm.getGroupLookupStrategy();
+        this.useJenkinsInternalDatabase = realm.useJenkinsInternalDatabase;
         this.descriptor = realm.getDescriptor();
         this.cache = realm.cache;
 
@@ -162,6 +167,19 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
 
             // this is lesser error, in that we searched and the user was not found
             List<UsernameNotFoundException> notFound = new ArrayList<UsernameNotFoundException>();
+
+            if (useJenkinsInternalDatabase) {
+                LOGGER.log(Level.FINEST, String.format("Looking in Jenkins Internal Database for user %s", username));
+                User internalUser = hudson.model.User.get(username);
+                HudsonPrivateSecurityRealm.Details hudsonPrivateSecurityRealm = internalUser.getProperty(HudsonPrivateSecurityRealm.Details.class);
+                String password = "";
+                if (authentication.getCredentials() instanceof String) {
+                    password = (String) authentication.getCredentials();
+                }
+                if (hudsonPrivateSecurityRealm.isPasswordCorrect(password)) {
+                    return new ActiveDirectoryUserDetail(username, password, true, true, true, true, hudsonPrivateSecurityRealm.getAuthorities(), internalUser.getDisplayName(), "", "");
+                }
+            }
 
             for (ActiveDirectoryDomain domain : domains) {
                 try {
@@ -384,6 +402,17 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
             throw new BadCredentialsException("Failed to retrieve user information from the cache for "+ username);
         }
         return userDetails;
+    }
+
+    public ActiveDirectoryUserDetail getUserFromJenkinsInternalDatabase(String username, String password) {
+        LOGGER.log(Level.FINEST, String.format("Falling back into Jenkins Internal Database for %s", username));
+        User internalUser = hudson.model.User.get(username);
+        HudsonPrivateSecurityRealm.Details hudsonPrivateSecurityRealm = internalUser.getProperty(HudsonPrivateSecurityRealm.Details.class);
+        GrantedAuthority[] grantedAuthorities = new GrantedAuthority[1];
+        if (hudsonPrivateSecurityRealm.equals(password)) {
+            return new ActiveDirectoryUserDetail(username, password, true, true, true, true, grantedAuthorities, internalUser.getDisplayName(), "", "");
+        }
+        return null;
     }
 
     public GroupDetails loadGroupByGroupname(final String groupname) {

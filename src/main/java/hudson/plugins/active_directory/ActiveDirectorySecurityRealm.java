@@ -189,6 +189,14 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
     public transient String testDomainControllers;
 
+    /**
+     * If true, the Active Directory will use both the Jenkins Internal database and the AD server to lookup for users
+     *
+     * This options is useful in case your AD server is not reachable anymore. On this kind of situations, you will be
+     * still able to login into Jenkins.
+     */
+    public final boolean useJenkinsInternalDatabase;
+
     public ActiveDirectorySecurityRealm(String domain, String site, String bindName, String bindPassword, String server) {
         this(domain, site, bindName, bindPassword, server, GroupLookupStrategy.AUTO, false);
     }
@@ -204,13 +212,14 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
     public ActiveDirectorySecurityRealm(String domain, String site, String bindName,
                                         String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, CacheConfiguration cache) {
-        this(domain, Lists.newArrayList(new ActiveDirectoryDomain(domain, null)), site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups, domain!=null, cache);
+        this(domain, Lists.newArrayList(new ActiveDirectoryDomain(domain, null)), site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups, domain!=null, cache, false);
     }
+
     
     @DataBoundConstructor
     // as Java signature, this binding doesn't make sense, so please don't use this constructor
     public ActiveDirectorySecurityRealm(String domain, List<ActiveDirectoryDomain> domains, String site, String bindName,
-                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache) {
+                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache, boolean useJenkinsInternalDatabase) {
         if (customDomain!=null && !customDomain)
             domains = null;
         this.domain = fixEmpty(domain);
@@ -222,6 +231,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         this.groupLookupStrategy = groupLookupStrategy;
         this.removeIrrelevantGroups = removeIrrelevantGroups;
         this.cache = cache;
+        this.useJenkinsInternalDatabase = useJenkinsInternalDatabase;
     }
 
     @DataBoundSetter
@@ -302,6 +312,11 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     @Restricted(NoExternalUse.class)
     public String getTestDomainControllers() {
         return testDomainControllers;
+    }
+
+    @Restricted(NoExternalUse.class)
+    public boolean isUseJenkinsInternalDatabase() {
+        return useJenkinsInternalDatabase;
     }
 
     public Object readResolve() throws ObjectStreamException {
