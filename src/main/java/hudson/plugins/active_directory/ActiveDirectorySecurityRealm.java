@@ -138,8 +138,12 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
      * 
      * <p>
      * On Windows, I'm assuming ADSI takes care of everything automatically.
+     *
+     * <p>
+     * We need to keep this as transient in order to be able to use readResolve
+     * to migrate the old descriptor to the newone.
      */
-    public final String site;
+    public transient final String site;
 
     /**
      * Represent the old bindName
@@ -188,6 +192,8 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     public transient String testDomain;
 
     public transient String testDomainControllers;
+
+    public transient String testSite;
 
     public ActiveDirectorySecurityRealm(String domain, String site, String bindName, String bindPassword, String server) {
         this(domain, site, bindName, bindPassword, server, GroupLookupStrategy.AUTO, false);
@@ -304,6 +310,11 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         return testDomainControllers;
     }
 
+    @Restricted(NoExternalUse.class)
+    public String getTestSite() {
+        return testSite;
+    }
+
     public Object readResolve() throws ObjectStreamException {
         if (domain != null) {
             this.domains = new ArrayList<ActiveDirectoryDomain>();
@@ -319,6 +330,12 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             for (ActiveDirectoryDomain activeDirectoryDomain : this.getDomains()) {
                 activeDirectoryDomain.bindName = bindName;
                 activeDirectoryDomain.bindPassword = bindPassword;
+            }
+        }
+        // JENKINS-39423 Make site independent of each domain
+        if (site != null) {
+            for (ActiveDirectoryDomain activeDirectoryDomain : this.getDomains()) {
+                activeDirectoryDomain.site = site;
             }
         }
         return this;
@@ -349,8 +366,8 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
                 for (ActiveDirectoryDomain domain : domains) {
 	                try {
-	                    pw.println("Domain= " + domain.getName() + " site= "+ site);
-	                    List<SocketInfo> ldapServers = descriptor.obtainLDAPServer(domain.getName(), site, domain.getServers());
+	                    pw.println("Domain= " + domain.getName() + " site= "+ domain.getSite());
+	                    List<SocketInfo> ldapServers = descriptor.obtainLDAPServer(domain);
 	                    pw.println("List of domain controllers: "+ldapServers);
 	                    
 	                    for (SocketInfo ldapServer : ldapServers) {
@@ -447,7 +464,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
         private static boolean WARNED = false;
 
-        public FormValidation doValidateTest(@QueryParameter(fixEmpty = true) String testDomain, @QueryParameter(fixEmpty = true) String testDomainControllers, @QueryParameter(fixEmpty = true) String site, @QueryParameter(fixEmpty = true) String bindName,
+        public FormValidation doValidateTest(@QueryParameter(fixEmpty = true) String testDomain, @QueryParameter(fixEmpty = true) String testDomainControllers, @QueryParameter(fixEmpty = true) String testSite, @QueryParameter(fixEmpty = true) String bindName,
                 @QueryParameter(fixEmpty = true) String bindPassword) throws IOException, ServletException, NamingException {
             ClassLoader ccl = Thread.currentThread().getContextClassLoader();
             Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
@@ -503,9 +520,9 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                 // Then look for the LDAP server
                 List<SocketInfo> servers;
                 try {
-                    servers = obtainLDAPServer(ictx, testDomain, site, testDomainControllers);
+                    servers = obtainLDAPServer(ictx, testDomain, testSite, testDomainControllers);
                 } catch (NamingException e) {
-                    String msg = site == null ? "No LDAP server was found in " + testDomain : "No LDAP server was found in the " + site + " site of " + testDomain;
+                    String msg = testSite == null ? "No LDAP server was found in " + testDomain : "No LDAP server was found in the " + testSite + " site of " + testDomain;
                     LOGGER.log(Level.WARNING, msg, e);
                     return FormValidation.error(e, msg);
                 }
@@ -697,8 +714,13 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             return new InitialDirContext(env);
         }
 
+        @Deprecated
         public List<SocketInfo> obtainLDAPServer(String domainName, String site, String preferredServer) throws NamingException {
             return obtainLDAPServer(createDNSLookupContext(), domainName, site, preferredServer);
+        }
+
+        public List<SocketInfo> obtainLDAPServer(ActiveDirectoryDomain activeDirectoryDomain) throws NamingException {
+            return obtainLDAPServer(createDNSLookupContext(), activeDirectoryDomain.getName(), activeDirectoryDomain.getSite(), activeDirectoryDomain.getServers());
         }
 
         // domain name prefixes
