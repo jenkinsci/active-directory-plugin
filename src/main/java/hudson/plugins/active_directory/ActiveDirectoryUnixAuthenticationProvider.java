@@ -235,7 +235,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
      */
     private List<SocketInfo> obtainLDAPServers(ActiveDirectoryDomain domain) throws AuthenticationServiceException {
         try {
-            return descriptor.obtainLDAPServer(domain.getName(), site, domain.getServers());
+            return descriptor.obtainLDAPServer(domain);
         } catch (NamingException e) {
             LOGGER.log(Level.WARNING, "Failed to find the LDAP service", e);
             throw new AuthenticationServiceException("Failed to find the LDAP service for the domain "+ domain.getName(), e);

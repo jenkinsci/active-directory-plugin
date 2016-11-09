@@ -29,6 +29,8 @@ public class ActiveDirectorySecurityRealmTest {
             // JENKINS-39375 Support a different bindUser per domain
             assertEquals("bindUser", activeDirectorySecurityRealm.getDomains().get(0).getBindName());
             assertNotNull(activeDirectorySecurityRealm.getDomains().get(0).getBindPassword());
+            // JENKINS-39423 Make Site independent of each domain
+            assertEquals("site", activeDirectorySecurityRealm.getDomains().get(0).getSite());
         }
     }
 
@@ -46,6 +48,8 @@ public class ActiveDirectorySecurityRealmTest {
             // JENKINS-39375 Support a different bindUser per domain
             assertEquals("bindUser", activeDirectorySecurityRealm.getDomains().get(0).getBindName());
             assertNotNull(activeDirectorySecurityRealm.getDomains().get(0).getBindPassword());
+            // JENKINS-39423 Make Site independent of each domain
+            assertEquals("site", activeDirectorySecurityRealm.getDomains().get(0).getSite());
         }
     }
 
@@ -63,6 +67,8 @@ public class ActiveDirectorySecurityRealmTest {
             // JENKINS-39375 Support a different bindUser per domain
             assertEquals("bindUser", activeDirectorySecurityRealm.getDomains().get(0).getBindName());
             assertNotNull(activeDirectorySecurityRealm.getDomains().get(0).getBindPassword());
+            // JENKINS-39423 Make Site independent of each domain
+            assertEquals("site", activeDirectorySecurityRealm.getDomains().get(0).getSite());
         }
     }
 
@@ -206,6 +212,8 @@ public class ActiveDirectorySecurityRealmTest {
             // JENKINS-39375 Support a different bindUser per domain
             assertEquals("bindUser", activeDirectorySecurityRealm.getDomains().get(0).getBindName());
             assertNotNull(activeDirectorySecurityRealm.getDomains().get(0).getBindPassword());
+            // JENKINS-39423 Make Site independent of each domain
+            assertEquals("site", activeDirectorySecurityRealm.getDomains().get(0).getSite());
         }
     }
 
@@ -227,6 +235,9 @@ public class ActiveDirectorySecurityRealmTest {
             assertNotNull(activeDirectorySecurityRealm.getDomains().get(0).getBindPassword());
             assertEquals("bindUser", activeDirectorySecurityRealm.getDomains().get(1).getBindName());
             assertNotNull(activeDirectorySecurityRealm.getDomains().get(1).getBindPassword());
+            // JENKINS-39423 Make Site independent of each domain
+            assertEquals("site", activeDirectorySecurityRealm.getDomains().get(0).getSite());
+            assertEquals("site", activeDirectorySecurityRealm.getDomains().get(1).getSite());
         }
     }
 }
