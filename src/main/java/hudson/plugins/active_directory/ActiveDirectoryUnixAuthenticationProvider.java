@@ -731,5 +731,4 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
      * without authentication.
      */
     private static final String NO_AUTHENTICATION = "\u0000\u0000\u0000\u0000\u0000\u0000";
-
 }
