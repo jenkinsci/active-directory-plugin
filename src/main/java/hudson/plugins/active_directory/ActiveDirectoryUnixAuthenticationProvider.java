@@ -107,7 +107,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     private final Cache<String, ActiveDirectoryGroupDetails> groupCache;
 
     /**
-     * The threadPool
+     * The threadPool to update the cache on background
      */
     private final ExecutorService threadPoolExecutor =
             new ThreadPoolExecutor(
@@ -142,11 +142,20 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
      */
     private final static String LDAP_READ_TIMEOUT = "com.sun.jndi.ldap.read.timeout";
 
-    private static final int corePoolSize  =    10;
-    private static final int  maxPoolSize   =   20;
+    /**
+     * The core pool size for the ExecutorService
+     */
+    private static final int corePoolSize = 10;
+
+    /**
+     * The max pool size for the ExecutorService
+     */
+    private static final int  maxPoolSize = 20;
+
+    /**
+     * The keep alive time for the ExecutorService
+     */
     private static final long keepAliveTime = 10000;
-
-
 
     public ActiveDirectoryUnixAuthenticationProvider(ActiveDirectorySecurityRealm realm) {
         if (realm.domains==null) {
