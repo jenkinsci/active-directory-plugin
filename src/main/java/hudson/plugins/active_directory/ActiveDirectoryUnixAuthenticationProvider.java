@@ -64,6 +64,10 @@ import java.util.Set;
 import java.util.Stack;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -366,7 +370,25 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                 }
             });
             if (cacheMiss[0] != null) {
-                new UpdateActiveDirectoryUserDetail(cacheMiss[0]).start();
+                final int  corePoolSize  =    10;
+                final int  maxPoolSize   =   20;
+                final long keepAliveTime = 10000;
+
+                ExecutorService threadPoolExecutor =
+                        new ThreadPoolExecutor(
+                                corePoolSize,
+                                maxPoolSize,
+                                keepAliveTime,
+                                TimeUnit.MILLISECONDS,
+                                new LinkedBlockingQueue<Runnable>()
+                        );
+                threadPoolExecutor.execute(new Runnable() {
+                    @Override
+                    public void run() {
+                        cacheMiss[0].updateUserInfo();
+                    }
+                });
+
             }
         } catch (UncheckedExecutionException e) {
            Throwable t = e.getCause();
@@ -696,19 +718,4 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
      */
     private static final String NO_AUTHENTICATION = "\u0000\u0000\u0000\u0000\u0000\u0000";
 
-
-    /**
-     * Thread used to update the ActiveDirectoryUserDetail on a different thread
-     */
-    private static class UpdateActiveDirectoryUserDetail extends Thread {
-        ActiveDirectoryUserDetail activeDirectoryUserDetail;
-
-        private UpdateActiveDirectoryUserDetail(ActiveDirectoryUserDetail activeDirectoryUserDetail) {
-            this.activeDirectoryUserDetail = activeDirectoryUserDetail;
-        }
-
-        public void run() {
-            activeDirectoryUserDetail.updateUserInfo();
-        }
-    }
 }
