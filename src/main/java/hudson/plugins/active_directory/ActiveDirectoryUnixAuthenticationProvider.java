@@ -107,6 +107,17 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     private final Cache<String, ActiveDirectoryGroupDetails> groupCache;
 
     /**
+     * The threadPool
+     */
+    private final ExecutorService threadPoolExecutor =
+            new ThreadPoolExecutor(
+                    corePoolSize,
+                    maxPoolSize,
+                    keepAliveTime,
+                    TimeUnit.MILLISECONDS,
+                    new LinkedBlockingQueue<Runnable>()
+            );
+    /**
      * Properties to be passed to the current LDAP context
      */
     private Hashtable<String, String> props = new Hashtable<String, String>();
@@ -130,6 +141,12 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
      * Represents com.sun.jndi.ldap.read.timeout
      */
     private final static String LDAP_READ_TIMEOUT = "com.sun.jndi.ldap.read.timeout";
+
+    private static final int corePoolSize  =    10;
+    private static final int  maxPoolSize   =   20;
+    private static final long keepAliveTime = 10000;
+
+
 
     public ActiveDirectoryUnixAuthenticationProvider(ActiveDirectorySecurityRealm realm) {
         if (realm.domains==null) {
@@ -370,18 +387,6 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                 }
             });
             if (cacheMiss[0] != null) {
-                final int  corePoolSize  =    10;
-                final int  maxPoolSize   =   20;
-                final long keepAliveTime = 10000;
-
-                ExecutorService threadPoolExecutor =
-                        new ThreadPoolExecutor(
-                                corePoolSize,
-                                maxPoolSize,
-                                keepAliveTime,
-                                TimeUnit.MILLISECONDS,
-                                new LinkedBlockingQueue<Runnable>()
-                        );
                 threadPoolExecutor.execute(new Runnable() {
                     @Override
                     public void run() {
