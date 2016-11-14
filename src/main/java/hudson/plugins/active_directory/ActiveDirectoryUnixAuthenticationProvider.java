@@ -62,10 +62,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
@@ -115,8 +115,10 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                     maxPoolSize,
                     keepAliveTime,
                     TimeUnit.MILLISECONDS,
-                    new LinkedBlockingQueue<Runnable>()
+                    new ArrayBlockingQueue<Runnable>(queueSize),
+                    new ThreadPoolExecutor.DiscardPolicy()
             );
+
     /**
      * Properties to be passed to the current LDAP context
      */
@@ -143,19 +145,24 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     private final static String LDAP_READ_TIMEOUT = "com.sun.jndi.ldap.read.timeout";
 
     /**
-     * The core pool size for the ExecutorService
+     * The core pool size for the {@link ExecutorService}
      */
-    private static final int corePoolSize = 10;
+    private static final int corePoolSize = 4;
 
     /**
-     * The max pool size for the ExecutorService
+     * The max pool size for the {@link ExecutorService}
      */
-    private static final int  maxPoolSize = 20;
+    private static final int maxPoolSize = 8;
 
     /**
-     * The keep alive time for the ExecutorService
+     * The keep alive time for the {@link ExecutorService}
      */
     private static final long keepAliveTime = 10000;
+
+    /**
+     * The queue size for the {@link ExecutorService}
+     */
+    private static final int queueSize = 25;
 
     public ActiveDirectoryUnixAuthenticationProvider(ActiveDirectorySecurityRealm realm) {
         if (realm.domains==null) {
