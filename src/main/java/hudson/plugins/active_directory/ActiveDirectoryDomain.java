@@ -162,8 +162,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
     public static class DescriptorImpl extends Descriptor<ActiveDirectoryDomain> {
         @Override
         public String getDisplayName() { return ""; }
-
-
+        
         public FormValidation doValidateTest(@QueryParameter(fixEmpty = true) String name, @QueryParameter(fixEmpty = true) String servers, @QueryParameter(fixEmpty = true) String site, @QueryParameter(fixEmpty = true) String bindName,
                                              @QueryParameter(fixEmpty = true) String bindPassword) throws IOException, ServletException, NamingException {
 
