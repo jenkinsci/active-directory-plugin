@@ -59,6 +59,9 @@
             <f:entry field="bindPassword" title="${%Bind Password}">
               <f:password />
             </f:entry>
+            <f:nested>
+              <f:validateButton with="name,servers,site,site,bindName,bindPassword" title="${%Test Domain}" method="validateTest"/>
+            </f:nested>
           </table>
           <div align="right">
             <input type="button" value="Delete Domain" class="repeatable-delete" style="margin-left: 1em;" />

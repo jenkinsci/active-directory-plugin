@@ -28,9 +28,6 @@
       <f:textbox />
     </f:entry>
   </f:advanced>
-  <f:nested>
-    <f:validateButton with="testDomain,testDomainControllers,domains,site,bindName,bindPassword" title="${%Test a test Domain}" method="validateTest"/>
-  </f:nested>
 	<script type="text/javascript" >
 		document.addEventListener("DOMContentLoaded", function(event) {
 		   document.getElementsByName("_.bindPassword")[0].autocomplete = "off";
