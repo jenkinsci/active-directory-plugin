@@ -206,12 +206,14 @@ public class ActiveDirectoryUserDetail extends User {
         if (getDisplayName()!=null && u.getId().equals(u.getFullName()))
             u.setFullName(getDisplayName());
 
-        if (getMail()!=null)
+        UserProperty existing = u.getProperty(UserProperty.class);
+        if (existing==null || !existing.hasExplicitlyConfiguredAddress()) {
             try {
                 u.addProperty(new Mailer.UserProperty(getMail()));
             } catch (IOException e) {
-                LOGGER.log(Level.WARNING,"Failed to associate the e-mail address",e);
+                LOGGER.log(Level.WARNING, "Failed to associate the e-mail address", e);
             }
+        }
 
         return this;
     }
