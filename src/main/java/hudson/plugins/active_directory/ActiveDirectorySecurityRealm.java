@@ -31,6 +31,7 @@ import groovy.lang.Binding;
 import hudson.Extension;
 import hudson.Functions;
 import hudson.model.AbstractDescribableImpl;
+import hudson.model.AdministrativeMonitor;
 import hudson.model.Descriptor;
 import hudson.model.Hudson;
 import hudson.security.AbstractPasswordBasedSecurityRealm;
@@ -189,6 +190,18 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
      */
     protected List<EnvironmentProperty> environmentProperties;
 
+    /**
+     * Selects the SSL strategy to follow on the TLS connections
+     *
+     * <p>
+     *     Even if we are not using any of the TLS ports (3269/636) the plugin will try to establish a TLS channel
+     *     using startTLS. Because of this, we need to be able to specify the SSL strategy on the plugin
+     *
+     * <p>
+     *     For the moment there are two possible values: trustAllCertificates and trustStore.
+     */
+    protected String tlsConfiguration;
+
     public transient String testDomain;
 
     public transient String testDomainControllers;
@@ -210,13 +223,13 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
     public ActiveDirectorySecurityRealm(String domain, String site, String bindName,
                                         String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, CacheConfiguration cache) {
-        this(domain, Lists.newArrayList(new ActiveDirectoryDomain(domain, server)), site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups, domain!=null, cache);
+        this(domain, Lists.newArrayList(new ActiveDirectoryDomain(domain, server)), site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups, domain!=null, cache, "trustAllCertificates");
     }
-    
+
     @DataBoundConstructor
     // as Java signature, this binding doesn't make sense, so please don't use this constructor
     public ActiveDirectorySecurityRealm(String domain, List<ActiveDirectoryDomain> domains, String site, String bindName,
-                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache) {
+                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache, String tlsConfiguration) {
         if (customDomain!=null && !customDomain)
             domains = null;
         this.domain = fixEmpty(domain);
@@ -228,6 +241,9 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         this.groupLookupStrategy = groupLookupStrategy;
         this.removeIrrelevantGroups = removeIrrelevantGroups;
         this.cache = cache;
+        this.tlsConfiguration = tlsConfiguration;
+        // On descriptor change we need to check if the secure TLS configuration is done
+        enableTlsConfigAdministrativeMonitor();
     }
 
     @DataBoundSetter
@@ -260,6 +276,12 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     public GroupLookupStrategy getGroupLookupStrategy() {
         if (groupLookupStrategy==null)      return GroupLookupStrategy.AUTO;
         return groupLookupStrategy;
+    }
+
+    // for jelly use only
+    @Restricted(NoExternalUse.class)
+    public String getTlsConfiguration() {
+        return tlsConfiguration;
     }
 
     public SecurityComponents createSecurityComponents() {
@@ -338,6 +360,10 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                 activeDirectoryDomain.site = site;
             }
         }
+
+        // On startup we need to check if the TLS is correctly configured
+        enableTlsConfigAdministrativeMonitor();
+
         return this;
     }
 
@@ -395,6 +421,18 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
         req.setAttribute("output", out.toString());
         req.getView(this, "test.jelly").forward(req, rsp);
+    }
+
+    /**
+     * Enable the TLS AdministrativeMonitor in case TLS is still not configured
+     * or is configured as trustAllCertificates
+     */
+    public void enableTlsConfigAdministrativeMonitor() {
+        if (tlsConfiguration == null  || tlsConfiguration.equals("trustAllCertificates")) {
+            NOTICE.enableAdministrativeMonitor(true);
+        } else {
+            NOTICE.enableAdministrativeMonitor(false);
+        }
     }
 
     @Extension
@@ -462,7 +500,24 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             return model;
         }
 
+        public ListBoxModel doFillTlsConfigurationItems() {
+            ListBoxModel listBoxModel = new ListBoxModel();
+            listBoxModel.add("TrustAllCertificates (Unsecure)", "trustAllCertificates");
+            listBoxModel.add("Use JDK trustStore", "trustStore");
+
+            return listBoxModel;
+        }
+
+        private boolean isTrustAllCertificatesEnabled(String tlsConfiguration) {
+            return (tlsConfiguration == null || !tlsConfiguration.equals("trustAllCertificates")) ? false : true;
+        }
+
         private static boolean WARNED = false;
+
+        @Deprecated
+        public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers, Hashtable<String, String> props) {
+            return bind(principalName, password, ldapServers, props, null);
+        }
 
         /**
          * Binds to the server using the specified username/password.
@@ -470,7 +525,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
          * In a real deployment, often there are servers that don't respond or
          * otherwise broken, so try all the servers.
          */
-        public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers, Hashtable<String, String> props) {
+        public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers, Hashtable<String, String> props, String tlsConfiguration) {
             // in a AD forest, it'd be mighty nice to be able to login as "joe"
             // as opposed to "joe@europe",
             // but the bind operation doesn't appear to allow me to do so.
@@ -486,7 +541,9 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             }
 
             newProps.put("java.naming.ldap.attributes.binary","tokenGroups objectSid");
-            newProps.put("java.naming.ldap.factory.socket",TrustAllSocketFactory.class.getName());
+            if (isTrustAllCertificatesEnabled(tlsConfiguration)) {
+                newProps.put("java.naming.ldap.factory.socket",TrustAllSocketFactory.class.getName());
+            }
             newProps.putAll(props);
             NamingException namingException = null;
 
@@ -540,9 +597,15 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
              customizeLdapProperty(props, "com.sun.jndi.ldap.connect.timeout");
              customizeLdapProperty(props, "com.sun.jndi.ldap.read.timeout");
         }
-        
+
         @IgnoreJRERequirement
+        @Deprecated
         private LdapContext bind(String principalName, String password, SocketInfo server, Hashtable<String, String> props) throws NamingException {
+            return bind(principalName, password, server, props, null);
+        }
+
+        @IgnoreJRERequirement
+        private LdapContext bind(String principalName, String password, SocketInfo server, Hashtable<String, String> props, String tlsConfiguration) throws NamingException {
             String ldapUrl = (FORCE_LDAPS?"ldaps://":"ldap://") + server + '/';
             String oldName = Thread.currentThread().getName();
             Thread.currentThread().setName("Connecting to "+ldapUrl+" : "+oldName);
@@ -560,7 +623,11 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                     // see http://download.oracle.com/javase/jndi/tutorial/ldap/ext/starttls.html
                     try {
                         StartTlsResponse rsp = (StartTlsResponse)context.extendedOperation(new StartTlsRequest());
-                        rsp.negotiate((SSLSocketFactory)TrustAllSocketFactory.getDefault());
+                        if (isTrustAllCertificatesEnabled(tlsConfiguration)) {
+                            rsp.negotiate((SSLSocketFactory)TrustAllSocketFactory.getDefault());
+                        } else {
+                            rsp.negotiate();
+                        }
                         LOGGER.fine("Connection upgraded to TLS");
                     } catch (NamingException e) {
                         LOGGER.log(Level.FINE, "Failed to start TLS. Authentication will be done via plain-text LDAP", e);
@@ -807,6 +874,46 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             public String getDisplayName() {
                 return null;
             }
+        }
+    }
+
+    @Extension
+    public final static TlsConfigurationAdministrativeMonitor NOTICE = new TlsConfigurationAdministrativeMonitor();
+
+    /**
+     * Administrative Monitor for changing TLS certificates management
+     */
+    public static final class TlsConfigurationAdministrativeMonitor extends AdministrativeMonitor {
+        public boolean enableAdministrativeMonitor = false;
+
+        public String DEFAULT_SSL_MESSAGE =  "TLS is not configured on Active Directory plugin correctly. " +
+                "Please, change the configuration to a secure option.";
+
+        public String getDefaultSslMessage() {
+            return DEFAULT_SSL_MESSAGE;
+        }
+
+        void enableAdministrativeMonitor(boolean enable) {
+            enableAdministrativeMonitor = enable;
+        }
+
+        public boolean isActivated() {
+            return enableAdministrativeMonitor;
+        }
+
+
+        /**
+         * Depending on whether the user said "dismiss" or "correct", send him to the right place.
+         */
+        public void doAct(StaplerRequest req, StaplerResponse rsp) throws IOException {
+            if(req.hasParameter("correct")) {
+                rsp.sendRedirect(req.getRootPath()+"/configureSecurity");
+
+            }
+        }
+
+        public static TlsConfigurationAdministrativeMonitor get() {
+            return AdministrativeMonitor.all().get(TlsConfigurationAdministrativeMonitor.class);
         }
     }
 

@@ -125,6 +125,18 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
      */
     private final static String LDAP_READ_TIMEOUT = "com.sun.jndi.ldap.read.timeout";
 
+    /**
+     * Selects the SSL strategy to follow on the TLS connections
+     *
+     * <p>
+     *     Even if we are not using any of the TLS ports (3269/636) the plugin will try to establish a TLS channel
+     *     using startTLS. Because of this, we need to be able to specify the SSL strategy on the plugin
+     *
+     * <p>
+     *     For the moment there are two possible values: trustAllCertificates and trustStore.
+     */
+    protected String tlsConfiguration;
+
     public ActiveDirectoryUnixAuthenticationProvider(ActiveDirectorySecurityRealm realm) {
         if (realm.domains==null) {
             throw new IllegalArgumentException("An Active Directory domain name is required but it is not set");
@@ -146,6 +158,8 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
 
         this.userCache = cache.getUserCache();
         this.groupCache = cache.getGroupCache();
+
+        this.tlsConfiguration =realm.tlsConfiguration;
 
         Map<String, String> extraEnvVarsMap = ActiveDirectorySecurityRealm.EnvironmentProperty.toMap(realm.environmentProperties);
         // TODO In JDK 8u65 I am facing JDK-8139721, JDK-8139942 which makes the plugin to break. Uncomment line once it is fixed.
@@ -277,7 +291,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                         // two step approach. Use a special credential to obtain DN for the
                         // user trying to login, then authenticate.
                         try {
-                            context = descriptor.bind(bindName, bindPassword, ldapServers, props);
+                            context = descriptor.bind(bindName, bindPassword, ldapServers, props, tlsConfiguration);
                             anonymousBind = false;
                         } catch (BadCredentialsException e) {
                             throw new AuthenticationServiceException("Failed to bind to LDAP server with the bind name/password", e);
@@ -330,7 +344,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                             // if we've used the credential specifically for the bind, we
                             // need to verify the provided password to do authentication
                             LOGGER.log(Level.FINE, "Attempting to validate password for DN={0}", dn);
-                            DirContext test = descriptor.bind(dnFormatted, password, ldapServers, props);
+                            DirContext test = descriptor.bind(dnFormatted, password, ldapServers, props, tlsConfiguration);
                             // Binding alone is not enough to test the credential. Need to actually perform some query operation.
                             // but if the authentication fails this throws an exception
                             try {
