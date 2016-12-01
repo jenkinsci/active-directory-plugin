@@ -135,7 +135,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
      * <p>
      *     For the moment there are two possible values: trustAllCertificates and trustStore.
      */
-    protected String tlsConfiguration;
+    protected TlsConfiguration tlsConfiguration;
 
     public ActiveDirectoryUnixAuthenticationProvider(ActiveDirectorySecurityRealm realm) {
         if (realm.domains==null) {

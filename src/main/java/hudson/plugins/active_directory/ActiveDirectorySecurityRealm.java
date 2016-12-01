@@ -43,6 +43,7 @@ import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import hudson.util.Secret;
 import hudson.util.spring.BeanBuilder;
+import jenkins.model.Jenkins;
 import org.acegisecurity.Authentication;
 import org.acegisecurity.AuthenticationException;
 import org.acegisecurity.AuthenticationManager;
@@ -200,7 +201,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
      * <p>
      *     For the moment there are two possible values: trustAllCertificates and trustStore.
      */
-    protected String tlsConfiguration;
+    protected TlsConfiguration tlsConfiguration;
 
     public transient String testDomain;
 
@@ -223,13 +224,13 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
     public ActiveDirectorySecurityRealm(String domain, String site, String bindName,
                                         String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, CacheConfiguration cache) {
-        this(domain, Lists.newArrayList(new ActiveDirectoryDomain(domain, server)), site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups, domain!=null, cache, "trustAllCertificates");
+        this(domain, Lists.newArrayList(new ActiveDirectoryDomain(domain, server)), site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups, domain!=null, cache, TlsConfiguration.TRUST_ALL_CERTIFICATES);
     }
 
     @DataBoundConstructor
     // as Java signature, this binding doesn't make sense, so please don't use this constructor
     public ActiveDirectorySecurityRealm(String domain, List<ActiveDirectoryDomain> domains, String site, String bindName,
-                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache, String tlsConfiguration) {
+                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache, TlsConfiguration tlsConfiguration) {
         if (customDomain!=null && !customDomain)
             domains = null;
         this.domain = fixEmpty(domain);
@@ -242,8 +243,6 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         this.removeIrrelevantGroups = removeIrrelevantGroups;
         this.cache = cache;
         this.tlsConfiguration = tlsConfiguration;
-        // On descriptor change we need to check if the secure TLS configuration is done
-        enableTlsConfigAdministrativeMonitor();
     }
 
     @DataBoundSetter
@@ -280,7 +279,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
     // for jelly use only
     @Restricted(NoExternalUse.class)
-    public String getTlsConfiguration() {
+    public TlsConfiguration getTlsConfiguration() {
         return tlsConfiguration;
     }
 
@@ -361,9 +360,6 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             }
         }
 
-        // On startup we need to check if the TLS is correctly configured
-        enableTlsConfigAdministrativeMonitor();
-
         return this;
     }
 
@@ -421,18 +417,6 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
         req.setAttribute("output", out.toString());
         req.getView(this, "test.jelly").forward(req, rsp);
-    }
-
-    /**
-     * Enable the TLS AdministrativeMonitor in case TLS is still not configured
-     * or is configured as trustAllCertificates
-     */
-    public void enableTlsConfigAdministrativeMonitor() {
-        if (tlsConfiguration == null  || tlsConfiguration.equals("trustAllCertificates")) {
-            NOTICE.enableAdministrativeMonitor(true);
-        } else {
-            NOTICE.enableAdministrativeMonitor(false);
-        }
     }
 
     @Extension
@@ -501,15 +485,15 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         }
 
         public ListBoxModel doFillTlsConfigurationItems() {
-            ListBoxModel listBoxModel = new ListBoxModel();
-            listBoxModel.add("TrustAllCertificates (Unsecure)", "trustAllCertificates");
-            listBoxModel.add("Use JDK trustStore", "trustStore");
-
-            return listBoxModel;
+            ListBoxModel model = new ListBoxModel();
+            for (TlsConfiguration tlsConfiguration : TlsConfiguration.values()) {
+                model.add(tlsConfiguration.getDisplayName(),tlsConfiguration.name());
+            }
+            return model;
         }
 
-        private boolean isTrustAllCertificatesEnabled(String tlsConfiguration) {
-            return (tlsConfiguration == null || !tlsConfiguration.equals("trustAllCertificates")) ? false : true;
+        private boolean isTrustAllCertificatesEnabled(TlsConfiguration tlsConfiguration) {
+            return (tlsConfiguration == null || TlsConfiguration.TRUST_ALL_CERTIFICATES.equals(tlsConfiguration));
         }
 
         private static boolean WARNED = false;
@@ -525,7 +509,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
          * In a real deployment, often there are servers that don't respond or
          * otherwise broken, so try all the servers.
          */
-        public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers, Hashtable<String, String> props, String tlsConfiguration) {
+        public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers, Hashtable<String, String> props, TlsConfiguration tlsConfiguration) {
             // in a AD forest, it'd be mighty nice to be able to login as "joe"
             // as opposed to "joe@europe",
             // but the bind operation doesn't appear to allow me to do so.
@@ -605,7 +589,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         }
 
         @IgnoreJRERequirement
-        private LdapContext bind(String principalName, String password, SocketInfo server, Hashtable<String, String> props, String tlsConfiguration) throws NamingException {
+        private LdapContext bind(String principalName, String password, SocketInfo server, Hashtable<String, String> props, TlsConfiguration tlsConfiguration) throws NamingException {
             String ldapUrl = (FORCE_LDAPS?"ldaps://":"ldap://") + server + '/';
             String oldName = Thread.currentThread().getName();
             Thread.currentThread().setName("Connecting to "+ldapUrl+" : "+oldName);
@@ -884,23 +868,19 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
      * Administrative Monitor for changing TLS certificates management
      */
     public static final class TlsConfigurationAdministrativeMonitor extends AdministrativeMonitor {
-        public boolean enableAdministrativeMonitor = false;
-
-        public String DEFAULT_SSL_MESSAGE =  "TLS is not configured on Active Directory plugin correctly. " +
-                "Please, change the configuration to a secure option.";
-
-        public String getDefaultSslMessage() {
-            return DEFAULT_SSL_MESSAGE;
-        }
-
-        void enableAdministrativeMonitor(boolean enable) {
-            enableAdministrativeMonitor = enable;
-        }
 
         public boolean isActivated() {
-            return enableAdministrativeMonitor;
-        }
+                SecurityRealm securityRealm = Jenkins.getInstance().getSecurityRealm();
+                if (securityRealm instanceof ActiveDirectorySecurityRealm) {
+                    ActiveDirectorySecurityRealm activeDirectorySecurityRealm = (ActiveDirectorySecurityRealm) securityRealm;
+                    if (activeDirectorySecurityRealm.tlsConfiguration == null  ||
+                            activeDirectorySecurityRealm.tlsConfiguration.equals(TlsConfiguration.TRUST_ALL_CERTIFICATES)) {
+                        return true;
+                    }
+                }
 
+            return false;
+        }
 
         /**
          * Depending on whether the user said "dismiss" or "correct", send him to the right place.

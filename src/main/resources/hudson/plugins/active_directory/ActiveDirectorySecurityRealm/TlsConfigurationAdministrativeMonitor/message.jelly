@@ -6,6 +6,6 @@
                 <f:submit name="correct" value="${%Correct}"/>
             </div>
         </form>
-        ${it.defaultSslMessage}
+        ${%TlsConfiguration.AdministrativeMonitor}
     </div>
 </j:jelly>
