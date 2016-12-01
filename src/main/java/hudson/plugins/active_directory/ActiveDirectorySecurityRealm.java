@@ -359,7 +359,6 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                 activeDirectoryDomain.site = site;
             }
         }
-
         return this;
     }
 
