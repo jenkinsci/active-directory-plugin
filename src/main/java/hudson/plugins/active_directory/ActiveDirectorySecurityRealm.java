@@ -872,8 +872,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                 SecurityRealm securityRealm = Jenkins.getInstance().getSecurityRealm();
                 if (securityRealm instanceof ActiveDirectorySecurityRealm) {
                     ActiveDirectorySecurityRealm activeDirectorySecurityRealm = (ActiveDirectorySecurityRealm) securityRealm;
-                    if (activeDirectorySecurityRealm.tlsConfiguration == null  ||
-                            activeDirectorySecurityRealm.tlsConfiguration.equals(TlsConfiguration.TRUST_ALL_CERTIFICATES)) {
+                    if (activeDirectorySecurityRealm.tlsConfiguration == null) {
                         return true;
                     }
                 }
