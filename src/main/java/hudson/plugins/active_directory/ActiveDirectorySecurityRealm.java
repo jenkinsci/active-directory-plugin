@@ -438,6 +438,12 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         req.getView(this, "test.jelly").forward(req, rsp);
     }
 
+    @Restricted(DoNotUse.class)
+    @Terminator
+    public void shutDownthreadPoolExecutors() {
+        threadPoolExecutor.shutdown();
+    }
+
     @Extension
     public static final class DescriptorImpl extends Descriptor<SecurityRealm> {
         public String getDisplayName() {
