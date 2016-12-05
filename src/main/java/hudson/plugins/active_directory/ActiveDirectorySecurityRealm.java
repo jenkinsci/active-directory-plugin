@@ -211,22 +211,22 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     /**
      * The core pool size for the {@link ExecutorService}
      */
-    private static final int corePoolSize = Integer.valueOf(System.getProperty("hudson.plugins.active_directory.threadPoolExecutor.corePoolSize", "4"));
+    private static final int corePoolSize = Integer.parseInt(System.getProperty("hudson.plugins.active_directory.threadPoolExecutor.corePoolSize", "4"));
 
     /**
      * The max pool size for the {@link ExecutorService}
      */
-    private static final int maxPoolSize = Integer.valueOf(System.getProperty("hudson.plugins.active_directory.threadPoolExecutor.maxPoolSize", "8"));
+    private static final int maxPoolSize = Integer.parseInt(System.getProperty("hudson.plugins.active_directory.threadPoolExecutor.maxPoolSize", "8"));
 
     /**
      * The keep alive time for the {@link ExecutorService}
      */
-    private static final long keepAliveTime = Long.valueOf(System.getProperty("hudson.plugins.active_directory.threadPoolExecutor.keepAliveTime", "10000"));
+    private static final long keepAliveTime = Long.parseLong(System.getProperty("hudson.plugins.active_directory.threadPoolExecutor.keepAliveTime", "10000"));
 
     /**
      * The queue size for the {@link ExecutorService}
      */
-    private static final int queueSize = Integer.valueOf(System.getProperty("hudson.plugins.active_directory.threadPoolExecutor.queueSize", "25"));
+    private static final int queueSize = Integer.parseInt(System.getProperty("hudson.plugins.active_directory.threadPoolExecutor.queueSize", "25"));
     
     public ActiveDirectorySecurityRealm(String domain, String site, String bindName, String bindPassword, String server) {
         this(domain, site, bindName, bindPassword, server, GroupLookupStrategy.AUTO, false);
