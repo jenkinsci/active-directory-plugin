@@ -206,6 +206,8 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
     public transient String testDomainControllers;
 
+    public transient String testSite;
+
     /**
      * The core pool size for the {@link ExecutorService}
      */
@@ -349,6 +351,11 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     @Restricted(NoExternalUse.class)
     public String getTestDomainControllers() {
         return testDomainControllers;
+    }
+
+    @Restricted(NoExternalUse.class)
+    public String getTestSite() {
+        return testSite;
     }
 
     public Object readResolve() throws ObjectStreamException {
