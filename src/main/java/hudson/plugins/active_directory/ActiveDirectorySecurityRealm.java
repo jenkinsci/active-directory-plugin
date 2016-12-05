@@ -146,19 +146,36 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
      * 
      * <p>
      * On Windows, I'm assuming ADSI takes care of everything automatically.
+     *
+     * <p>
+     * We need to keep this as transient in order to be able to use readResolve
+     * to migrate the old descriptor to the newone.
      */
-    public final String site;
+    public transient final String site;
 
     /**
-     * If non-null, use this name and password to bind to LDAP to obtain the DN
-     * of the user trying to login. This is unnecessary in a single-domain mode,
-     * where we can just bind with the user name and password provided during
-     * the login, but in a forest mode, without some known credential, we cannot
-     * figure out which domain in the forest the user belongs to.
+     * Represent the old bindName
+     *
+     * <p>
+     * We need to keep this as transient in order to be able to use readResolve
+     * to migrate the old descriptor to the new one.
+     *
+     * <p>
+     * This has been deprecated @since Jenkins 2.1
      */
-    public final String bindName;
+    public transient String bindName;
 
-    public final Secret bindPassword;
+    /**
+     * Represent the old bindPassword
+     *
+     * <p>
+     * We need to keep this as transient in order to be able to use readResolve
+     * to migrate the old descriptor to the new one.
+     *
+     * <p>
+     * This has been deprecated @since Jenkins 2.1
+     */
+    public transient Secret bindPassword;
 
     private GroupLookupStrategy groupLookupStrategy;
 
@@ -225,8 +242,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
     public ActiveDirectorySecurityRealm(String domain, String site, String bindName,
                                         String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, CacheConfiguration cache) {
-        this(domain, Lists.newArrayList(new ActiveDirectoryDomain(domain, null)), site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups, domain!=null, cache);
-
+        this(domain, Lists.newArrayList(new ActiveDirectoryDomain(domain, server)), site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups, domain!=null, cache);
     }
     
     @DataBoundConstructor
@@ -335,6 +351,11 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         return testDomainControllers;
     }
 
+    @Restricted(NoExternalUse.class)
+    public String getTestSite() {
+        return testSite;
+    }
+
     public Object readResolve() throws ObjectStreamException {
         if (domain != null) {
             this.domains = new ArrayList<ActiveDirectoryDomain>();
@@ -343,6 +364,19 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             for (String oldDomain : oldDomains) {
                 oldDomain = oldDomain.trim();
                 this.domains.add(new ActiveDirectoryDomain(oldDomain, server));
+            }
+        }
+        // JENKINS-39375 Support a different bindUser per domain
+        if (bindName != null && bindPassword != null) {
+            for (ActiveDirectoryDomain activeDirectoryDomain : this.getDomains()) {
+                activeDirectoryDomain.bindName = bindName;
+                activeDirectoryDomain.bindPassword = bindPassword;
+            }
+        }
+        // JENKINS-39423 Make site independent of each domain
+        if (site != null) {
+            for (ActiveDirectoryDomain activeDirectoryDomain : this.getDomains()) {
+                activeDirectoryDomain.site = site;
             }
         }
         return this;
@@ -373,8 +407,8 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
                 for (ActiveDirectoryDomain domain : domains) {
 	                try {
-	                    pw.println("Domain= " + domain.getName() + " site= "+ site);
-	                    List<SocketInfo> ldapServers = descriptor.obtainLDAPServer(domain.getName(), site, domain.getServers());
+	                    pw.println("Domain= " + domain.getName() + " site= "+ domain.getSite());
+	                    List<SocketInfo> ldapServers = descriptor.obtainLDAPServer(domain);
 	                    pw.println("List of domain controllers: "+ldapServers);
 	                    
 	                    for (SocketInfo ldapServer : ldapServers) {
@@ -402,22 +436,6 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
         req.setAttribute("output", out.toString());
         req.getView(this, "test.jelly").forward(req, rsp);
-    }
-
-    public FormValidation doCheckBindName(@QueryParameter String bindName) {
-        String[] DnItems = {"CN=", "DC=", "OU="};
-        for (String dnItem : DnItems) {
-            if (bindName.contains(dnItem)) {
-                return FormValidation.warning("If you are using multiple domains the display name must be used");
-            }
-        }
-        return FormValidation.ok();
-    }
-
-    @Restricted(DoNotUse.class)
-    @Terminator
-    public void shutDownthreadPoolExecutors() {
-        threadPoolExecutor.shutdown();
     }
 
     @Extension
@@ -486,115 +504,6 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         }
 
         private static boolean WARNED = false;
-
-        public FormValidation doValidateTest(@QueryParameter(fixEmpty = true) String testDomain, @QueryParameter(fixEmpty = true) String testDomainControllers, @QueryParameter(fixEmpty = true) String site, @QueryParameter(fixEmpty = true) String bindName,
-                @QueryParameter(fixEmpty = true) String bindPassword) throws IOException, ServletException, NamingException {
-            ClassLoader ccl = Thread.currentThread().getContextClassLoader();
-            Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
-            try {
-                Functions.checkPermission(Hudson.ADMINISTER);
-
-                // In case we can do native authentication
-                if (canDoNativeAuth() && testDomain==null) {
-                    // this check must be identical to that of ActiveDirectory.groovy
-                    try {
-                        // make sure we can connect via ADSI
-                        new ActiveDirectoryAuthenticationProvider();
-                        return FormValidation.ok("OK");
-                    } catch (Exception e) {
-                        return FormValidation.error(e, "Failed to contact Active Directory");
-                    }
-                }
-
-                // If non nativate authentication then check there is at least one Domain created in the UI
-                if (testDomain==null) {
-                    return FormValidation.error("No test domain name set");
-                }
-
-                // Check that all the domains created in the UI has a domain configured
-                if (testDomain.isEmpty()) {
-                    return FormValidation.error("The test domain does not have a DN present");
-                }
-
-                Secret password = Secret.fromString(bindPassword);
-                if (bindName!=null && password==null)
-                    return FormValidation.error("DN is specified but not password");
-
-                DirContext ictx;
-                // First test the sanity of the domain name itself
-                try {
-                    LOGGER.log(Level.FINE, "Attempting to resolve {0} to NS record", testDomain);
-                    ictx = createDNSLookupContext();
-                    Attributes attributes = ictx.getAttributes(testDomain, new String[]{"NS"});
-                    Attribute ns = attributes.get("NS");
-                    if (ns == null) {
-                        LOGGER.log(Level.FINE, "Attempting to resolve {0} to A record", testDomain);
-                        attributes = ictx.getAttributes(testDomain, new String[]{"A"});
-                        Attribute a = attributes.get("A");
-                        if (a == null)
-                            throw new NamingException(testDomain + " doesn't look like a domain name");
-                    }
-                    LOGGER.log(Level.FINE, "{0} resolved to {1}", new Object[]{testDomain, ns});
-                } catch (NamingException e) {
-                    LOGGER.log(Level.WARNING, String.format("Failed to resolve %s to A record", testDomain), e);
-                    return FormValidation.error(e, testDomain + " doesn't look like a valid domain name");
-                }
-
-                // Then look for the LDAP server
-                List<SocketInfo> servers;
-                try {
-                    servers = obtainLDAPServer(ictx, testDomain, site, testDomainControllers);
-                } catch (NamingException e) {
-                    String msg = site == null ? "No LDAP server was found in " + testDomain : "No LDAP server was found in the " + site + " site of " + testDomain;
-                    LOGGER.log(Level.WARNING, msg, e);
-                    return FormValidation.error(e, msg);
-                }
-
-                if (bindName != null) {
-                    // Make sure the bind actually works
-                    try {
-                        DirContext context = bind(bindName, Secret.toString(password), servers);
-                        try {
-                            // Actually do a search to make sure the credential is valid
-                            Attributes userAttributes = new LDAPSearchBuilder(context, toDC(testDomain)).subTreeScope().searchOne("(objectClass=user)");
-                            if (userAttributes == null) {
-                                return FormValidation.error(Messages.ActiveDirectorySecurityRealm_NoUsers());
-                            }
-                        } finally {
-                            context.close();
-                        }
-                    } catch (BadCredentialsException e) {
-                        return FormValidation.error(e, "Bad bind username or password");
-                    } catch (javax.naming.AuthenticationException e) {
-                        return FormValidation.error(e, "Bad bind username or password");
-                    } catch (Exception e) {
-                        return FormValidation.error(e, e.getMessage());
-                    }
-                } else {
-                    // just some connection test
-                    // try to connect to LDAP port to make sure this machine has LDAP service
-                    IOException error = null;
-                    for (SocketInfo si : servers) {
-                        try {
-                            si.connect().close();
-                            break; // looks good
-                        } catch (IOException e) {
-                            LOGGER.log(Level.FINE, String.format("Failed to connect to %s", si), e);
-                            error = e;
-                            // try the next server in the list
-                        }
-                    }
-                    if (error != null) {
-                        LOGGER.log(Level.WARNING, String.format("Failed to connect to %s", servers), error);
-                        return FormValidation.error(error, "Failed to connect to " + servers);
-                    }
-                }
-                // looks good
-                return FormValidation.ok("Success");
-            } finally {
-                Thread.currentThread().setContextClassLoader(ccl);
-            }
-        }
 
         /**
          * Binds to the server using the specified username/password.
@@ -737,8 +646,13 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             return new InitialDirContext(env);
         }
 
+        @Deprecated
         public List<SocketInfo> obtainLDAPServer(String domainName, String site, String preferredServer) throws NamingException {
             return obtainLDAPServer(createDNSLookupContext(), domainName, site, preferredServer);
+        }
+
+        public List<SocketInfo> obtainLDAPServer(ActiveDirectoryDomain activeDirectoryDomain) throws NamingException {
+            return obtainLDAPServer(createDNSLookupContext(), activeDirectoryDomain.getName(), activeDirectoryDomain.getSite(), activeDirectoryDomain.getServers());
         }
 
         // domain name prefixes

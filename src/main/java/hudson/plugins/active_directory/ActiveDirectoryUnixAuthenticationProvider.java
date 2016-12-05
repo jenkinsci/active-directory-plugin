@@ -84,8 +84,6 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
 
     private final String site;
 
-    private final String bindName, bindPassword;
-
     private final ActiveDirectorySecurityRealm.DescriptorImpl descriptor;
 
     private GroupLookupStrategy groupLookupStrategy;
@@ -143,9 +141,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
             throw new IllegalArgumentException("An Active Directory domain name is required but it is not set");
         }
         this.site = realm.site;
-        this.bindName = realm.bindName;
         this.domains = realm.domains;
-        this.bindPassword = Secret.toString(realm.bindPassword);
         this.groupLookupStrategy = realm.getGroupLookupStrategy();
         this.descriptor = realm.getDescriptor();
         this.cache = realm.cache;
@@ -221,8 +217,8 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     }
 
     @Override
-    protected boolean canRetrieveUserByName() {
-        return bindName!=null;
+    protected boolean canRetrieveUserByName(ActiveDirectoryDomain domain) {
+        return domain.getBindName()!=null;
     }
 
     /**
@@ -252,7 +248,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
      */
     private List<SocketInfo> obtainLDAPServers(ActiveDirectoryDomain domain) throws AuthenticationServiceException {
         try {
-            return descriptor.obtainLDAPServer(domain.getName(), site, domain.getServers());
+            return descriptor.obtainLDAPServer(domain);
         } catch (NamingException e) {
             LOGGER.log(Level.WARNING, "Failed to find the LDAP service", e);
             throw new AuthenticationServiceException("Failed to find the LDAP service for the domain "+ domain.getName(), e);
@@ -273,6 +269,8 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     public UserDetails retrieveUser(final String username, final String password, final ActiveDirectoryDomain domain, final List<SocketInfo> ldapServers) {
         UserDetails userDetails;
         String hashKey = username + "@@" + DigestUtils.sha1Hex(password);
+        final String bindName = domain.getBindName();
+        final String bindPassword = domain.getBindPassword().getPlainText();
         try {
             final ActiveDirectoryUserDetail[] cacheMiss = new ActiveDirectoryUserDetail[1];
             userDetails = userCache.get(hashKey, new Callable<UserDetails>() {
@@ -415,20 +413,19 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     }
 
     public GroupDetails loadGroupByGroupname(final String groupname) {
-        if (bindName==null) {
-            throw new UserMayOrMayNotExistException("Unable to retrieve group information without bind DN/password configured");
-        }
-
         try {
             return groupCache.get(groupname, new Callable<ActiveDirectoryGroupDetails>() {
                         public ActiveDirectoryGroupDetails call() {
                             for (ActiveDirectoryDomain domain : domains) {
+                                if (domain==null) {
+                                    throw new UserMayOrMayNotExistException("Unable to retrieve group information without bind DN/password configured");
+                                }
                                 // when we use custom socket factory below, every LDAP operations result
                                 // in a classloading via context classloader, so we need it to resolve.
                                 ClassLoader ccl = Thread.currentThread().getContextClassLoader();
                                 Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
                                 try {
-                                    DirContext context = descriptor.bind(bindName, bindPassword, obtainLDAPServers(domain));
+                                    DirContext context = descriptor.bind(domain.getName(), domain.getBindPassword().getPlainText(), obtainLDAPServers(domain));
 
                                     try {
                                         final String domainDN = toDC(domain.getName());
