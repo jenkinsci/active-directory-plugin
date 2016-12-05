@@ -56,6 +56,7 @@ import javax.naming.directory.DirContext;
 import javax.naming.directory.SearchResult;
 import javax.naming.ldap.LdapName;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.List;
@@ -109,15 +110,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     /**
      * The threadPool to update the cache on background
      */
-    private final ExecutorService threadPoolExecutor =
-            new ThreadPoolExecutor(
-                    corePoolSize,
-                    maxPoolSize,
-                    keepAliveTime,
-                    TimeUnit.MILLISECONDS,
-                    new ArrayBlockingQueue<Runnable>(queueSize),
-                    new ThreadPoolExecutor.DiscardPolicy()
-            );
+    private final ExecutorService threadPoolExecutor;
 
     /**
      * Properties to be passed to the current LDAP context
@@ -144,25 +137,6 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
      */
     private final static String LDAP_READ_TIMEOUT = "com.sun.jndi.ldap.read.timeout";
 
-    /**
-     * The core pool size for the {@link ExecutorService}
-     */
-    private static final int corePoolSize = 4;
-
-    /**
-     * The max pool size for the {@link ExecutorService}
-     */
-    private static final int maxPoolSize = 8;
-
-    /**
-     * The keep alive time for the {@link ExecutorService}
-     */
-    private static final long keepAliveTime = 10000;
-
-    /**
-     * The queue size for the {@link ExecutorService}
-     */
-    private static final int queueSize = 25;
 
     public ActiveDirectoryUnixAuthenticationProvider(ActiveDirectorySecurityRealm realm) {
         if (realm.domains==null) {
@@ -187,6 +161,8 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
 
         this.userCache = cache.getUserCache();
         this.groupCache = cache.getGroupCache();
+
+        this.threadPoolExecutor = realm.threadPoolExecutor;
 
         Map<String, String> extraEnvVarsMap = ActiveDirectorySecurityRealm.EnvironmentProperty.toMap(realm.environmentProperties);
         // TODO In JDK 8u65 I am facing JDK-8139721, JDK-8139942 which makes the plugin to break. Uncomment line once it is fixed.
@@ -406,7 +382,14 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                 threadPoolExecutor.execute(new Runnable() {
                     @Override
                     public void run() {
+                        final String threadName = Thread.currentThread().getName();
+                        Thread.currentThread().setName(threadName + " updating-cache-for-user-" + cacheMiss[0].getUsername());
+                        LOGGER.log(Level.FINEST, "Starting the cache update {0}", new Date());
+                        long t0 = System.currentTimeMillis();
                         cacheMiss[0].updateUserInfo();
+                        LOGGER.log(Level.FINEST, "Finished the cache update {0}", new Date());
+                        long t1 = System.currentTimeMillis();
+                        LOGGER.log(Level.FINE, "The cache for user {0} took {1} msec", new Object[]{cacheMiss[0].getUsername(), String.valueOf(t1-t0)});
                     }
                 });
 
