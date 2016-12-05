@@ -351,11 +351,6 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         return testDomainControllers;
     }
 
-    @Restricted(NoExternalUse.class)
-    public String getTestSite() {
-        return testSite;
-    }
-
     public Object readResolve() throws ObjectStreamException {
         if (domain != null) {
             this.domains = new ArrayList<ActiveDirectoryDomain>();
