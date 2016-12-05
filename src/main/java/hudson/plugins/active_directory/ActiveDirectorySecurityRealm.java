@@ -227,8 +227,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
      * The queue size for the {@link ExecutorService}
      */
     private static final int queueSize = Integer.valueOf(System.getProperty("hudson.plugins.active_directory.threadPoolExecutor.queueSize"), 25);
-
-
+    
     public ActiveDirectorySecurityRealm(String domain, String site, String bindName, String bindPassword, String server) {
         this(domain, site, bindName, bindPassword, server, GroupLookupStrategy.AUTO, false);
     }
