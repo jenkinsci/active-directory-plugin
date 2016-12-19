@@ -31,6 +31,7 @@ import hudson.model.Descriptor;
 import hudson.model.Hudson;
 import hudson.util.FormValidation;
 import hudson.util.Secret;
+import jenkins.model.Jenkins;
 import org.acegisecurity.BadCredentialsException;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.accmod.Restricted;
@@ -39,13 +40,19 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
 import javax.naming.CommunicationException;
+import javax.naming.Context;
 import javax.naming.NamingException;
 import javax.naming.directory.Attribute;
 import javax.naming.directory.Attributes;
 import javax.naming.directory.DirContext;
+import javax.naming.directory.InitialDirContext;
 import javax.servlet.ServletException;
 import java.io.IOException;
 import java.io.Serializable;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.Hashtable;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -149,6 +156,171 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
     public String getSite() {
         return site;
     }
+
+
+    public List<SocketInfo> getServerList(){
+        /*List<SocketInfo> result = new ArrayList<SocketInfo>();
+        if (servers!=null) {
+            for (String token : servers.split(",")) {
+                result.add(new SocketInfo(token.trim()));
+            }
+            return result;
+        }*/
+
+        // Create a fake ActiveDirectorySecurityRealm
+        List<SocketInfo> result = new ArrayList<SocketInfo>();
+        ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(name, site, "", "", servers);
+        try {
+            result = activeDirectorySecurityRealm.getDescriptor().obtainLDAPServer(this);
+        } catch (NamingException e) {
+            e.printStackTrace();
+        }
+
+        return result;
+    }
+
+
+    /**
+     * Get the list the servers which are using the LDAP catalog
+     * @return
+     */
+    public List<SocketInfo> getServersUsingLdapCatalog(){
+        List<SocketInfo> result = new ArrayList<SocketInfo>();
+        if (servers!=null) {
+            for (String token : servers.split(",")) {
+                SocketInfo socketInfo = new SocketInfo(token.trim());
+                if(socketInfo.getPort() == 686 || socketInfo.getPort() == 389) {
+                    result.add(new SocketInfo(token.trim()));
+                }
+            }
+            return result;
+        }
+        return null;
+    }
+
+    /**
+     * Get the list the servers which are using the LDAP catalog
+     * @return
+     */
+    public boolean isDomanDnsSane(){
+        // Create a fake ActiveDirectorySecurityRealm
+        ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(name, site, "", "", servers);
+        DirContext ictx;
+        // First test the sanity of the domain name itself
+        try {
+            LOGGER.log(Level.FINE, "Attempting to resolve {0} to NS record", name);
+            ictx = activeDirectorySecurityRealm.getDescriptor().createDNSLookupContext();
+            Attributes attributes = ictx.getAttributes(name, new String[]{"NS"});
+            Attribute ns = attributes.get("NS");
+            if (ns == null) {
+                LOGGER.log(Level.FINE, "Attempting to resolve {0} to A record", name);
+                attributes = ictx.getAttributes(name, new String[]{"A"});
+                Attribute a = attributes.get("A");
+                if (a == null) {
+                    throw new NamingException(name + " doesn't look like a domain name");
+                }
+            }
+            LOGGER.log(Level.FINE, "{0} resolved to {1}", new Object[]{name, ns});
+            return true;
+        } catch (NamingException e) {
+            LOGGER.log(Level.WARNING, String.format("Failed to resolve %s to A record", name), e);
+            return false;
+        }
+    }
+
+    /**
+     * Creates {@link DirContext} for accesssing DNS.
+     */
+    public DirContext createDNSLookupContext() throws NamingException {
+        Hashtable env = new Hashtable();
+        env.put(Context.INITIAL_CONTEXT_FACTORY, "com.sun.jndi.dns.DnsContextFactory");
+        env.put("java.naming.provider.url", "dns:");
+        return new InitialDirContext(env);
+    }
+
+    public boolean isDomainExposingGc() {
+        // try global catalog if it exists first, then the particular domain
+        String candidate = "_gc._tcp.";
+        Attribute a;
+        String ldapServer;
+        ldapServer = candidate+(site!=null ? site+"._sites." : "")+this.name;
+        LOGGER.fine("Attempting to resolve "+ldapServer+" to SRV record");
+        try {
+            Attributes attributes = createDNSLookupContext().getAttributes(ldapServer, new String[] { "SRV" });
+            a = attributes.get("SRV");
+            if (a!=null) {
+                return true;
+            } else {
+                return false;
+            }
+        } catch (NamingException e) {
+            // failed retrieval. try next option.
+        } catch (NumberFormatException x) {
+            //
+        }
+        return false;
+    }
+
+    public boolean isDomainExposingLdapCatalog() {
+        // try global catalog if it exists first, then the particular domain
+        String candidate = "_ldap._tcp.";
+        Attribute a;
+        String ldapServer;
+        ldapServer = candidate+(site!=null ? site+"._sites." : "")+this.name;
+        LOGGER.fine("Attempting to resolve "+ldapServer+" to SRV record");
+        try {
+            Attributes attributes = createDNSLookupContext().getAttributes(ldapServer, new String[] { "SRV" });
+            a = attributes.get("SRV");
+            if (a!=null) {
+                return true;
+            } else {
+                return false;
+            }
+        } catch (NamingException e) {
+            // failed retrieval. try next option.
+        } catch (NumberFormatException x) {
+            //
+        }
+        return false;
+    }
+
+    public boolean isLoginSuccessful(SocketInfo socketInfo) {
+        ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(name, site, "", "", servers);
+        List<SocketInfo> servertest = new ArrayList<SocketInfo>(1);
+        servertest.add(socketInfo);
+
+        if (bindName != null) {
+            // Make sure the bind actually works
+            try {
+                DirContext context = activeDirectorySecurityRealm.getDescriptor().bind(bindName, Secret.toString(bindPassword), servertest);
+                try {
+                    // Actually do a search to make sure the credential is valid
+                    Attributes userAttributes = new LDAPSearchBuilder(context, toDC(name)).subTreeScope().searchOne("(objectClass=user)");
+                    if (userAttributes == null) {
+                    }
+                } finally {
+                    context.close();
+                    return true;
+                }
+            }  catch (Exception e) {
+                return false;
+            }
+        } else {
+            // just some connection test
+            // try to connect to LDAP port to make sure this machine has LDAP service
+            IOException error = null;
+            for (SocketInfo si : servertest) {
+                try {
+                    si.connect().close();
+                    return true; // looks good
+                } catch (IOException e) {
+                    return false;
+                }
+            }
+            return false;
+        }
+    }
+
 
     /**
      * Convert empty string to null.
