@@ -380,13 +380,16 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                     @Override
                     public void run() {
                         final String threadName = Thread.currentThread().getName();
-                        Thread.currentThread().setName(threadName + " updating-cache-for-user-" + cacheMiss[0].getUsername());
                         LOGGER.log(Level.FINEST, "Starting the cache update {0}", new Date());
-                        long t0 = System.currentTimeMillis();
-                        cacheMiss[0].updateUserInfo();
-                        LOGGER.log(Level.FINEST, "Finished the cache update {0}", new Date());
-                        long t1 = System.currentTimeMillis();
-                        LOGGER.log(Level.FINE, "The cache for user {0} took {1} msec", new Object[]{cacheMiss[0].getUsername(), String.valueOf(t1-t0)});
+                        try {
+                            long t0 = System.currentTimeMillis();
+                            cacheMiss[0].updateUserInfo();
+                            LOGGER.log(Level.FINEST, "Finished the cache update {0}", new Date());
+                            long t1 = System.currentTimeMillis();
+                            LOGGER.log(Level.FINE, "The cache for user {0} took {1} msec", new Object[]{cacheMiss[0].getUsername(), String.valueOf(t1-t0)});
+                        } finally {
+                            Thread.currentThread().setName(threadName + " updating-cache-for-user-" + cacheMiss[0].getUsername());
+                        }
                     }
                 });
 
