@@ -594,7 +594,6 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                 Thread.currentThread().setName(oldName);
             }
         }
-
         /**
          * Creates {@link DirContext} for accesssing DNS.
          */
