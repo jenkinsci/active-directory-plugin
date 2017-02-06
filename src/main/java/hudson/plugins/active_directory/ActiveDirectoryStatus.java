@@ -24,6 +24,7 @@ package hudson.plugins.active_directory;
  * THE SOFTWARE.
  */
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
 import hudson.model.ManagementLink;
 import hudson.security.SecurityRealm;
@@ -136,9 +137,9 @@ public class ActiveDirectoryStatus extends ManagementLink {
 
     /**
      * ServerHealth of a SocketInfo
-     *
      */
-    public class ServerHealth extends SocketInfo {
+    @SuppressFBWarnings("UUF_UNUSED_FIELD")
+    public static class ServerHealth extends SocketInfo {
         /**
          * true if able to retrieve the user details from Jenkins
          */
@@ -154,13 +155,13 @@ public class ActiveDirectoryStatus extends ManagementLink {
          */
         private long loginExecutionTime;
 
-
         public ServerHealth(SocketInfo socketInfo) {
             super(socketInfo.getHost(), socketInfo.getPort());
             this.pingExecutionTime = this.computePingExecutionTime();
             this.loginExecutionTime = this.computeLoginExecutionTime();
         }
 
+        @Restricted(NoExternalUse.class)
         public boolean isCanLogin() {
             return true ? loginExecutionTime != -1 : false;
         }
