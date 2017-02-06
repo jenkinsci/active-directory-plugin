@@ -31,7 +31,6 @@ import hudson.model.Descriptor;
 import hudson.model.Hudson;
 import hudson.util.FormValidation;
 import hudson.util.Secret;
-import jenkins.model.Jenkins;
 import org.acegisecurity.BadCredentialsException;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.accmod.Restricted;
@@ -50,6 +49,7 @@ import javax.servlet.ServletException;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.logging.Level;
@@ -155,32 +155,10 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
         return site;
     }
 
-
-    public List<SocketInfo> getServerList(){
-        /*List<SocketInfo> result = new ArrayList<SocketInfo>();
-        if (servers!=null) {
-            for (String token : servers.split(",")) {
-                result.add(new SocketInfo(token.trim()));
-            }
-            return result;
-        }*/
-
-        // Create a fake ActiveDirectorySecurityRealm
-        List<SocketInfo> result = new ArrayList<SocketInfo>();
-        ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(name, site, "", "", servers);
-        try {
-            result = activeDirectorySecurityRealm.getDescriptor().obtainLDAPServer(this);
-        } catch (NamingException e) {
-            e.printStackTrace();
-        }
-
-        return result;
-    }
-
-
     /**
      * Get the list the servers which are using the LDAP catalog
-     * @return
+     *
+     * @return an empty list if there is not any LDAP server exposed on the DNS
      */
     public List<SocketInfo> getServersUsingLdapCatalog(){
         List<SocketInfo> result = new ArrayList<SocketInfo>();
@@ -193,12 +171,13 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
             }
             return result;
         }
-        return null;
+        return Collections.emptyList();
     }
 
     /**
-     * Get the list the servers which are using the LDAP catalog
-     * @return
+     * Check if the DNS resolution works or not
+     *
+     * @return true if the DNS resolution works
      */
     public boolean isDnsResolutionSane(){
         // Create a fake ActiveDirectorySecurityRealm
@@ -236,52 +215,55 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
         return new InitialDirContext(env);
     }
 
+    /**
+     * Checks if the Global Catalog is exposed
+     *
+     * @return true if Global Catalog is exposed
+     */
     public boolean isGlobalCatalogExposed() {
-        // try global catalog if it exists first, then the particular domain
         String candidate = "_gc._tcp.";
-        Attribute a;
-        String ldapServer;
-        ldapServer = candidate+(site!=null ? site+"._sites." : "")+this.name;
-        LOGGER.fine("Attempting to resolve "+ldapServer+" to SRV record");
+        String ldapServer = candidate + (site != null ? site + "._sites." : "") + this.name;
+        LOGGER.log(Level.FINE, "Attempting to resolve {0} to SRV record", ldapServer);
         try {
             Attributes attributes = createDNSLookupContext().getAttributes(ldapServer, new String[] { "SRV" });
-            a = attributes.get("SRV");
+            Attribute a = attributes.get("SRV");
             if (a!=null) {
                 return true;
             } else {
                 return false;
             }
         } catch (NamingException e) {
-            // failed retrieval. try next option.
+            LOGGER.log(Level.WARNING, String.format("Failed to resolve %s", ldapServer), e);
         } catch (NumberFormatException x) {
-            //
+            LOGGER.log(Level.WARNING, String.format("Failed to resolve %s", ldapServer), x);
         }
         return false;
     }
 
+    /**
+     * Checks if the LDAP Catalog is exposed
+     *
+     * @return true if the LDAP Catalog is exposed
+     */
     public boolean isLdapCatalogExposed() {
-        // try global catalog if it exists first, then the particular domain
         String candidate = "_ldap._tcp.";
-        Attribute a;
-        String ldapServer;
-        ldapServer = candidate+(site!=null ? site+"._sites." : "")+this.name;
+        String ldapServer = candidate + (site != null ? site + "._sites." : "") + this.name;
         LOGGER.fine("Attempting to resolve "+ldapServer+" to SRV record");
         try {
             Attributes attributes = createDNSLookupContext().getAttributes(ldapServer, new String[] { "SRV" });
-            a = attributes.get("SRV");
+            Attribute a = attributes.get("SRV");
             if (a!=null) {
                 return true;
             } else {
                 return false;
             }
         } catch (NamingException e) {
-            // failed retrieval. try next option.
+            LOGGER.log(Level.WARNING, String.format("Failed to resolve %s", ldapServer), e);
         } catch (NumberFormatException x) {
-            //
+            LOGGER.log(Level.WARNING, String.format("Failed to resolve %s", ldapServer), x);
         }
         return false;
     }
-
 
     /**
      * Convert empty string to null.

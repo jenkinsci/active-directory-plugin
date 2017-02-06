@@ -53,6 +53,11 @@ public class SocketInfo {
         }
     }
 
+    @Override
+    public String toString() {
+        return port==0 ? host : host+':'+port;
+    }
+
     public String getHost() {
         return host;
     }
@@ -65,6 +70,11 @@ public class SocketInfo {
         return new Socket(host,port);
     }
 
+    /**
+     * Retrieve the IP address of the Server we are targeting
+     *
+     * @return the IP address of the host
+     */
     public String getIpAddress() {
         try {
             InetAddress inetAddress = InetAddress.getByName(host);
@@ -72,11 +82,6 @@ public class SocketInfo {
         } catch (UnknownHostException e) {
             return Messages._ActiveDirectoryStatus_IpAddressNotRetrieved().toString();
         }
-    }
-
-    @Override
-    public String toString() {
-        return port==0 ? host : host+':'+port;
     }
 
 }

@@ -103,10 +103,14 @@ public class ActiveDirectoryStatus extends ManagementLink {
                         return;
                     }
                     if (domainItem.getName().equals(domain)) {
-                        List<SocketInfo> servers = domainItem.getServerList();
-                        for (SocketInfo socketInfo : servers) {
-                            ServerHealth serverHealth = new ServerHealth(socketInfo);
-                            domainHealth.add(serverHealth);
+                        SecurityRealm securityRealm = Jenkins.getInstance().getSecurityRealm();
+                        if (securityRealm instanceof ActiveDirectorySecurityRealm) {
+                            ActiveDirectorySecurityRealm activeDirectorySecurityRealm = (ActiveDirectorySecurityRealm) securityRealm;
+                            List<SocketInfo> servers = activeDirectorySecurityRealm.getDescriptor().obtainLDAPServer(domainItem);
+                            for (SocketInfo socketInfo : servers) {
+                                ServerHealth serverHealth = new ServerHealth(socketInfo);
+                                domainHealth.add(serverHealth);
+                            }
                         }
                     }
                 }

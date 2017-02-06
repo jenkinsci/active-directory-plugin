@@ -595,8 +595,6 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             }
         }
 
-
-        
         /**
          * Creates {@link DirContext} for accesssing DNS.
          */
