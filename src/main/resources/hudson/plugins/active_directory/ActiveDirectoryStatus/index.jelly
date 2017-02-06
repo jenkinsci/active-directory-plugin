@@ -3,96 +3,93 @@
     <l:layout title="${it.displayName}">
         <l:main-panel>
             <h1>${it.displayName}</h1>
-            <h2>${%Basic health checks}</h2>
+            <h2>${%ActiveDirectoryStatus.DomainHealth}</h2>
             <j:set var="domains" value="${it.domains}"/>
-            <j:choose>
-                <j:when test="${domains != null}">
-                    <table class="bigtable pane">
-                        <tr>
-                            <th class="pane-header">
-                                ${%Active Directory Domain}
-                            </th>
-                            <th class="pane-header">
-                                ${%Servers}
-                            </th>
-                        </tr>
-                        <j:forEach var="domain" items="${domains}">
-                            <tr>
-                            <td class="pane">
-                                ${domain.name}
-                            </td>
-                            <j:if test="${domain.serversUsingLdapCatalog != null}">
-                                <td class="pane">
-                                    ${%There are servers using the LDAP Catalog}
-                                    ${domain.serversUsingLdapCatalog}
-                                    <br/>
-                                    ${%Ldap catalog used but not recommended as it can use referral which can end-up with login failures intermittent problems. Change this to Global Catalog using port 389 3268)}
-                                </td>
-                            </j:if>
-                            <j:if test="${domain.serversUsingLdapCatalog == null}">
-                                <td class="pane">
-                                    ${%Domain DNS lookup working : }
-                                    ${domain.DomanDnsSane}
-                                    <br/>
-                                    ${%Domain exposing Global Catalog : }
-                                    ${domain.domainExposingGc}
-                                    <br/>
-                                    ${%Domain exposing Ldap Catalog : }
-                                    ${domain.domainExposingLdapCatalog}
-                                </td>
-                            </j:if>
-                        </tr>
-                        </j:forEach>
-
-                    </table>
-                </j:when>
-                <j:otherwise>
-                </j:otherwise>
-            </j:choose>
-            <h2>${%Servers health checks}</h2>
-            <j:choose>
-                <j:when test="${domains != null}">
-                    <j:forEach var="domain" items="${domains}">
-                        <h3>${domain.name}</h3>
-                        <table class="bigtable pane">
-                            <tr>
-                                <th class="pane-header">
-                                    ${%Server}
-                                </th>
-                                <th class="pane-header">
-                                    ${%Time}
-                                </th>
-                                <th class="pane-header">
-                                    ${%Login}
-                                </th>
-                            </tr>
-                            <j:forEach var="server" items="${domain.serverList}">
-                                <j:set var="isLoginSuccessful" value="${domain.isLoginSuccessful(server)}"/>
-                                <tr>
-                                    <td class="pane">
-                                        ${server}
-                                    </td>
-                                    <td class="pane">
-                                        ${server.pingExecutionTime}
-                                    </td>
-                                    <td class="pane">
-                                        <j:choose>
-                                            <j:when test="${(isLoginSuccessful == true) and (domain.bindName == null)}">
-                                                    ${%Cannot determinate as there is not any bindName}
-                                            </j:when>
-                                            <j:otherwise>
-                                                    ${domain.isLoginSuccessful(server)}
-                                            </j:otherwise>
-                                        </j:choose>
-                                    </td>
-                                </tr>
-                            </j:forEach>
-                        </table>
+            <table class="bigtable pane">
+                <tr>
+                    <th class="pane-header">
+                        ${%ActiveDirectoryStatus.Domain}
+                    </th>
+                    <th class="pane-header">
+                        ${%ActiveDirectoryStatus.HealthChecks}
+                    </th>
+                </tr>
+                <j:forEach var="domain" items="${domains}">
+                    <tr>
+                        <td class="pane">
+                            ${domain.name}
+                        </td>
+                        <td class="pane">
+                            ${%ActiveDirectoryStatus.DnsResolutionSane}
+                            ${domain.dnsResolutionSane}
+                            <br/>
+                            ${%ActiveDirectoryStatus.GlobalCatalogExposed}
+                            ${domain.globalCatalogExposed}
+                            <br/>
+                            ${%ActiveDirectoryStatus.LdapCatalogExposed}
+                            ${domain.ldapCatalogExposed}
+                        </td>
+                    </tr>
+                </j:forEach>
+            </table>
+            ${it.descriptor}
+            <h2>${%ActiveDirectoryStatus.ServersHealth}</h2>
+            <j:set var="domain" value="${request.getParameter('domain')}"/>
+            <form method="POST" action=".">
+                Get servers health on domain:
+                <select name="domain">
+                    <j:forEach var="element" items="${it.domains}">
+                        <option value="${element.name}">${element.name}</option>
                     </j:forEach>
-                </j:when>
-                <j:otherwise>
-                </j:otherwise>
-            </j:choose>
+                </select>
+                <br/> <br/>
+                <input name="Check servers" type="submit"/>
+                <br/>
+            </form>
+            <pre>
+            ${it.check}
+            </pre>
+            <script>
+                function display(r) {
+                    r.domainHealth.forEach(function(domainHealth) {
+                        var tr = document.createElement('tr');
+                        var td1 = document.createElement('td');
+                        var td2 = document.createElement('td');
+                        var td3 = document.createElement('td');
+                        var td4 = document.createElement('td');
+                        var text1 = document.createTextNode(domainHealth.host + ' / ' + domainHealth.ipAddress);
+                        var text2 = document.createTextNode(domainHealth.canLogin);
+                        var text3 = document.createTextNode(domainHealth.pingExecutionTime + ' mseg');
+                        var text4 = document.createTextNode(domainHealth.loginExecutionTime  + ' mseg');
+                        td1.appendChild(text1);
+                        td2.appendChild(text2);
+                        td3.appendChild(text3);
+                        td4.appendChild(text4);
+                        tr.appendChild(td1);
+                        tr.appendChild(td2);
+                        tr.appendChild(td3);
+                        tr.appendChild(td4);
+                        $(demo).appendChild(tr);
+                    });
+                }
+            </script>
+            <l:progressiveRendering handler="${it.startDomainHealthChecks(domain)}" callback="display" tooltip="Checking Domain Controllers..."/>
+            <table id="demo" class="bigtable pane">
+                <tr>
+                    <th class="pane-header">
+                        ${%Domain Controller}
+                    </th>
+                    <th class="pane-header">
+                        ${%Login successful}
+                    </th>
+                    <th class="pane-header">
+                        ${%Connection time}
+                    </th>
+                    <th class="pane-header">
+                        ${%User lookup time}
+                    </th>
+                </tr>
+            </table>
         </l:main-panel>
     </l:layout>
 </j:jelly>

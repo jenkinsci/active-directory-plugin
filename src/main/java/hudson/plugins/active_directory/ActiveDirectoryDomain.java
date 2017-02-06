@@ -49,8 +49,6 @@ import javax.naming.directory.InitialDirContext;
 import javax.servlet.ServletException;
 import java.io.IOException;
 import java.io.Serializable;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
@@ -202,7 +200,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
      * Get the list the servers which are using the LDAP catalog
      * @return
      */
-    public boolean isDomanDnsSane(){
+    public boolean isDnsResolutionSane(){
         // Create a fake ActiveDirectorySecurityRealm
         ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(name, site, "", "", servers);
         DirContext ictx;
@@ -238,7 +236,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
         return new InitialDirContext(env);
     }
 
-    public boolean isDomainExposingGc() {
+    public boolean isGlobalCatalogExposed() {
         // try global catalog if it exists first, then the particular domain
         String candidate = "_gc._tcp.";
         Attribute a;
@@ -261,7 +259,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
         return false;
     }
 
-    public boolean isDomainExposingLdapCatalog() {
+    public boolean isLdapCatalogExposed() {
         // try global catalog if it exists first, then the particular domain
         String candidate = "_ldap._tcp.";
         Attribute a;
@@ -282,43 +280,6 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
             //
         }
         return false;
-    }
-
-    public boolean isLoginSuccessful(SocketInfo socketInfo) {
-        ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(name, site, "", "", servers);
-        List<SocketInfo> servertest = new ArrayList<SocketInfo>(1);
-        servertest.add(socketInfo);
-
-        if (bindName != null) {
-            // Make sure the bind actually works
-            try {
-                DirContext context = activeDirectorySecurityRealm.getDescriptor().bind(bindName, Secret.toString(bindPassword), servertest);
-                try {
-                    // Actually do a search to make sure the credential is valid
-                    Attributes userAttributes = new LDAPSearchBuilder(context, toDC(name)).subTreeScope().searchOne("(objectClass=user)");
-                    if (userAttributes == null) {
-                    }
-                } finally {
-                    context.close();
-                    return true;
-                }
-            }  catch (Exception e) {
-                return false;
-            }
-        } else {
-            // just some connection test
-            // try to connect to LDAP port to make sure this machine has LDAP service
-            IOException error = null;
-            for (SocketInfo si : servertest) {
-                try {
-                    si.connect().close();
-                    return true; // looks good
-                } catch (IOException e) {
-                    return false;
-                }
-            }
-            return false;
-        }
     }
 
 

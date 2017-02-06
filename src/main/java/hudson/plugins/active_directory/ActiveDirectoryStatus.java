@@ -3,7 +3,7 @@ package hudson.plugins.active_directory;
 /*
  * The MIT License
  *
- * Copyright (c) 2016, Felix Belzunce Arcos, CloudBees, Inc., and contributors
+ * Copyright (c) 2017, Felix Belzunce Arcos, CloudBees, Inc., and contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,15 +27,30 @@ package hudson.plugins.active_directory;
 import hudson.Extension;
 import hudson.model.ManagementLink;
 import hudson.security.SecurityRealm;
+import hudson.util.ListBoxModel;
 import jenkins.model.Jenkins;
+import jenkins.util.ProgressiveRendering;
+import net.sf.json.JSON;
+import net.sf.json.JSONArray;
+import net.sf.json.JSONObject;
+import org.acegisecurity.userdetails.UserDetails;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 
+import java.io.IOException;
+import java.net.Socket;
+import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 
 /**
- * Jenkins ManagementLink to provide the Active Directory status
+ * ManagementLink to provide an Active Directory health status
  *
- * Intend to provide useful information about the current set-up
- * and if might be anyway to improve it.
+ * Intend to report a health status of the Active Directory Domain through
+ * a ManagementLink on Jenkins.
+ *  - Check if there is any broken Domain Controller on the farm
+ *  - Report the connection time
+ *  - Provides the User lookup time
  *
  * @since 2.1
  */
@@ -49,7 +64,7 @@ public class ActiveDirectoryStatus extends ManagementLink {
 
     @Override
     public String getDisplayName() {
-        return "Active Directory Status";
+        return Messages._ActiveDirectoryStatus_ActiveDirectoryHealthStatus().toString();
     }
 
     @Override
@@ -58,16 +73,131 @@ public class ActiveDirectoryStatus extends ManagementLink {
     }
 
     /**
-     * Gets the singleton of the {@link ActiveDirectorySecurityRealm}.
+     * Get the list of domains configured on the Security Realm
      *
-     * @return the singleton of the {@link ActiveDirectorySecurityRealm}.
+     * @return the Active Directory domains {@link ActiveDirectoryDomain}.
      */
+    @Restricted(NoExternalUse.class)
     public static List<ActiveDirectoryDomain> getDomains() {
-        SecurityRealm securityRealm = Jenkins.getInstance().getSecurityRealm();
-        if (securityRealm instanceof ActiveDirectorySecurityRealm) {
-            ActiveDirectorySecurityRealm activeDirectorySecurityRealm = (ActiveDirectorySecurityRealm) securityRealm;
-            return activeDirectorySecurityRealm.getDomains();
-        }
-        return null;
+    SecurityRealm securityRealm = Jenkins.getInstance().getSecurityRealm();
+    if (securityRealm instanceof ActiveDirectorySecurityRealm) {
+        ActiveDirectorySecurityRealm activeDirectorySecurityRealm = (ActiveDirectorySecurityRealm) securityRealm;
+        return activeDirectorySecurityRealm.getDomains();
     }
+    return Collections.emptyList();
+    }
+
+    /**
+     * Start the Domain Controller Health checks against a specific domain
+     *
+     * @param domain to check the health
+     * @return {@link ProgressiveRendering}
+     */
+    @Restricted(NoExternalUse.class)
+    public ProgressiveRendering startDomainHealthChecks(final String domain) {
+        return new ProgressiveRendering() {
+            final List<ServerHealth> domainHealth = new LinkedList<ServerHealth>();
+            @Override protected void compute() throws Exception {
+                for (ActiveDirectoryDomain domainItem : getDomains()) {
+                    if (canceled()) {
+                        return;
+                    }
+                    if (domainItem.getName().equals(domain)) {
+                        List<SocketInfo> servers = domainItem.getServerList();
+                        for (SocketInfo socketInfo : servers) {
+                            ServerHealth serverHealth = new ServerHealth(socketInfo);
+                            domainHealth.add(serverHealth);
+                        }
+                    }
+                }
+            }
+            @Override protected synchronized JSON data() {
+                JSONArray r = new JSONArray();
+                for (ServerHealth serverHealth : domainHealth) {
+                    r.add(serverHealth);
+                }
+                domainHealth.clear();
+                return new JSONObject().accumulate("domainHealth", r);
+            }
+        };
+    }
+
+    @Restricted(NoExternalUse.class)
+    public ListBoxModel doFillDomainsItems() {
+        ListBoxModel model = new ListBoxModel();
+        for (ActiveDirectoryDomain domain : getDomains()) {
+            model.add(domain.getName());
+        }
+        return model;
+    }
+
+    /**
+     * ServerHealth of a SocketInfo
+     *
+     */
+    public class ServerHealth extends SocketInfo {
+        /**
+         * true if able to retrieve the user details from Jenkins
+         */
+        private boolean canLogin;
+
+        /**
+         * Time for a Socket to reach out the target server
+         */
+        private long pingExecutionTime;
+
+        /**
+         * Total amount of time for Jenkins to perform SecurityRealm.loadUserByUsername
+         */
+        private long loginExecutionTime;
+
+
+        public ServerHealth(SocketInfo socketInfo) {
+            super(socketInfo.getHost(), socketInfo.getPort());
+            this.pingExecutionTime = this.computePingExecutionTime();
+            this.loginExecutionTime = this.computeLoginExecutionTime();
+        }
+
+        public boolean isCanLogin() {
+            return true ? loginExecutionTime != -1 : false;
+        }
+
+        public long getPingExecutionTime() {
+            return pingExecutionTime;
+        }
+
+        public long getLoginExecutionTime() {
+            return loginExecutionTime;
+        }
+
+        /**
+         * Retrieve the time for Jenkins to perform SecurityRealm.loadUserByUsername
+         *
+         * @return -1 in case the user could not be retrieved
+         */
+        private long computeLoginExecutionTime() {
+            String username = Jenkins.getAuthentication().getName();
+            long t0 = System.currentTimeMillis();
+            UserDetails userDetails = Jenkins.getInstance().getSecurityRealm().loadUserByUsername(username);
+            long t1 = System.currentTimeMillis();
+            return  (userDetails!=null) ? (t1 - t0) : -1;
+        }
+
+        /**
+         * Retrieve the time to to establish a Socket connection with the AD server
+         *
+         * @return -1 in case the connection failed
+         */
+        private long computePingExecutionTime() {
+            try {
+                long t0 = System.currentTimeMillis();
+                super.connect().close();
+                long t1 = System.currentTimeMillis();
+                return t1-t0;
+            } catch (IOException e) {
+            }
+            return -1;
+        }
+    }
+
 }

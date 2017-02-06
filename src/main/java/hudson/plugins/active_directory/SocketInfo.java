@@ -23,14 +23,9 @@
  */
 package hudson.plugins.active_directory;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.InetAddress;
-import java.net.MalformedURLException;
 import java.net.Socket;
-import java.net.URL;
-import java.net.URLConnection;
 import java.net.UnknownHostException;
 
 /**
@@ -39,8 +34,8 @@ import java.net.UnknownHostException;
  * @author Kohsuke Kawaguchi
  */
 public class SocketInfo {
-    public final String host;
-    public final int port;
+    private final String host;
+    private final int port;
 
     public SocketInfo(String host, int port) {
         this.host = host;
@@ -66,36 +61,22 @@ public class SocketInfo {
         return port;
     }
 
-    public Long getPingExecutionTime() {
-        /*try {
-            InetAddress inet = InetAddress.getByName(host);
-            long t0 = System.currentTimeMillis();
-            InetAddress.getByName(host).isReachable(1000);
-            long t1 = System.currentTimeMillis();
-            return t1-t0 -1000;
-        } catch (UnknownHostException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return null;*/
-        try {
-            long t0 = System.currentTimeMillis();
-            this.connect().close();
-            long t1 = System.currentTimeMillis();
-            return t1-t0;
-        } catch (IOException e1) {
-        }
-        return null;
+    public Socket connect() throws IOException {
+        return new Socket(host,port);
     }
 
+    public String getIpAddress() {
+        try {
+            InetAddress inetAddress = InetAddress.getByName(host);
+            return inetAddress.getHostAddress();
+        } catch (UnknownHostException e) {
+            return Messages._ActiveDirectoryStatus_IpAddressNotRetrieved().toString();
+        }
+    }
 
     @Override
     public String toString() {
         return port==0 ? host : host+':'+port;
     }
 
-    public Socket connect() throws IOException {
-        return new Socket(host,port);
-    }
 }
