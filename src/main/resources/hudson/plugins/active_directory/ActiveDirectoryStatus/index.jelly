@@ -59,8 +59,8 @@
                         var td4 = document.createElement('td');
                         var text1 = document.createTextNode(domainHealth.host + ' / ' + domainHealth.ipAddress);
                         var text2 = document.createTextNode(domainHealth.canLogin);
-                        var text3 = document.createTextNode(domainHealth.pingExecutionTime + ' mseg');
-                        var text4 = document.createTextNode(domainHealth.loginExecutionTime  + ' mseg');
+                        var text3 = document.createTextNode(domainHealth.pingExecutionTime + ' ms');
+                        var text4 = document.createTextNode(domainHealth.loginExecutionTime  + ' ms');
                         td1.appendChild(text1);
                         td2.appendChild(text2);
                         td3.appendChild(text3);
