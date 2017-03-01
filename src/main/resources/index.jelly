@@ -1,4 +1,4 @@
 <?jelly escape-by-default='true'?>
 <div>
-  This plugin enables authentication through Active Directory on Windows environment.
+  This plugin enables authentication through Active Directory.
 </div>
