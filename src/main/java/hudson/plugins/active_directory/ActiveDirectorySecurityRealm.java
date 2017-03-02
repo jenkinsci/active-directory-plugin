@@ -30,6 +30,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import groovy.lang.Binding;
 import hudson.Extension;
 import hudson.Functions;
+import hudson.init.Terminator;
 import hudson.model.AbstractDescribableImpl;
 import hudson.model.Descriptor;
 import hudson.model.Hudson;
@@ -38,8 +39,10 @@ import hudson.security.AuthorizationStrategy;
 import hudson.security.GroupDetails;
 import hudson.security.SecurityRealm;
 import hudson.security.TokenBasedRememberMeServices2;
+import hudson.util.DaemonThreadFactory;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
+import hudson.util.NamingThreadFactory;
 import hudson.util.Secret;
 import hudson.util.spring.BeanBuilder;
 import org.acegisecurity.Authentication;
@@ -53,6 +56,7 @@ import org.acegisecurity.userdetails.UsernameNotFoundException;
 import org.apache.commons.io.IOUtils;
 import org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement;
 import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
@@ -89,6 +93,10 @@ import java.util.Hashtable;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -189,12 +197,37 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
      */
     protected List<EnvironmentProperty> environmentProperties;
 
+    /**
+     * The threadPool to update the cache on background
+     */
+    protected transient ExecutorService threadPoolExecutor;
+
     public transient String testDomain;
 
     public transient String testDomainControllers;
 
     public transient String testSite;
 
+    /**
+     * The core pool size for the {@link ExecutorService}
+     */
+    private static final int corePoolSize = Integer.parseInt(System.getProperty("hudson.plugins.active_directory.threadPoolExecutor.corePoolSize", "4"));
+
+    /**
+     * The max pool size for the {@link ExecutorService}
+     */
+    private static final int maxPoolSize = Integer.parseInt(System.getProperty("hudson.plugins.active_directory.threadPoolExecutor.maxPoolSize", "8"));
+
+    /**
+     * The keep alive time for the {@link ExecutorService}
+     */
+    private static final long keepAliveTime = Long.parseLong(System.getProperty("hudson.plugins.active_directory.threadPoolExecutor.keepAliveTime", "10000"));
+
+    /**
+     * The queue size for the {@link ExecutorService}
+     */
+    private static final int queueSize = Integer.parseInt(System.getProperty("hudson.plugins.active_directory.threadPoolExecutor.queueSize", "25"));
+    
     public ActiveDirectorySecurityRealm(String domain, String site, String bindName, String bindPassword, String server) {
         this(domain, site, bindName, bindPassword, server, GroupLookupStrategy.AUTO, false);
     }
@@ -228,6 +261,15 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         this.groupLookupStrategy = groupLookupStrategy;
         this.removeIrrelevantGroups = removeIrrelevantGroups;
         this.cache = cache;
+        this.threadPoolExecutor = new ThreadPoolExecutor(
+                corePoolSize,
+                maxPoolSize,
+                keepAliveTime,
+                TimeUnit.MILLISECONDS,
+                new ArrayBlockingQueue<Runnable>(queueSize),
+                new NamingThreadFactory(new DaemonThreadFactory(), "ActiveDirectory.updateUserCache"),
+                new ThreadPoolExecutor.DiscardPolicy()
+        );
     }
 
     @DataBoundSetter
@@ -395,6 +437,12 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
         req.setAttribute("output", out.toString());
         req.getView(this, "test.jelly").forward(req, rsp);
+    }
+
+    @Restricted(DoNotUse.class)
+    @Terminator
+    public void shutDownthreadPoolExecutors() {
+        threadPoolExecutor.shutdown();
     }
 
     @Extension

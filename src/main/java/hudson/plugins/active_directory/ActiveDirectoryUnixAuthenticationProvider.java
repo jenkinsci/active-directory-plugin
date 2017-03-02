@@ -56,14 +56,19 @@ import javax.naming.directory.DirContext;
 import javax.naming.directory.SearchResult;
 import javax.naming.ldap.LdapName;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -99,6 +104,11 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
      * The {@link ActiveDirectoryGroupDetails} cache.
      */
     private final Cache<String, ActiveDirectoryGroupDetails> groupCache;
+
+    /**
+     * The threadPool to update the cache on background
+     */
+    private final ExecutorService threadPoolExecutor;
 
     /**
      * Properties to be passed to the current LDAP context
@@ -146,6 +156,8 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
 
         this.userCache = cache.getUserCache();
         this.groupCache = cache.getGroupCache();
+
+        this.threadPoolExecutor = realm.threadPoolExecutor;
 
         Map<String, String> extraEnvVarsMap = ActiveDirectorySecurityRealm.EnvironmentProperty.toMap(realm.environmentProperties);
         // TODO In JDK 8u65 I am facing JDK-8139721, JDK-8139942 which makes the plugin to break. Uncomment line once it is fixed.
@@ -364,7 +376,24 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                 }
             });
             if (cacheMiss[0] != null) {
-                cacheMiss[0].updateUserInfo();
+                threadPoolExecutor.execute(new Runnable() {
+                    @Override
+                    public void run() {
+                        final String threadName = Thread.currentThread().getName();
+                        Thread.currentThread().setName(threadName + " updating-cache-for-user-" + cacheMiss[0].getUsername());
+                        LOGGER.log(Level.FINEST, "Starting the cache update {0}", new Date());
+                        try {
+                            long t0 = System.currentTimeMillis();
+                            cacheMiss[0].updateUserInfo();
+                            LOGGER.log(Level.FINEST, "Finished the cache update {0}", new Date());
+                            long t1 = System.currentTimeMillis();
+                            LOGGER.log(Level.FINE, "The cache for user {0} took {1} msec", new Object[]{cacheMiss[0].getUsername(), String.valueOf(t1-t0)});
+                        } finally {
+                            Thread.currentThread().setName(threadName);
+                        }
+                    }
+                });
+
             }
         } catch (UncheckedExecutionException e) {
            Throwable t = e.getCause();
