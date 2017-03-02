@@ -136,9 +136,6 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     private final static String LDAP_READ_TIMEOUT = "com.sun.jndi.ldap.read.timeout";
 
     public ActiveDirectoryUnixAuthenticationProvider(ActiveDirectorySecurityRealm realm) {
-        if (realm.domains==null) {
-            throw new IllegalArgumentException("An Active Directory domain name is required but it is not set");
-        }
         this.site = realm.site;
         this.domains = realm.domains;
         this.groupLookupStrategy = realm.getGroupLookupStrategy();
