@@ -23,10 +23,13 @@
  */
 package hudson.plugins.active_directory;
 
+import javax.annotation.CheckForNull;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Tuple of a socket endpoint. A pair of the host name and the TCP port number.
@@ -75,13 +78,17 @@ public class SocketInfo {
      *
      * @return the IP address of the host
      */
+    @CheckForNull
     public String getIpAddress() {
         try {
             InetAddress inetAddress = InetAddress.getByName(host);
             return inetAddress.getHostAddress();
         } catch (UnknownHostException e) {
-            return Messages._ActiveDirectoryStatus_IpAddressNotRetrieved().toString();
+            LOGGER.log(Level.FINE, String.format("The Ip address for the host %s could not be retrieved", host), e);
         }
+        return null;
     }
+
+    private static final Logger LOGGER = Logger.getLogger(SocketInfo.class.getName());
 
 }
