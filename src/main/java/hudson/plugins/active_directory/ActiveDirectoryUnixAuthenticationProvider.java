@@ -372,7 +372,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                             // Binding alone is not enough to test the credential. Need to actually perform some query operation.
                             // but if the authentication fails this throws an exception
                             try {
-                                new LDAPSearchBuilder(test, domainDN).searchOne("(& (userPrincipalName={0})(objectCategory=user))", userPrincipalName);
+                                new LDAPSearchBuilder(test, domainDN).subTreeScope().searchOne("(& (userPrincipalName={0})(objectCategory=user))", userPrincipalName);
                             } finally {
                                 closeQuietly(test);
                             }
