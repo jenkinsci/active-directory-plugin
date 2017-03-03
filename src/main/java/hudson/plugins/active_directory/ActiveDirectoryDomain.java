@@ -161,13 +161,11 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
      * @return true if the DNS resolution works
      */
     public boolean isDnsResolutionSane(){
-        // Create a fake ActiveDirectorySecurityRealm
-        ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(name, site, "", "", servers);
         DirContext ictx;
         // First test the sanity of the domain name itself
         try {
             LOGGER.log(Level.FINE, "Attempting to resolve {0} to NS record", name);
-            ictx = activeDirectorySecurityRealm.getDescriptor().createDNSLookupContext();
+            ictx = createDNSLookupContext();
             Attributes attributes = ictx.getAttributes(name, new String[]{"NS"});
             Attribute ns = attributes.get("NS");
             if (ns == null) {
