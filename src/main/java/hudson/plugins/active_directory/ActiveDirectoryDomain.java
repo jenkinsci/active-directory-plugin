@@ -156,25 +156,6 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
     }
 
     /**
-     * Get the list the servers which are using the LDAP catalog
-     *
-     * @return an empty list if there is not any LDAP server exposed on the DNS
-     */
-    public List<SocketInfo> getServersUsingLdapCatalog(){
-        List<SocketInfo> result = new ArrayList<SocketInfo>();
-        if (servers!=null) {
-            for (String token : servers.split(",")) {
-                SocketInfo socketInfo = new SocketInfo(token.trim());
-                if(socketInfo.getPort() == 686 || socketInfo.getPort() == 389) {
-                    result.add(new SocketInfo(token.trim()));
-                }
-            }
-            return result;
-        }
-        return Collections.emptyList();
-    }
-
-    /**
      * Check if the DNS resolution works or not
      *
      * @return true if the DNS resolution works
@@ -310,27 +291,18 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
                 if (bindName!=null && password==null)
                     return FormValidation.error("Bind DN is specified but not the password");
 
-                DirContext ictx;
                 // First test the sanity of the domain name itself
-                try {
-                    LOGGER.log(Level.FINE, "Attempting to resolve {0} to NS record", name);
-                    ictx = activeDirectorySecurityRealm.getDescriptor().createDNSLookupContext();
-                    Attributes attributes = ictx.getAttributes(name, new String[]{"NS"});
-                    Attribute ns = attributes.get("NS");
-                    if (ns == null) {
-                        LOGGER.log(Level.FINE, "Attempting to resolve {0} to A record", name);
-                        attributes = ictx.getAttributes(name, new String[]{"A"});
-                        Attribute a = attributes.get("A");
-                        if (a == null) {
-                            throw new NamingException(name + " doesn't look like a domain name");
-                        }
+                List<ActiveDirectoryDomain> activeDirectoryDomains = activeDirectorySecurityRealm.getDomains();
+
+
+                // There should be only one domain as the fake domain only contains one
+                for (ActiveDirectoryDomain activeDirectoryDomain : activeDirectoryDomains) {
+                    if (!activeDirectoryDomain.isDnsResolutionSane()) {
+                        return FormValidation.error(name + " doesn't look like a valid domain name");
                     }
-                    LOGGER.log(Level.FINE, "{0} resolved to {1}", new Object[]{name, ns});
-                } catch (NamingException e) {
-                    LOGGER.log(Level.WARNING, String.format("Failed to resolve %s to A record", name), e);
-                    return FormValidation.error(e, name + " doesn't look like a valid domain name");
                 }
                 // Then look for the LDAP server
+                DirContext ictx = activeDirectorySecurityRealm.getDescriptor().createDNSLookupContext();
                 List<SocketInfo> obtainerServers;
                 try {
                     obtainerServers = activeDirectorySecurityRealm.getDescriptor().obtainLDAPServer(ictx, name, site, servers);
