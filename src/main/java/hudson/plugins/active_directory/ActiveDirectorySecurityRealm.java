@@ -506,7 +506,10 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             }
 
             newProps.put("java.naming.ldap.attributes.binary","tokenGroups objectSid");
-            newProps.put("java.naming.ldap.factory.socket",TrustAllSocketFactory.class.getName());
+
+            if (FORCE_LDAPS) {
+                newProps.put("java.naming.ldap.factory.socket", TrustAllSocketFactory.class.getName());
+            }
             newProps.putAll(props);
             NamingException namingException = null;
 
@@ -584,10 +587,8 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                         LOGGER.fine("Connection upgraded to TLS");
                     } catch (NamingException e) {
                         LOGGER.log(Level.FINE, "Failed to start TLS. Authentication will be done via plain-text LDAP", e);
-                        context.removeFromEnvironment("java.naming.ldap.factory.socket");
                     } catch (IOException e) {
                         LOGGER.log(Level.FINE, "Failed to start TLS. Authentication will be done via plain-text LDAP", e);
-                        context.removeFromEnvironment("java.naming.ldap.factory.socket");
                     }
                 }
 
