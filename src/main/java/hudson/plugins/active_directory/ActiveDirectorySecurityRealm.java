@@ -208,25 +208,6 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
     public transient String testSite;
 
-    /**
-     * The core pool size for the {@link ExecutorService}
-     */
-    private static final int corePoolSize = Integer.parseInt(System.getProperty("hudson.plugins.active_directory.threadPoolExecutor.corePoolSize", "4"));
-
-    /**
-     * The max pool size for the {@link ExecutorService}
-     */
-    private static final int maxPoolSize = Integer.parseInt(System.getProperty("hudson.plugins.active_directory.threadPoolExecutor.maxPoolSize", "8"));
-
-    /**
-     * The keep alive time for the {@link ExecutorService}
-     */
-    private static final long keepAliveTime = Long.parseLong(System.getProperty("hudson.plugins.active_directory.threadPoolExecutor.keepAliveTime", "10000"));
-
-    /**
-     * The queue size for the {@link ExecutorService}
-     */
-    private static final int queueSize = Integer.parseInt(System.getProperty("hudson.plugins.active_directory.threadPoolExecutor.queueSize", "25"));
     
     public ActiveDirectorySecurityRealm(String domain, String site, String bindName, String bindPassword, String server) {
         this(domain, site, bindName, bindPassword, server, GroupLookupStrategy.AUTO, false);
@@ -261,15 +242,6 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         this.groupLookupStrategy = groupLookupStrategy;
         this.removeIrrelevantGroups = removeIrrelevantGroups;
         this.cache = cache;
-        this.threadPoolExecutor = new ThreadPoolExecutor(
-                corePoolSize,
-                maxPoolSize,
-                keepAliveTime,
-                TimeUnit.MILLISECONDS,
-                new ArrayBlockingQueue<Runnable>(queueSize),
-                new NamingThreadFactory(new DaemonThreadFactory(), "ActiveDirectory.updateUserCache"),
-                new ThreadPoolExecutor.DiscardPolicy()
-        );
     }
 
     @DataBoundSetter

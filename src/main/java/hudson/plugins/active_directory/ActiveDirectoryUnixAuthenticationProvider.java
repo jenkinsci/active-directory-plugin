@@ -30,6 +30,8 @@ import hudson.Util;
 import hudson.security.GroupDetails;
 import hudson.security.SecurityRealm;
 import hudson.security.UserMayOrMayNotExistException;
+import hudson.util.DaemonThreadFactory;
+import hudson.util.NamingThreadFactory;
 import hudson.util.Secret;
 
 import javax.naming.NameNotFoundException;
@@ -135,6 +137,26 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
      */
     private final static String LDAP_READ_TIMEOUT = "com.sun.jndi.ldap.read.timeout";
 
+    /**
+     * The core pool size for the {@link ExecutorService}
+     */
+    private static final int corePoolSize = Integer.parseInt(System.getProperty("hudson.plugins.active_directory.threadPoolExecutor.corePoolSize", "4"));
+
+    /**
+     * The max pool size for the {@link ExecutorService}
+     */
+    private static final int maxPoolSize = Integer.parseInt(System.getProperty("hudson.plugins.active_directory.threadPoolExecutor.maxPoolSize", "8"));
+
+    /**
+     * The keep alive time for the {@link ExecutorService}
+     */
+    private static final long keepAliveTime = Long.parseLong(System.getProperty("hudson.plugins.active_directory.threadPoolExecutor.keepAliveTime", "10000"));
+
+    /**
+     * The queue size for the {@link ExecutorService}
+     */
+    private static final int queueSize = Integer.parseInt(System.getProperty("hudson.plugins.active_directory.threadPoolExecutor.queueSize", "25"));
+
     public ActiveDirectoryUnixAuthenticationProvider(ActiveDirectorySecurityRealm realm) {
         this.site = realm.site;
         this.domains = realm.domains;
@@ -154,7 +176,15 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         this.userCache = cache.getUserCache();
         this.groupCache = cache.getGroupCache();
 
-        this.threadPoolExecutor = realm.threadPoolExecutor;
+        this.threadPoolExecutor = new ThreadPoolExecutor(
+                corePoolSize,
+                maxPoolSize,
+                keepAliveTime,
+                TimeUnit.MILLISECONDS,
+                new ArrayBlockingQueue<Runnable>(queueSize),
+                new NamingThreadFactory(new DaemonThreadFactory(), "ActiveDirectory.updateUserCache"),
+                new ThreadPoolExecutor.DiscardPolicy()
+        );
 
         Map<String, String> extraEnvVarsMap = ActiveDirectorySecurityRealm.EnvironmentProperty.toMap(realm.environmentProperties);
         // TODO In JDK 8u65 I am facing JDK-8139721, JDK-8139942 which makes the plugin to break. Uncomment line once it is fixed.
