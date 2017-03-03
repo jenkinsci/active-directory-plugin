@@ -204,11 +204,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
         try {
             Attributes attributes = createDNSLookupContext().getAttributes(ldapServer, new String[] { "SRV" });
             Attribute a = attributes.get("SRV");
-            if (a!=null) {
-                return true;
-            } else {
-                return false;
-            }
+            return a != null;
         } catch (NamingException e) {
             LOGGER.log(Level.WARNING, String.format("Failed to resolve %s", ldapServer), e);
         } catch (NumberFormatException x) {
@@ -229,11 +225,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
         try {
             Attributes attributes = createDNSLookupContext().getAttributes(ldapServer, new String[] { "SRV" });
             Attribute a = attributes.get("SRV");
-            if (a!=null) {
-                return true;
-            } else {
-                return false;
-            }
+            return a != null;
         } catch (NamingException e) {
             LOGGER.log(Level.WARNING, String.format("Failed to resolve %s", ldapServer), e);
         } catch (NumberFormatException x) {
