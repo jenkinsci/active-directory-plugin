@@ -202,12 +202,6 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
      */
     protected transient ExecutorService threadPoolExecutor;
 
-    public transient String testDomain;
-
-    public transient String testDomainControllers;
-
-    public transient String testSite;
-
     
     public ActiveDirectorySecurityRealm(String domain, String site, String bindName, String bindPassword, String server) {
         this(domain, site, bindName, bindPassword, server, GroupLookupStrategy.AUTO, false);
@@ -312,21 +306,6 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     @Restricted(NoExternalUse.class)
     public List<ActiveDirectoryDomain> getDomains() {
         return domains;
-    }
-
-    @Restricted(NoExternalUse.class)
-    public String getTestDomain() {
-        return testDomain;
-    }
-
-    @Restricted(NoExternalUse.class)
-    public String getTestDomainControllers() {
-        return testDomainControllers;
-    }
-
-    @Restricted(NoExternalUse.class)
-    public String getTestSite() {
-        return testSite;
     }
 
     public Object readResolve() throws ObjectStreamException {
