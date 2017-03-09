@@ -45,6 +45,7 @@ import hudson.util.ListBoxModel;
 import hudson.util.NamingThreadFactory;
 import hudson.util.Secret;
 import hudson.util.spring.BeanBuilder;
+import jenkins.model.Jenkins;
 import org.acegisecurity.Authentication;
 import org.acegisecurity.AuthenticationException;
 import org.acegisecurity.AuthenticationManager;
@@ -177,6 +178,12 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
      */
     public transient Secret bindPassword;
 
+    /**
+     * If true enable startTls in case plain communication is used. In case the plugin
+     * is configured to use TLS then this option will not have any impact.
+     */
+    public Boolean startTls;
+
     private GroupLookupStrategy groupLookupStrategy;
 
     /**
@@ -224,13 +231,13 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
     public ActiveDirectorySecurityRealm(String domain, String site, String bindName,
                                         String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, CacheConfiguration cache) {
-        this(domain, Lists.newArrayList(new ActiveDirectoryDomain(domain, server)), site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups, domain!=null, cache);
+        this(domain, Lists.newArrayList(new ActiveDirectoryDomain(domain, server)), site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups, domain!=null, cache, true);
     }
     
     @DataBoundConstructor
     // as Java signature, this binding doesn't make sense, so please don't use this constructor
     public ActiveDirectorySecurityRealm(String domain, List<ActiveDirectoryDomain> domains, String site, String bindName,
-                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache) {
+                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache, Boolean startTls) {
         if (customDomain!=null && !customDomain)
             domains = null;
         this.domain = fixEmpty(domain);
@@ -242,6 +249,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         this.groupLookupStrategy = groupLookupStrategy;
         this.removeIrrelevantGroups = removeIrrelevantGroups;
         this.cache = cache;
+        this.startTls = startTls;
     }
 
     @DataBoundSetter
@@ -255,6 +263,10 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             return null;
         }
         return cache;
+    }
+    @Restricted(NoExternalUse.class)
+    public Boolean isStartTls() {
+        return startTls;
     }
 
     public Integer getSize() {
@@ -352,6 +364,10 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                 activeDirectoryDomain.site = site;
             }
         }
+        if (startTls == null) {
+            this.startTls = true;
+        }
+
         return this;
     }
 
@@ -578,7 +594,14 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                 
                 LdapContext context = (LdapContext)LdapCtxFactory.getLdapCtxInstance(ldapUrl, props);
 
-                if (!FORCE_LDAPS) {
+                boolean isStartTls = true;
+                SecurityRealm securityRealm = Jenkins.getInstance().getSecurityRealm();
+                if (securityRealm instanceof ActiveDirectorySecurityRealm) {
+                    ActiveDirectorySecurityRealm activeDirectorySecurityRealm = (ActiveDirectorySecurityRealm) securityRealm;
+                     isStartTls= activeDirectorySecurityRealm.isStartTls();
+                }
+
+                if (!FORCE_LDAPS && isStartTls) {
                     // try to upgrade to TLS if we can, but failing to do so isn't fatal
                     // see http://download.oracle.com/javase/jndi/tutorial/ldap/ext/starttls.html
                     try {
