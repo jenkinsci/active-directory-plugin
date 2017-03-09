@@ -18,15 +18,6 @@
     <f:entry field="environmentProperties" title="${%Environment Properties}">
       <f:repeatableProperty field="environmentProperties" />
     </f:entry>
-    <f:entry field="testDomain" title="${%Test Domain Name}">
-      <f:textbox />
-    </f:entry>
-    <f:entry field="testDomainControllers" title="${%Test Domain Controllers}">
-      <f:textbox />
-    </f:entry>
-    <f:entry field="testSite" title="${%Test Site}">
-      <f:textbox />
-    </f:entry>
   </f:advanced>
 	<script type="text/javascript" >
 		document.addEventListener("DOMContentLoaded", function(event) {
