@@ -1,6 +1,9 @@
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
   <f:advanced>
+    <f:entry field="startTls" title="${%Enable StartTls}">
+      <f:checkbox checked="true" />
+    </f:entry>
     <f:entry field="groupLookupStrategy" title="${%Group Membership Lookup Strategy}">
       <f:select />
     </f:entry>
