@@ -455,7 +455,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                                 ClassLoader ccl = Thread.currentThread().getContextClassLoader();
                                 Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
                                 try {
-                                    DirContext context = descriptor.bind(domain.getName(), domain.getBindPassword().getPlainText(), obtainLDAPServers(domain));
+                                    DirContext context = descriptor.bind(domain.getBindName(), domain.getBindPassword().getPlainText(), obtainLDAPServers(domain));
 
                                     try {
                                         final String domainDN = toDC(domain.getName());
