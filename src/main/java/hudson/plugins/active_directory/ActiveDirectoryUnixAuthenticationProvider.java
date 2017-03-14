@@ -296,7 +296,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         UserDetails userDetails;
         String hashKey = username + "@@" + DigestUtils.sha1Hex(password);
         final String bindName = domain.getBindName();
-        final String bindPassword = domain.getBindPassword().getPlainText();
+        final String bindPassword = Secret.toString(domain.getBindPassword());
         try {
             final ActiveDirectoryUserDetail[] cacheMiss = new ActiveDirectoryUserDetail[1];
             userDetails = userCache.get(hashKey, new Callable<UserDetails>() {
