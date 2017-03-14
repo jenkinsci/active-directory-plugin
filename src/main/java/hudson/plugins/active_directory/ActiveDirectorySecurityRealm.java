@@ -325,17 +325,21 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                 this.domains.add(new ActiveDirectoryDomain(oldDomain, server));
             }
         }
-        // JENKINS-39375 Support a different bindUser per domain
-        if (bindName != null && bindPassword != null) {
-            for (ActiveDirectoryDomain activeDirectoryDomain : this.getDomains()) {
-                activeDirectoryDomain.bindName = bindName;
-                activeDirectoryDomain.bindPassword = bindPassword;
+        List <ActiveDirectoryDomain> activeDirectoryDomains = this.getDomains();
+        // JENKINS-14281 On Windows domain can be indeed null
+        if (activeDirectoryDomains!= null) {
+            // JENKINS-39375 Support a different bindUser per domain
+            if (bindName != null && bindPassword != null) {
+                for (ActiveDirectoryDomain activeDirectoryDomain : activeDirectoryDomains) {
+                    activeDirectoryDomain.bindName = bindName;
+                    activeDirectoryDomain.bindPassword = bindPassword;
+                }
             }
-        }
-        // JENKINS-39423 Make site independent of each domain
-        if (site != null) {
-            for (ActiveDirectoryDomain activeDirectoryDomain : this.getDomains()) {
-                activeDirectoryDomain.site = site;
+            // JENKINS-39423 Make site independent of each domain
+            if (site != null) {
+                for (ActiveDirectoryDomain activeDirectoryDomain : activeDirectoryDomains) {
+                    activeDirectoryDomain.site = site;
+                }
             }
         }
         if (startTls == null) {
