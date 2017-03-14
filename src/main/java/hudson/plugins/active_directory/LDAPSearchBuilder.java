@@ -31,6 +31,7 @@ import java.util.logging.Logger;
 import javax.naming.Context;
 import javax.naming.NamingEnumeration;
 import javax.naming.NamingException;
+import javax.naming.PartialResultException;
 import javax.naming.directory.Attributes;
 import javax.naming.directory.DirContext;
 import javax.naming.directory.SearchControls;
@@ -95,6 +96,13 @@ class LDAPSearchBuilder {
             } else {
                 LOG.finer("no result");
             }
+            return null;
+        } catch (PartialResultException e) {
+            // See JENKINS-42687. On this case might happen that the search instead of returning an empty
+            // NamingEnumeration is returning a PartialResultException. Again, In my opinion this should
+            // not be a blocker. We should just log the Exception and return null like on the case where
+            // any user was found.
+            LOG.log(Level.WARNING, String.format("JENKINS-42687 The user we are looking for might exist"), e);
             return null;
         } finally {
             r.close();

@@ -51,6 +51,7 @@ import org.apache.commons.lang.StringUtils;
 
 import javax.naming.NamingEnumeration;
 import javax.naming.NamingException;
+import javax.naming.PartialResultException;
 import javax.naming.TimeLimitExceededException;
 import javax.naming.directory.Attribute;
 import javax.naming.directory.Attributes;
@@ -719,12 +720,20 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     }
 
     private void parseMembers(String userDN, Set<GrantedAuthority> groups, NamingEnumeration<SearchResult> renum) throws NamingException {
-        while (renum.hasMore()) {
-            Attributes a = renum.next().getAttributes();
-            Attribute cn = a.get("cn");
-            if (LOGGER.isLoggable(Level.FINE))
-                LOGGER.fine(userDN+" is a member of "+cn);
-            groups.add(new GrantedAuthorityImpl(cn.get().toString()));
+        try {
+            while (renum.hasMore()) {
+                Attributes a = renum.next().getAttributes();
+                Attribute cn = a.get("cn");
+                if (LOGGER.isLoggable(Level.FINE))
+                    LOGGER.fine(userDN + " is a member of " + cn);
+                groups.add(new GrantedAuthorityImpl(cn.get().toString()));
+            }
+        } catch (PartialResultException e) {
+            // See JENKINS-42687. Just log the exception. Sometimes all the groups are correctly
+            // retrieved but this Exception is launched as a last element of the NamingEnumeration
+            // Even if it is really a PartialResultException, I don't see why this should be a blocker
+            // I think a better approach is to log the Exception and continue
+            LOGGER.log(Level.WARNING, String.format("JENKINS-42687 Might be more members for user  %s", userDN), e);
         }
     }
 
