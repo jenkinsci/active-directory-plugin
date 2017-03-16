@@ -30,6 +30,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import groovy.lang.Binding;
 import hudson.Extension;
 import hudson.Functions;
+import hudson.init.Terminator;
 import hudson.model.AbstractDescribableImpl;
 import hudson.model.AdministrativeMonitor;
 import hudson.model.Descriptor;
@@ -55,6 +56,7 @@ import org.acegisecurity.userdetails.UsernameNotFoundException;
 import org.apache.commons.io.IOUtils;
 import org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement;
 import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
@@ -91,6 +93,7 @@ import java.util.Hashtable;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -171,6 +174,12 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
      */
     public transient Secret bindPassword;
 
+    /**
+     * If true enable startTls in case plain communication is used. In case the plugin
+     * is configured to use TLS then this option will not have any impact.
+     */
+    public Boolean startTls;
+
     private GroupLookupStrategy groupLookupStrategy;
 
     /**
@@ -203,12 +212,12 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
      */
     protected TlsConfiguration tlsConfiguration;
 
-    public transient String testDomain;
+    /**
+     * The threadPool to update the cache on background
+     */
+    protected transient ExecutorService threadPoolExecutor;
 
-    public transient String testDomainControllers;
-
-    public transient String testSite;
-
+    
     public ActiveDirectorySecurityRealm(String domain, String site, String bindName, String bindPassword, String server) {
         this(domain, site, bindName, bindPassword, server, GroupLookupStrategy.AUTO, false);
     }
@@ -224,13 +233,19 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
     public ActiveDirectorySecurityRealm(String domain, String site, String bindName,
                                         String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, CacheConfiguration cache) {
-        this(domain, Lists.newArrayList(new ActiveDirectoryDomain(domain, server)), site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups, domain!=null, cache, TlsConfiguration.TRUST_ALL_CERTIFICATES);
+        this(domain, Lists.newArrayList(new ActiveDirectoryDomain(domain, server)), site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups, domain!=null, cache, true);
     }
+
+    public ActiveDirectorySecurityRealm(String domain, List<ActiveDirectoryDomain> domains, String site, String bindName,
+                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache, Boolean startTls) {
+        this(domain, domains, site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups, customDomain, cache, startTls, TlsConfiguration.TRUST_ALL_CERTIFICATES);
+    }
+
 
     @DataBoundConstructor
     // as Java signature, this binding doesn't make sense, so please don't use this constructor
     public ActiveDirectorySecurityRealm(String domain, List<ActiveDirectoryDomain> domains, String site, String bindName,
-                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache, TlsConfiguration tlsConfiguration) {
+                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache, Boolean startTls, TlsConfiguration tlsConfiguration) {
         if (customDomain!=null && !customDomain)
             domains = null;
         this.domain = fixEmpty(domain);
@@ -243,6 +258,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         this.removeIrrelevantGroups = removeIrrelevantGroups;
         this.cache = cache;
         this.tlsConfiguration = tlsConfiguration;
+        this.startTls = startTls;
     }
 
     @DataBoundSetter
@@ -256,6 +272,10 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             return null;
         }
         return cache;
+    }
+    @Restricted(NoExternalUse.class)
+    public Boolean isStartTls() {
+        return startTls;
     }
 
     public Integer getSize() {
@@ -321,21 +341,6 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         return domains;
     }
 
-    @Restricted(NoExternalUse.class)
-    public String getTestDomain() {
-        return testDomain;
-    }
-
-    @Restricted(NoExternalUse.class)
-    public String getTestDomainControllers() {
-        return testDomainControllers;
-    }
-
-    @Restricted(NoExternalUse.class)
-    public String getTestSite() {
-        return testSite;
-    }
-
     public Object readResolve() throws ObjectStreamException {
         if (domain != null) {
             this.domains = new ArrayList<ActiveDirectoryDomain>();
@@ -346,19 +351,27 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                 this.domains.add(new ActiveDirectoryDomain(oldDomain, server));
             }
         }
-        // JENKINS-39375 Support a different bindUser per domain
-        if (bindName != null && bindPassword != null) {
-            for (ActiveDirectoryDomain activeDirectoryDomain : this.getDomains()) {
-                activeDirectoryDomain.bindName = bindName;
-                activeDirectoryDomain.bindPassword = bindPassword;
+        List <ActiveDirectoryDomain> activeDirectoryDomains = this.getDomains();
+        // JENKINS-14281 On Windows domain can be indeed null
+        if (activeDirectoryDomains!= null) {
+            // JENKINS-39375 Support a different bindUser per domain
+            if (bindName != null && bindPassword != null) {
+                for (ActiveDirectoryDomain activeDirectoryDomain : activeDirectoryDomains) {
+                    activeDirectoryDomain.bindName = bindName;
+                    activeDirectoryDomain.bindPassword = bindPassword;
+                }
+            }
+            // JENKINS-39423 Make site independent of each domain
+            if (site != null) {
+                for (ActiveDirectoryDomain activeDirectoryDomain : activeDirectoryDomains) {
+                    activeDirectoryDomain.site = site;
+                }
             }
         }
-        // JENKINS-39423 Make site independent of each domain
-        if (site != null) {
-            for (ActiveDirectoryDomain activeDirectoryDomain : this.getDomains()) {
-                activeDirectoryDomain.site = site;
-            }
+        if (startTls == null) {
+            this.startTls = true;
         }
+
         return this;
     }
 
@@ -416,6 +429,12 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
         req.setAttribute("output", out.toString());
         req.getView(this, "test.jelly").forward(req, rsp);
+    }
+
+    @Restricted(DoNotUse.class)
+    @Terminator
+    public void shutDownthreadPoolExecutors() {
+        threadPoolExecutor.shutdown();
     }
 
     @Extension
@@ -524,9 +543,11 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             }
 
             newProps.put("java.naming.ldap.attributes.binary","tokenGroups objectSid");
-            if (isTrustAllCertificatesEnabled(tlsConfiguration)) {
-                newProps.put("java.naming.ldap.factory.socket",TrustAllSocketFactory.class.getName());
+
+            if (FORCE_LDAPS && isTrustAllCertificatesEnabled(tlsConfiguration)) {
+                newProps.put("java.naming.ldap.factory.socket", TrustAllSocketFactory.class.getName());
             }
+
             newProps.putAll(props);
             NamingException namingException = null;
 
@@ -601,7 +622,14 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                 
                 LdapContext context = (LdapContext)LdapCtxFactory.getLdapCtxInstance(ldapUrl, props);
 
-                if (!FORCE_LDAPS) {
+                boolean isStartTls = true;
+                SecurityRealm securityRealm = Jenkins.getInstance().getSecurityRealm();
+                if (securityRealm instanceof ActiveDirectorySecurityRealm) {
+                    ActiveDirectorySecurityRealm activeDirectorySecurityRealm = (ActiveDirectorySecurityRealm) securityRealm;
+                     isStartTls= activeDirectorySecurityRealm.isStartTls();
+                }
+
+                if (!FORCE_LDAPS && isStartTls) {
                     // try to upgrade to TLS if we can, but failing to do so isn't fatal
                     // see http://download.oracle.com/javase/jndi/tutorial/ldap/ext/starttls.html
                     try {
@@ -614,10 +642,8 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                         LOGGER.fine("Connection upgraded to TLS");
                     } catch (NamingException e) {
                         LOGGER.log(Level.FINE, "Failed to start TLS. Authentication will be done via plain-text LDAP", e);
-                        context.removeFromEnvironment("java.naming.ldap.factory.socket");
                     } catch (IOException e) {
                         LOGGER.log(Level.FINE, "Failed to start TLS. Authentication will be done via plain-text LDAP", e);
-                        context.removeFromEnvironment("java.naming.ldap.factory.socket");
                     }
                 }
 
