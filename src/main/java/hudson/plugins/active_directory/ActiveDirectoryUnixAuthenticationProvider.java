@@ -139,6 +139,18 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     private final static String LDAP_READ_TIMEOUT = "com.sun.jndi.ldap.read.timeout";
 
     /**
+     * Selects the SSL strategy to follow on the TLS connections
+     *
+     * <p>
+     *     Even if we are not using any of the TLS ports (3269/636) the plugin will try to establish a TLS channel
+     *     using startTLS. Because of this, we need to be able to specify the SSL strategy on the plugin
+     *
+     * <p>
+     *     For the moment there are two possible values: trustAllCertificates and trustStore.
+     */
+    protected TlsConfiguration tlsConfiguration;
+
+    /**
      * The core pool size for the {@link ExecutorService}
      */
     private static final int corePoolSize = Integer.parseInt(System.getProperty("hudson.plugins.active_directory.threadPoolExecutor.corePoolSize", "4"));
@@ -158,6 +170,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
      */
     private static final int queueSize = Integer.parseInt(System.getProperty("hudson.plugins.active_directory.threadPoolExecutor.queueSize", "25"));
 
+
     public ActiveDirectoryUnixAuthenticationProvider(ActiveDirectorySecurityRealm realm) {
         this.site = realm.site;
         this.domains = realm.domains;
@@ -173,10 +186,9 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         if (cache.getUserCache() == null || cache.getGroupCache() == null) {
             this.cache = new CacheConfiguration(cache.getSize(), cache.getTtl());
         }
-
         this.userCache = cache.getUserCache();
         this.groupCache = cache.getGroupCache();
-
+        this.tlsConfiguration =realm.tlsConfiguration;
         this.threadPoolExecutor = new ThreadPoolExecutor(
                 corePoolSize,
                 maxPoolSize,
@@ -186,7 +198,6 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                 new NamingThreadFactory(new DaemonThreadFactory(), "ActiveDirectory.updateUserCache"),
                 new ThreadPoolExecutor.DiscardPolicy()
         );
-
         Map<String, String> extraEnvVarsMap = ActiveDirectorySecurityRealm.EnvironmentProperty.toMap(realm.environmentProperties);
         props.put(LDAP_CONNECT_TIMEOUT, System.getProperty(LDAP_CONNECT_TIMEOUT, DEFAULT_LDAP_CONNECTION_TIMEOUT));
         props.put(LDAP_READ_TIMEOUT, System.getProperty(LDAP_READ_TIMEOUT, DEFAULT_LDAP_READ_TIMEOUT));
@@ -316,7 +327,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                         // two step approach. Use a special credential to obtain DN for the
                         // user trying to login, then authenticate.
                         try {
-                            context = descriptor.bind(bindName, bindPassword, ldapServers, props);
+                            context = descriptor.bind(bindName, bindPassword, ldapServers, props, tlsConfiguration);
                             anonymousBind = false;
                         } catch (BadCredentialsException e) {
                             throw new AuthenticationServiceException("Failed to bind to LDAP server with the bind name/password", e);
@@ -369,7 +380,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                             // if we've used the credential specifically for the bind, we
                             // need to verify the provided password to do authentication
                             LOGGER.log(Level.FINE, "Attempting to validate password for DN={0}", dn);
-                            DirContext test = descriptor.bind(dnFormatted, password, ldapServers, props);
+                            DirContext test = descriptor.bind(dnFormatted, password, ldapServers, props, tlsConfiguration);
                             // Binding alone is not enough to test the credential. Need to actually perform some query operation.
                             // but if the authentication fails this throws an exception
                             try {

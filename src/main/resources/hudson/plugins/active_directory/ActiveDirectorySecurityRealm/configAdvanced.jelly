@@ -10,6 +10,9 @@
     <f:entry field="removeIrrelevantGroups" title="${%Remove irrelevant groups}">
       <f:checkbox />
     </f:entry>
+    <f:entry field="tlsConfiguration" title="${%TLS Configuration}">
+      <f:select />
+    </f:entry>
     <f:optionalBlock name="cache" title="${%Enable cache}" checked="${instance.cache != null}">
       <f:entry field="size" title="${%Cache Size}">
         <f:select default="256"/>

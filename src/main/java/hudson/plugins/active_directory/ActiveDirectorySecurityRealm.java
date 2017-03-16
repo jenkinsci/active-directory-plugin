@@ -32,6 +32,7 @@ import hudson.Extension;
 import hudson.Functions;
 import hudson.init.Terminator;
 import hudson.model.AbstractDescribableImpl;
+import hudson.model.AdministrativeMonitor;
 import hudson.model.Descriptor;
 import hudson.model.Hudson;
 import hudson.security.AbstractPasswordBasedSecurityRealm;
@@ -200,6 +201,18 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     protected List<EnvironmentProperty> environmentProperties;
 
     /**
+     * Selects the SSL strategy to follow on the TLS connections
+     *
+     * <p>
+     *     Even if we are not using any of the TLS ports (3269/636) the plugin will try to establish a TLS channel
+     *     using startTLS. Because of this, we need to be able to specify the SSL strategy on the plugin
+     *
+     * <p>
+     *     For the moment there are two possible values: trustAllCertificates and trustStore.
+     */
+    protected TlsConfiguration tlsConfiguration;
+
+    /**
      * The threadPool to update the cache on background
      */
     protected transient ExecutorService threadPoolExecutor;
@@ -222,11 +235,17 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                                         String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, CacheConfiguration cache) {
         this(domain, Lists.newArrayList(new ActiveDirectoryDomain(domain, server)), site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups, domain!=null, cache, true);
     }
-    
+
+    public ActiveDirectorySecurityRealm(String domain, List<ActiveDirectoryDomain> domains, String site, String bindName,
+                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache, Boolean startTls) {
+        this(domain, domains, site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups, customDomain, cache, startTls, TlsConfiguration.TRUST_ALL_CERTIFICATES);
+    }
+
+
     @DataBoundConstructor
     // as Java signature, this binding doesn't make sense, so please don't use this constructor
     public ActiveDirectorySecurityRealm(String domain, List<ActiveDirectoryDomain> domains, String site, String bindName,
-                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache, Boolean startTls) {
+                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache, Boolean startTls, TlsConfiguration tlsConfiguration) {
         if (customDomain!=null && !customDomain)
             domains = null;
         this.domain = fixEmpty(domain);
@@ -238,6 +257,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         this.groupLookupStrategy = groupLookupStrategy;
         this.removeIrrelevantGroups = removeIrrelevantGroups;
         this.cache = cache;
+        this.tlsConfiguration = tlsConfiguration;
         this.startTls = startTls;
     }
 
@@ -275,6 +295,12 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     public GroupLookupStrategy getGroupLookupStrategy() {
         if (groupLookupStrategy==null)      return GroupLookupStrategy.AUTO;
         return groupLookupStrategy;
+    }
+
+    // for jelly use only
+    @Restricted(NoExternalUse.class)
+    public TlsConfiguration getTlsConfiguration() {
+        return tlsConfiguration;
     }
 
     public SecurityComponents createSecurityComponents() {
@@ -476,7 +502,24 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             return model;
         }
 
+        public ListBoxModel doFillTlsConfigurationItems() {
+            ListBoxModel model = new ListBoxModel();
+            for (TlsConfiguration tlsConfiguration : TlsConfiguration.values()) {
+                model.add(tlsConfiguration.getDisplayName(),tlsConfiguration.name());
+            }
+            return model;
+        }
+
+        private boolean isTrustAllCertificatesEnabled(TlsConfiguration tlsConfiguration) {
+            return (tlsConfiguration == null || TlsConfiguration.TRUST_ALL_CERTIFICATES.equals(tlsConfiguration));
+        }
+
         private static boolean WARNED = false;
+
+        @Deprecated
+        public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers, Hashtable<String, String> props) {
+            return bind(principalName, password, ldapServers, props, null);
+        }
 
         /**
          * Binds to the server using the specified username/password.
@@ -484,7 +527,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
          * In a real deployment, often there are servers that don't respond or
          * otherwise broken, so try all the servers.
          */
-        public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers, Hashtable<String, String> props) {
+        public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers, Hashtable<String, String> props, TlsConfiguration tlsConfiguration) {
             // in a AD forest, it'd be mighty nice to be able to login as "joe"
             // as opposed to "joe@europe",
             // but the bind operation doesn't appear to allow me to do so.
@@ -501,9 +544,10 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
             newProps.put("java.naming.ldap.attributes.binary","tokenGroups objectSid");
 
-            if (FORCE_LDAPS) {
+            if (FORCE_LDAPS && isTrustAllCertificatesEnabled(tlsConfiguration)) {
                 newProps.put("java.naming.ldap.factory.socket", TrustAllSocketFactory.class.getName());
             }
+
             newProps.putAll(props);
             NamingException namingException = null;
 
@@ -557,9 +601,15 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
              customizeLdapProperty(props, "com.sun.jndi.ldap.connect.timeout");
              customizeLdapProperty(props, "com.sun.jndi.ldap.read.timeout");
         }
-        
+
         @IgnoreJRERequirement
+        @Deprecated
         private LdapContext bind(String principalName, String password, SocketInfo server, Hashtable<String, String> props) throws NamingException {
+            return bind(principalName, password, server, props, null);
+        }
+
+        @IgnoreJRERequirement
+        private LdapContext bind(String principalName, String password, SocketInfo server, Hashtable<String, String> props, TlsConfiguration tlsConfiguration) throws NamingException {
             String ldapUrl = (FORCE_LDAPS?"ldaps://":"ldap://") + server + '/';
             String oldName = Thread.currentThread().getName();
             Thread.currentThread().setName("Connecting to "+ldapUrl+" : "+oldName);
@@ -584,7 +634,11 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                     // see http://download.oracle.com/javase/jndi/tutorial/ldap/ext/starttls.html
                     try {
                         StartTlsResponse rsp = (StartTlsResponse)context.extendedOperation(new StartTlsRequest());
-                        rsp.negotiate((SSLSocketFactory)TrustAllSocketFactory.getDefault());
+                        if (isTrustAllCertificatesEnabled(tlsConfiguration)) {
+                            rsp.negotiate((SSLSocketFactory)TrustAllSocketFactory.getDefault());
+                        } else {
+                            rsp.negotiate();
+                        }
                         LOGGER.fine("Connection upgraded to TLS");
                     } catch (NamingException e) {
                         LOGGER.log(Level.FINE, "Failed to start TLS. Authentication will be done via plain-text LDAP", e);
@@ -829,6 +883,41 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             public String getDisplayName() {
                 return null;
             }
+        }
+    }
+
+    @Extension
+    public final static TlsConfigurationAdministrativeMonitor NOTICE = new TlsConfigurationAdministrativeMonitor();
+
+    /**
+     * Administrative Monitor for changing TLS certificates management
+     */
+    public static final class TlsConfigurationAdministrativeMonitor extends AdministrativeMonitor {
+
+        public boolean isActivated() {
+                SecurityRealm securityRealm = Jenkins.getInstance().getSecurityRealm();
+                if (securityRealm instanceof ActiveDirectorySecurityRealm) {
+                    ActiveDirectorySecurityRealm activeDirectorySecurityRealm = (ActiveDirectorySecurityRealm) securityRealm;
+                    if (activeDirectorySecurityRealm.tlsConfiguration == null) {
+                        return true;
+                    }
+                }
+
+            return false;
+        }
+
+        /**
+         * Depending on whether the user said "dismiss" or "correct", send him to the right place.
+         */
+        public void doAct(StaplerRequest req, StaplerResponse rsp) throws IOException {
+            if(req.hasParameter("correct")) {
+                rsp.sendRedirect(req.getRootPath()+"/configureSecurity");
+
+            }
+        }
+
+        public static TlsConfigurationAdministrativeMonitor get() {
+            return AdministrativeMonitor.all().get(TlsConfigurationAdministrativeMonitor.class);
         }
     }
 
