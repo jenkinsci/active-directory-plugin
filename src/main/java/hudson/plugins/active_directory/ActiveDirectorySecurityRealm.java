@@ -432,7 +432,6 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     }
 
     @Restricted(DoNotUse.class)
-    @Terminator
     public void shutDownthreadPoolExecutors() {
         threadPoolExecutor.shutdown();
     }
