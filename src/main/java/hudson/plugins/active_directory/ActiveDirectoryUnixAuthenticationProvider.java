@@ -32,6 +32,8 @@ import hudson.security.GroupDetails;
 import hudson.security.HudsonPrivateSecurityRealm;
 import hudson.security.SecurityRealm;
 import hudson.security.UserMayOrMayNotExistException;
+import hudson.util.DaemonThreadFactory;
+import hudson.util.NamingThreadFactory;
 import hudson.util.Secret;
 
 import javax.naming.NameNotFoundException;
@@ -51,6 +53,7 @@ import org.apache.commons.lang.StringUtils;
 
 import javax.naming.NamingEnumeration;
 import javax.naming.NamingException;
+import javax.naming.PartialResultException;
 import javax.naming.TimeLimitExceededException;
 import javax.naming.directory.Attribute;
 import javax.naming.directory.Attributes;
@@ -58,14 +61,19 @@ import javax.naming.directory.DirContext;
 import javax.naming.directory.SearchResult;
 import javax.naming.ldap.LdapName;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -105,6 +113,11 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     private final Cache<String, ActiveDirectoryGroupDetails> groupCache;
 
     /**
+     * The threadPool to update the cache on background
+     */
+    private final ExecutorService threadPoolExecutor;
+
+    /**
      * Properties to be passed to the current LDAP context
      */
     private Hashtable<String, String> props = new Hashtable<String, String>();
@@ -129,10 +142,40 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
      */
     private final static String LDAP_READ_TIMEOUT = "com.sun.jndi.ldap.read.timeout";
 
+    /**
+     * Selects the SSL strategy to follow on the TLS connections
+     *
+     * <p>
+     *     Even if we are not using any of the TLS ports (3269/636) the plugin will try to establish a TLS channel
+     *     using startTLS. Because of this, we need to be able to specify the SSL strategy on the plugin
+     *
+     * <p>
+     *     For the moment there are two possible values: trustAllCertificates and trustStore.
+     */
+    protected TlsConfiguration tlsConfiguration;
+
+    /**
+     * The core pool size for the {@link ExecutorService}
+     */
+    private static final int corePoolSize = Integer.parseInt(System.getProperty("hudson.plugins.active_directory.threadPoolExecutor.corePoolSize", "4"));
+
+    /**
+     * The max pool size for the {@link ExecutorService}
+     */
+    private static final int maxPoolSize = Integer.parseInt(System.getProperty("hudson.plugins.active_directory.threadPoolExecutor.maxPoolSize", "8"));
+
+    /**
+     * The keep alive time for the {@link ExecutorService}
+     */
+    private static final long keepAliveTime = Long.parseLong(System.getProperty("hudson.plugins.active_directory.threadPoolExecutor.keepAliveTime", "10000"));
+
+    /**
+     * The queue size for the {@link ExecutorService}
+     */
+    private static final int queueSize = Integer.parseInt(System.getProperty("hudson.plugins.active_directory.threadPoolExecutor.queueSize", "25"));
+
+
     public ActiveDirectoryUnixAuthenticationProvider(ActiveDirectorySecurityRealm realm) {
-        if (realm.domains==null) {
-            throw new IllegalArgumentException("An Active Directory domain name is required but it is not set");
-        }
         this.site = realm.site;
         this.domains = realm.domains;
         this.groupLookupStrategy = realm.getGroupLookupStrategy();
@@ -148,13 +191,20 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         if (cache.getUserCache() == null || cache.getGroupCache() == null) {
             this.cache = new CacheConfiguration(cache.getSize(), cache.getTtl());
         }
-
         this.userCache = cache.getUserCache();
         this.groupCache = cache.getGroupCache();
-
+        this.tlsConfiguration =realm.tlsConfiguration;
+        this.threadPoolExecutor = new ThreadPoolExecutor(
+                corePoolSize,
+                maxPoolSize,
+                keepAliveTime,
+                TimeUnit.MILLISECONDS,
+                new ArrayBlockingQueue<Runnable>(queueSize),
+                new NamingThreadFactory(new DaemonThreadFactory(), "ActiveDirectory.updateUserCache"),
+                new ThreadPoolExecutor.DiscardPolicy()
+        );
         Map<String, String> extraEnvVarsMap = ActiveDirectorySecurityRealm.EnvironmentProperty.toMap(realm.environmentProperties);
-        // TODO In JDK 8u65 I am facing JDK-8139721, JDK-8139942 which makes the plugin to break. Uncomment line once it is fixed.
-        //props.put(LDAP_CONNECT_TIMEOUT, System.getProperty(LDAP_CONNECT_TIMEOUT, DEFAULT_LDAP_CONNECTION_TIMEOUT));
+        props.put(LDAP_CONNECT_TIMEOUT, System.getProperty(LDAP_CONNECT_TIMEOUT, DEFAULT_LDAP_CONNECTION_TIMEOUT));
         props.put(LDAP_READ_TIMEOUT, System.getProperty(LDAP_READ_TIMEOUT, DEFAULT_LDAP_READ_TIMEOUT));
         // put all the user defined properties into our context environment replacing any mappings that already exist.
         props.putAll(extraEnvVarsMap);
@@ -253,7 +303,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
      */
     private List<SocketInfo> obtainLDAPServers(ActiveDirectoryDomain domain) throws AuthenticationServiceException {
         try {
-            return descriptor.obtainLDAPServer(domain.getName(), site, domain.getServers());
+            return descriptor.obtainLDAPServer(domain);
         } catch (NamingException e) {
             LOGGER.log(Level.WARNING, "Failed to find the LDAP service", e);
             throw new AuthenticationServiceException("Failed to find the LDAP service for the domain "+ domain.getName(), e);
@@ -275,7 +325,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         UserDetails userDetails;
         String hashKey = username + "@@" + DigestUtils.sha1Hex(password);
         final String bindName = domain.getBindName();
-        final String bindPassword = domain.getBindPassword().getPlainText();
+        final String bindPassword = Secret.toString(domain.getBindPassword());
         try {
             final ActiveDirectoryUserDetail[] cacheMiss = new ActiveDirectoryUserDetail[1];
             userDetails = userCache.get(hashKey, new Callable<UserDetails>() {
@@ -295,7 +345,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                         // two step approach. Use a special credential to obtain DN for the
                         // user trying to login, then authenticate.
                         try {
-                            context = descriptor.bind(bindName, bindPassword, ldapServers, props);
+                            context = descriptor.bind(bindName, bindPassword, ldapServers, props, tlsConfiguration);
                             anonymousBind = false;
                         } catch (BadCredentialsException e) {
                             throw new AuthenticationServiceException("Failed to bind to LDAP server with the bind name/password", e);
@@ -348,7 +398,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                             // if we've used the credential specifically for the bind, we
                             // need to verify the provided password to do authentication
                             LOGGER.log(Level.FINE, "Attempting to validate password for DN={0}", dn);
-                            DirContext test = descriptor.bind(dnFormatted, password, ldapServers, props);
+                            DirContext test = descriptor.bind(dnFormatted, password, ldapServers, props, tlsConfiguration);
                             // Binding alone is not enough to test the credential. Need to actually perform some query operation.
                             // but if the authentication fails this throws an exception
                             try {
@@ -382,7 +432,24 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                 }
             });
             if (cacheMiss[0] != null) {
-                cacheMiss[0].updateUserInfo();
+                threadPoolExecutor.execute(new Runnable() {
+                    @Override
+                    public void run() {
+                        final String threadName = Thread.currentThread().getName();
+                        Thread.currentThread().setName(threadName + " updating-cache-for-user-" + cacheMiss[0].getUsername());
+                        LOGGER.log(Level.FINEST, "Starting the cache update {0}", new Date());
+                        try {
+                            long t0 = System.currentTimeMillis();
+                            cacheMiss[0].updateUserInfo();
+                            LOGGER.log(Level.FINEST, "Finished the cache update {0}", new Date());
+                            long t1 = System.currentTimeMillis();
+                            LOGGER.log(Level.FINE, "The cache for user {0} took {1} msec", new Object[]{cacheMiss[0].getUsername(), String.valueOf(t1-t0)});
+                        } finally {
+                            Thread.currentThread().setName(threadName);
+                        }
+                    }
+                });
+
             }
         } catch (UncheckedExecutionException e) {
            Throwable t = e.getCause();
@@ -417,7 +484,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                                 ClassLoader ccl = Thread.currentThread().getContextClassLoader();
                                 Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
                                 try {
-                                    DirContext context = descriptor.bind(domain.getName(), domain.getBindPassword().getPlainText(), obtainLDAPServers(domain));
+                                    DirContext context = descriptor.bind(domain.getBindName(), domain.getBindPassword().getPlainText(), obtainLDAPServers(domain));
 
                                     try {
                                         final String domainDN = toDC(domain.getName());
@@ -682,12 +749,20 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     }
 
     private void parseMembers(String userDN, Set<GrantedAuthority> groups, NamingEnumeration<SearchResult> renum) throws NamingException {
-        while (renum.hasMore()) {
-            Attributes a = renum.next().getAttributes();
-            Attribute cn = a.get("cn");
-            if (LOGGER.isLoggable(Level.FINE))
-                LOGGER.fine(userDN+" is a member of "+cn);
-            groups.add(new GrantedAuthorityImpl(cn.get().toString()));
+        try {
+            while (renum.hasMore()) {
+                Attributes a = renum.next().getAttributes();
+                Attribute cn = a.get("cn");
+                if (LOGGER.isLoggable(Level.FINE))
+                    LOGGER.fine(userDN + " is a member of " + cn);
+                groups.add(new GrantedAuthorityImpl(cn.get().toString()));
+            }
+        } catch (PartialResultException e) {
+            // See JENKINS-42687. Just log the exception. Sometimes all the groups are correctly
+            // retrieved but this Exception is launched as a last element of the NamingEnumeration
+            // Even if it is really a PartialResultException, I don't see why this should be a blocker
+            // I think a better approach is to log the Exception and continue
+            LOGGER.log(Level.WARNING, String.format("JENKINS-42687 Might be more members for user  %s", userDN), e);
         }
     }
 

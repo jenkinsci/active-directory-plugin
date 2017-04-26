@@ -1,9 +1,21 @@
 target
-build
+work
+
+# IntelliJ project files
 *.iml
-.idea/
+*.iws
+*.ipr
+.idea
+out
+
+# eclipse project file
+.settings
 .classpath
 .project
-.settings
-/work/
-bin
+build
+
+# vim
+*~
+
+# OS X
+.DS_Store

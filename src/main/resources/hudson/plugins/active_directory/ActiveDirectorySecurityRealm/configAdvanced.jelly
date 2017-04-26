@@ -1,8 +1,8 @@
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
   <f:advanced>
-    <f:entry field="site" title="${%Site}">
-      <f:textbox />
+    <f:entry field="startTls" title="${%Enable StartTls}">
+      <f:checkbox default="true" />
     </f:entry>
     <f:entry field="groupLookupStrategy" title="${%Group Membership Lookup Strategy}">
       <f:select />
@@ -12,6 +12,9 @@
     </f:entry>
     <f:entry field="removeIrrelevantGroups" title="${%Remove irrelevant groups}">
       <f:checkbox />
+    </f:entry>
+    <f:entry field="tlsConfiguration" title="${%TLS Configuration}">
+      <f:select />
     </f:entry>
     <f:optionalBlock name="cache" title="${%Enable cache}" checked="${instance.cache != null}">
       <f:entry field="size" title="${%Cache Size}">
@@ -24,16 +27,7 @@
     <f:entry field="environmentProperties" title="${%Environment Properties}">
       <f:repeatableProperty field="environmentProperties" />
     </f:entry>
-    <f:entry field="testDomain" title="${%Test Domain Name}">
-      <f:textbox />
-    </f:entry>
-    <f:entry field="testDomainControllers" title="${%Test Domain Controllers}">
-      <f:textbox />
-    </f:entry>
   </f:advanced>
-  <f:nested>
-    <f:validateButton with="testDomain,testDomainControllers,domains,site,bindName,bindPassword" title="${%Test a test Domain}" method="validateTest"/>
-  </f:nested>
 	<script type="text/javascript" >
 		document.addEventListener("DOMContentLoaded", function(event) {
 		   document.getElementsByName("_.bindPassword")[0].autocomplete = "off";

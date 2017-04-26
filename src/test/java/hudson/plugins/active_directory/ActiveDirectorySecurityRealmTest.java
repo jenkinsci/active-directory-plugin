@@ -1,5 +1,6 @@
 package hudson.plugins.active_directory;
 
+import hudson.model.AdministrativeMonitor;
 import hudson.security.SecurityRealm;
 import org.junit.Rule;
 import org.junit.Test;
@@ -8,6 +9,8 @@ import org.jvnet.hudson.test.recipes.LocalData;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertFalse;
 
 
 public class ActiveDirectorySecurityRealmTest {
@@ -29,6 +32,8 @@ public class ActiveDirectorySecurityRealmTest {
             // JENKINS-39375 Support a different bindUser per domain
             assertEquals("bindUser", activeDirectorySecurityRealm.getDomains().get(0).getBindName());
             assertNotNull(activeDirectorySecurityRealm.getDomains().get(0).getBindPassword());
+            // JENKINS-39423 Make Site independent of each domain
+            assertEquals("site", activeDirectorySecurityRealm.getDomains().get(0).getSite());
         }
     }
 
@@ -46,6 +51,8 @@ public class ActiveDirectorySecurityRealmTest {
             // JENKINS-39375 Support a different bindUser per domain
             assertEquals("bindUser", activeDirectorySecurityRealm.getDomains().get(0).getBindName());
             assertNotNull(activeDirectorySecurityRealm.getDomains().get(0).getBindPassword());
+            // JENKINS-39423 Make Site independent of each domain
+            assertEquals("site", activeDirectorySecurityRealm.getDomains().get(0).getSite());
         }
     }
 
@@ -63,6 +70,8 @@ public class ActiveDirectorySecurityRealmTest {
             // JENKINS-39375 Support a different bindUser per domain
             assertEquals("bindUser", activeDirectorySecurityRealm.getDomains().get(0).getBindName());
             assertNotNull(activeDirectorySecurityRealm.getDomains().get(0).getBindPassword());
+            // JENKINS-39423 Make Site independent of each domain
+            assertEquals("site", activeDirectorySecurityRealm.getDomains().get(0).getSite());
         }
     }
 
@@ -206,6 +215,8 @@ public class ActiveDirectorySecurityRealmTest {
             // JENKINS-39375 Support a different bindUser per domain
             assertEquals("bindUser", activeDirectorySecurityRealm.getDomains().get(0).getBindName());
             assertNotNull(activeDirectorySecurityRealm.getDomains().get(0).getBindPassword());
+            // JENKINS-39423 Make Site independent of each domain
+            assertEquals("site", activeDirectorySecurityRealm.getDomains().get(0).getSite());
         }
     }
 
@@ -227,6 +238,39 @@ public class ActiveDirectorySecurityRealmTest {
             assertNotNull(activeDirectorySecurityRealm.getDomains().get(0).getBindPassword());
             assertEquals("bindUser", activeDirectorySecurityRealm.getDomains().get(1).getBindName());
             assertNotNull(activeDirectorySecurityRealm.getDomains().get(1).getBindPassword());
+            // JENKINS-39423 Make Site independent of each domain
+            assertEquals("site", activeDirectorySecurityRealm.getDomains().get(0).getSite());
+            assertEquals("site", activeDirectorySecurityRealm.getDomains().get(1).getSite());
         }
+    }
+
+    public void testCheckAdministrativeMonitorDisabledIfADDescriptorNotUsed() throws Exception {
+        ActiveDirectorySecurityRealm.TlsConfigurationAdministrativeMonitor tlsConfigurationAdministrativeMonitor =
+                AdministrativeMonitor.all().get(ActiveDirectorySecurityRealm.TlsConfigurationAdministrativeMonitor.class);
+        assertTrue(tlsConfigurationAdministrativeMonitor.isActivated());
+    }
+
+    @LocalData
+    @Test
+    public void testCheckAdministrativeMonitorEnabledOnFreshDescriptor() throws Exception {
+        ActiveDirectorySecurityRealm.TlsConfigurationAdministrativeMonitor tlsConfigurationAdministrativeMonitor =
+                AdministrativeMonitor.all().get(ActiveDirectorySecurityRealm.TlsConfigurationAdministrativeMonitor.class);
+        assertTrue(tlsConfigurationAdministrativeMonitor.isActivated());
+    }
+
+    @LocalData
+    @Test
+    public void testCheckAdministrativeMonitorDisabledWhenTrustingAllCertificates() throws Exception {
+        ActiveDirectorySecurityRealm.TlsConfigurationAdministrativeMonitor tlsConfigurationAdministrativeMonitor =
+                AdministrativeMonitor.all().get(ActiveDirectorySecurityRealm.TlsConfigurationAdministrativeMonitor.class);
+        assertFalse(tlsConfigurationAdministrativeMonitor.isActivated());
+    }
+
+    @LocalData
+    @Test
+    public void testCheckAdministrativeMonitorDisabledWhenUsingJDKTrustStore() throws Exception {
+        ActiveDirectorySecurityRealm.TlsConfigurationAdministrativeMonitor tlsConfigurationAdministrativeMonitor =
+                AdministrativeMonitor.all().get(ActiveDirectorySecurityRealm.TlsConfigurationAdministrativeMonitor.class);
+        assertFalse(tlsConfigurationAdministrativeMonitor.isActivated());
     }
 }
