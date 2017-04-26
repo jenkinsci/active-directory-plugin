@@ -30,6 +30,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import groovy.lang.Binding;
 import hudson.Extension;
 import hudson.Functions;
+import hudson.init.Terminator;
 import hudson.model.AbstractDescribableImpl;
 import hudson.model.AdministrativeMonitor;
 import hudson.model.Descriptor;
@@ -270,7 +271,6 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         this.useJenkinsInternalDatabase = useJenkinsInternalDatabase;
         this.tlsConfiguration = tlsConfiguration;
         this.startTls = startTls;
-
     }
 
     @DataBoundSetter
