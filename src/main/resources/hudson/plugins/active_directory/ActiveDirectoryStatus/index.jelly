@@ -2,7 +2,7 @@
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
     <l:layout title="${it.displayName}">
         <l:main-panel>
-            <h1>${it.displayName}</h1>
+            <h1><img style="width:32px; height:32px" src="${resURL}/plugin/active-directory/images/icon.png"/> ${it.displayName}</h1>
             <h2>${%ActiveDirectoryStatus.DomainHealth}</h2>
             <j:set var="domains" value="${it.domains}"/>
             <table class="bigtable pane">
@@ -20,14 +20,35 @@
                             ${domain.name}
                         </td>
                         <td class="pane">
-                            ${%ActiveDirectoryStatus.DnsResolutionSane}
-                            ${domain.dnsResolutionSane}
+                            <j:choose>
+                                ${%ActiveDirectoryStatus.DnsResolution}
+                                <j:when test="${domain.getRecordFromDomain() != null}">
+                                    Domain was correctly resolved to NS/A record
+                                </j:when>
+                                <j:otherwise>
+                                    Not able to resolve the domain
+                                </j:otherwise>
+                            </j:choose>
                             <br/>
-                            ${%ActiveDirectoryStatus.GlobalCatalogExposed}
-                            ${domain.globalCatalogExposed}
+                            <j:choose>
+                                ${%ActiveDirectoryStatus.GlobalCatalogExposed}
+                                <j:when test="${domain.getServersOnCatalog('GC') != null}">
+                                    GC correctly exposed
+                                </j:when>
+                                <j:otherwise>
+                                    GC not exposed
+                                </j:otherwise>
+                            </j:choose>
                             <br/>
-                            ${%ActiveDirectoryStatus.LdapCatalogExposed}
-                            ${domain.ldapCatalogExposed}
+                            <j:choose>
+                                ${%ActiveDirectoryStatus.LdapCatalogExposed}
+                                <j:when test="${domain.getServersOnCatalog('LDAP') != null}">
+                                    LDAP correctly exposed
+                                </j:when>
+                                <j:otherwise>
+                                    LDAP not exposed
+                                </j:otherwise>
+                            </j:choose>
                         </td>
                     </tr>
                 </j:forEach>

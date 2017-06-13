@@ -104,6 +104,28 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
 
     public Secret bindPassword;
 
+    // domain name prefixes
+    // see http://technet.microsoft.com/en-us/library/cc759550(WS.10).aspx
+    public enum Catalog {
+        GC("_gc._tcp."),
+        LDAP("_ldap._tcp.");
+
+        private final String name;
+
+        Catalog(String s) {
+            name = s;
+        }
+
+        public boolean equalsName(String otherName) {
+            // (otherName == null) check is not needed because name.equals(null) returns false
+            return name.equals(otherName);
+        }
+
+        public String toString() {
+            return this.name;
+        }
+    }
+
     public ActiveDirectoryDomain(String name, String servers) {
         this(name, servers, null, null, null);
     }
@@ -154,32 +176,32 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
     }
 
     /**
-     * Check if the DNS resolution works or not
+     * Get the A record from a domain
      *
-     * @return true if the DNS resolution works
+     * @return the A record of a domain
      */
-    public boolean isDnsResolutionSane(){
+    public Attribute getRecordFromDomain(){
         DirContext ictx;
+        Attribute a = null;
         // First test the sanity of the domain name itself
         try {
             LOGGER.log(Level.FINE, "Attempting to resolve {0} to NS record", name);
             ictx = createDNSLookupContext();
             Attributes attributes = ictx.getAttributes(name, new String[]{"NS"});
-            Attribute ns = attributes.get("NS");
-            if (ns == null) {
+            a = attributes.get("NS");
+            if (a == null) {
                 LOGGER.log(Level.FINE, "Attempting to resolve {0} to A record", name);
                 attributes = ictx.getAttributes(name, new String[]{"A"});
-                Attribute a = attributes.get("A");
+                a = attributes.get("A");
                 if (a == null) {
                     throw new NamingException(name + " doesn't look like a domain name");
                 }
             }
-            LOGGER.log(Level.FINE, "{0} resolved to {1}", new Object[]{name, ns});
-            return true;
+            LOGGER.log(Level.FINE, "{0} resolved to {1}", new Object[]{name, a});
         } catch (NamingException e) {
             LOGGER.log(Level.WARNING, String.format("Failed to resolve %s to A record", name), e);
-            return false;
         }
+        return a;
     }
 
     /**
@@ -193,45 +215,25 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
     }
 
     /**
-     * Checks if the Global Catalog is exposed
+     * Get the list of servers which compose a {@link Catalog}
      *
-     * @return true if Global Catalog is exposed
+     * The {@link Catalog} can be gc or ldap.
+     *
+     * @return the list of servers in selected {@link Catalog}
      */
-    public boolean isGlobalCatalogExposed() {
-        String candidate = "_gc._tcp.";
-        String ldapServer = candidate + (site != null ? site + "._sites." : "") + this.name;
+    public Attribute getServersOnCatalog(String catalog) {
+        catalog = Catalog.valueOf(catalog).toString();
+        String ldapServer = catalog + (site != null ? site + "._sites." : "") + this.name;
         LOGGER.log(Level.FINE, "Attempting to resolve {0} to SRV record", ldapServer);
         try {
             Attributes attributes = createDNSLookupContext().getAttributes(ldapServer, new String[] { "SRV" });
-            Attribute a = attributes.get("SRV");
-            return a != null;
+            return attributes.get("SRV");
         } catch (NamingException e) {
             LOGGER.log(Level.WARNING, String.format("Failed to resolve %s", ldapServer), e);
         } catch (NumberFormatException x) {
             LOGGER.log(Level.WARNING, String.format("Failed to resolve %s", ldapServer), x);
         }
-        return false;
-    }
-
-    /**
-     * Checks if the LDAP Catalog is exposed
-     *
-     * @return true if the LDAP Catalog is exposed
-     */
-    public boolean isLdapCatalogExposed() {
-        String candidate = "_ldap._tcp.";
-        String ldapServer = candidate + (site != null ? site + "._sites." : "") + this.name;
-        LOGGER.fine("Attempting to resolve "+ldapServer+" to SRV record");
-        try {
-            Attributes attributes = createDNSLookupContext().getAttributes(ldapServer, new String[] { "SRV" });
-            Attribute a = attributes.get("SRV");
-            return a != null;
-        } catch (NamingException e) {
-            LOGGER.log(Level.WARNING, String.format("Failed to resolve %s", ldapServer), e);
-        } catch (NumberFormatException x) {
-            LOGGER.log(Level.WARNING, String.format("Failed to resolve %s", ldapServer), x);
-        }
-        return false;
+        return null;
     }
 
     /**
@@ -285,7 +287,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
 
                 // There should be only one domain as the fake domain only contains one
                 for (ActiveDirectoryDomain activeDirectoryDomain : activeDirectoryDomains) {
-                    if (!activeDirectoryDomain.isDnsResolutionSane()) {
+                    if (activeDirectoryDomain.getRecordFromDomain() != null) {
                         return FormValidation.error(name + " doesn't look like a valid domain name");
                     }
                 }
