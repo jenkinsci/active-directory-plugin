@@ -721,8 +721,8 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
             // try global catalog if it exists first, then the particular domain
             for (ActiveDirectoryDomain.Catalog catalog : ActiveDirectoryDomain.Catalog.values()) {
-                ldapServer = catalog+(site!=null ? site+"._sites." : "")+domainName;
-                LOGGER.fine("Attempting to resolve "+ldapServer+" to SRV record");
+                ldapServer = catalog + (site!=null ? site + "._sites." : "") + domainName;
+                LOGGER.fine("Attempting to resolve " + ldapServer + " to SRV record");
                 try {
                     Attributes attributes = ictx.getAttributes(ldapServer, new String[] { "SRV" });
                     a = attributes.get("SRV");

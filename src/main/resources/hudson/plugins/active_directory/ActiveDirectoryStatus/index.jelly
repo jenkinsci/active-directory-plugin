@@ -23,47 +23,48 @@
                             <j:choose>
                                 ${%ActiveDirectoryStatus.DnsResolution}
                                 <j:when test="${domain.getRecordFromDomain() != null}">
-                                    Domain was correctly resolved to NS/A record
+                                    ${%ActiveDirectoryStatus.DomainDnsResolved}
                                 </j:when>
                                 <j:otherwise>
-                                    Not able to resolve the domain
+                                    ${%ActiveDirectoryStatus.DomainDnsNotResolved}
                                 </j:otherwise>
                             </j:choose>
                             <br/>
                             <j:choose>
-                                ${%ActiveDirectoryStatus.GlobalCatalogExposed}
+                                ${%ActiveDirectoryStatus.GlobalCatalog}
                                 <j:when test="${domain.getServersOnCatalog('GC') != null}">
-                                    GC correctly exposed
+                                    ${%ActiveDirectoryStatus.GlobalCatalogExposed}
                                 </j:when>
                                 <j:otherwise>
-                                    GC not exposed
+                                    ${%ActiveDirectoryStatus.GlobalCatalogNotExposed}
                                 </j:otherwise>
                             </j:choose>
                             <br/>
                             <j:choose>
-                                ${%ActiveDirectoryStatus.LdapCatalogExposed}
+                                ${%ActiveDirectoryStatus.LdapCatalog}
                                 <j:when test="${domain.getServersOnCatalog('LDAP') != null}">
-                                    LDAP correctly exposed
+                                    ${%ActiveDirectoryStatus.LdapCatalogExposed}
                                 </j:when>
                                 <j:otherwise>
-                                    LDAP not exposed
+                                    ${%ActiveDirectoryStatus.LdapCatalogNotExposed}
                                 </j:otherwise>
                             </j:choose>
                         </td>
                     </tr>
                 </j:forEach>
             </table>
-            ${it.descriptor}
             <h2>${%ActiveDirectoryStatus.ServersHealth}</h2>
+            <em>${%ActiveDirectoryStatus.ServersHealthNote}</em>
+            <br/><br/>
             <j:set var="domain" value="${request.getParameter('domain')}"/>
             <form method="POST" action=".">
-                Get servers health on domain:
+                ${%ActiveDirectoryStatus.ServerHealthDomain}
                 <select name="domain">
                     <j:forEach var="element" items="${it.domains}">
                         <option value="${element.name}">${element.name}</option>
                     </j:forEach>
                 </select>
-                <br/> <br/>
+                <br/><br/>
                 <input name="Check servers" type="submit"/>
                 <br/>
             </form>

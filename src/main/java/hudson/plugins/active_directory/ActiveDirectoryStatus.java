@@ -69,7 +69,7 @@ public class ActiveDirectoryStatus extends ManagementLink {
 
     @Override
     public String getUrlName() {
-        return "ad";
+        return "ad-health";
     }
 
     /**
@@ -166,10 +166,12 @@ public class ActiveDirectoryStatus extends ManagementLink {
             return true ? loginExecutionTime != -1 : false;
         }
 
+        @Restricted(NoExternalUse.class)
         public long getPingExecutionTime() {
             return pingExecutionTime;
         }
 
+        @Restricted(NoExternalUse.class)
         public long getLoginExecutionTime() {
             return loginExecutionTime;
         }

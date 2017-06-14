@@ -116,11 +116,6 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
             name = s;
         }
 
-        public boolean equalsName(String otherName) {
-            // (otherName == null) check is not needed because name.equals(null) returns false
-            return name.equals(otherName);
-        }
-
         public String toString() {
             return this.name;
         }
@@ -176,14 +171,13 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
     }
 
     /**
-     * Get the A record from a domain
+     * Get the record from a domain
      *
-     * @return the A record of a domain
+     * @return the record of a domain
      */
     public Attribute getRecordFromDomain(){
         DirContext ictx;
         Attribute a = null;
-        // First test the sanity of the domain name itself
         try {
             LOGGER.log(Level.FINE, "Attempting to resolve {0} to NS record", name);
             ictx = createDNSLookupContext();
@@ -215,11 +209,11 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
     }
 
     /**
-     * Get the list of servers which compose a {@link Catalog}
+     * Get the list of servers which compose the {@link Catalog}
      *
      * The {@link Catalog} can be gc or ldap.
      *
-     * @return the list of servers in selected {@link Catalog}
+     * @return the list of servers in the selected {@link Catalog}
      */
     public Attribute getServersOnCatalog(String catalog) {
         catalog = Catalog.valueOf(catalog).toString();
@@ -283,7 +277,6 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
 
                 // First test the sanity of the domain name itself
                 List<ActiveDirectoryDomain> activeDirectoryDomains = activeDirectorySecurityRealm.getDomains();
-
 
                 // There should be only one domain as the fake domain only contains one
                 for (ActiveDirectoryDomain activeDirectoryDomain : activeDirectoryDomains) {
