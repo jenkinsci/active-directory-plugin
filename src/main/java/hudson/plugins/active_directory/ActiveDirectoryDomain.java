@@ -39,13 +39,16 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
 import javax.naming.CommunicationException;
+import javax.naming.Context;
 import javax.naming.NamingException;
 import javax.naming.directory.Attribute;
 import javax.naming.directory.Attributes;
 import javax.naming.directory.DirContext;
+import javax.naming.directory.InitialDirContext;
 import javax.servlet.ServletException;
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Hashtable;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -101,6 +104,23 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
 
     public Secret bindPassword;
 
+    // domain name prefixes
+    // see http://technet.microsoft.com/en-us/library/cc759550(WS.10).aspx
+    public enum Catalog {
+        GC("_gc._tcp."),
+        LDAP("_ldap._tcp.");
+
+        private final String name;
+
+        Catalog(String s) {
+            name = s;
+        }
+
+        public String toString() {
+            return this.name;
+        }
+    }
+
     public ActiveDirectoryDomain(String name, String servers) {
         this(name, servers, null, null, null);
     }
@@ -151,6 +171,66 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
     }
 
     /**
+     * Get the record from a domain
+     *
+     * @return the record of a domain
+     */
+    public Attribute getRecordFromDomain(){
+        DirContext ictx;
+        Attribute a = null;
+        try {
+            LOGGER.log(Level.FINE, "Attempting to resolve {0} to NS record", name);
+            ictx = createDNSLookupContext();
+            Attributes attributes = ictx.getAttributes(name, new String[]{"NS"});
+            a = attributes.get("NS");
+            if (a == null) {
+                LOGGER.log(Level.FINE, "Attempting to resolve {0} to A record", name);
+                attributes = ictx.getAttributes(name, new String[]{"A"});
+                a = attributes.get("A");
+                if (a == null) {
+                    throw new NamingException(name + " doesn't look like a domain name");
+                }
+            }
+            LOGGER.log(Level.FINE, "{0} resolved to {1}", new Object[]{name, a});
+        } catch (NamingException e) {
+            LOGGER.log(Level.WARNING, String.format("Failed to resolve %s to A record", name), e);
+        }
+        return a;
+    }
+
+    /**
+     * Creates {@link DirContext} for accesssing DNS.
+     */
+    public DirContext createDNSLookupContext() throws NamingException {
+        Hashtable env = new Hashtable();
+        env.put(Context.INITIAL_CONTEXT_FACTORY, "com.sun.jndi.dns.DnsContextFactory");
+        env.put("java.naming.provider.url", "dns:");
+        return new InitialDirContext(env);
+    }
+
+    /**
+     * Get the list of servers which compose the {@link Catalog}
+     *
+     * The {@link Catalog} can be gc or ldap.
+     *
+     * @return the list of servers in the selected {@link Catalog}
+     */
+    public Attribute getServersOnCatalog(String catalog) {
+        catalog = Catalog.valueOf(catalog).toString();
+        String ldapServer = catalog + (site != null ? site + "._sites." : "") + this.name;
+        LOGGER.log(Level.FINE, "Attempting to resolve {0} to SRV record", ldapServer);
+        try {
+            Attributes attributes = createDNSLookupContext().getAttributes(ldapServer, new String[] { "SRV" });
+            return attributes.get("SRV");
+        } catch (NamingException e) {
+            LOGGER.log(Level.WARNING, String.format("Failed to resolve %s", ldapServer), e);
+        } catch (NumberFormatException x) {
+            LOGGER.log(Level.WARNING, String.format("Failed to resolve %s", ldapServer), x);
+        }
+        return null;
+    }
+
+    /**
      * Convert empty string to null.
      */
     public static String fixEmpty(String s) {
@@ -195,27 +275,17 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
                 if (bindName!=null && password==null)
                     return FormValidation.error("Bind DN is specified but not the password");
 
-                DirContext ictx;
                 // First test the sanity of the domain name itself
-                try {
-                    LOGGER.log(Level.FINE, "Attempting to resolve {0} to NS record", name);
-                    ictx = activeDirectorySecurityRealm.getDescriptor().createDNSLookupContext();
-                    Attributes attributes = ictx.getAttributes(name, new String[]{"NS"});
-                    Attribute ns = attributes.get("NS");
-                    if (ns == null) {
-                        LOGGER.log(Level.FINE, "Attempting to resolve {0} to A record", name);
-                        attributes = ictx.getAttributes(name, new String[]{"A"});
-                        Attribute a = attributes.get("A");
-                        if (a == null) {
-                            throw new NamingException(name + " doesn't look like a domain name");
-                        }
+                List<ActiveDirectoryDomain> activeDirectoryDomains = activeDirectorySecurityRealm.getDomains();
+
+                // There should be only one domain as the fake domain only contains one
+                for (ActiveDirectoryDomain activeDirectoryDomain : activeDirectoryDomains) {
+                    if (activeDirectoryDomain.getRecordFromDomain() != null) {
+                        return FormValidation.error(name + " doesn't look like a valid domain name");
                     }
-                    LOGGER.log(Level.FINE, "{0} resolved to {1}", new Object[]{name, ns});
-                } catch (NamingException e) {
-                    LOGGER.log(Level.WARNING, String.format("Failed to resolve %s to A record", name), e);
-                    return FormValidation.error(e, name + " doesn't look like a valid domain name");
                 }
                 // Then look for the LDAP server
+                DirContext ictx = activeDirectorySecurityRealm.getDescriptor().createDNSLookupContext();
                 List<SocketInfo> obtainerServers;
                 try {
                     obtainerServers = activeDirectorySecurityRealm.getDescriptor().obtainLDAPServer(ictx, name, site, servers);

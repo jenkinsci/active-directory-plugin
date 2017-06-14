@@ -1,0 +1,117 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+    <l:layout title="${it.displayName}">
+        <l:main-panel>
+            <h1><img style="width:32px; height:32px" src="${resURL}/plugin/active-directory/images/icon.png"/> ${it.displayName}</h1>
+            <h2>${%ActiveDirectoryStatus.DomainHealth}</h2>
+            <j:set var="domains" value="${it.domains}"/>
+            <table class="bigtable pane">
+                <tr>
+                    <th class="pane-header">
+                        ${%ActiveDirectoryStatus.Domain}
+                    </th>
+                    <th class="pane-header">
+                        ${%ActiveDirectoryStatus.HealthChecks}
+                    </th>
+                </tr>
+                <j:forEach var="domain" items="${domains}">
+                    <tr>
+                        <td class="pane">
+                            ${domain.name}
+                        </td>
+                        <td class="pane">
+                            <j:choose>
+                                ${%ActiveDirectoryStatus.DnsResolution}
+                                <j:when test="${domain.getRecordFromDomain() != null}">
+                                    ${%ActiveDirectoryStatus.DomainDnsResolved}
+                                </j:when>
+                                <j:otherwise>
+                                    ${%ActiveDirectoryStatus.DomainDnsNotResolved}
+                                </j:otherwise>
+                            </j:choose>
+                            <br/>
+                            <j:choose>
+                                ${%ActiveDirectoryStatus.GlobalCatalog}
+                                <j:when test="${domain.getServersOnCatalog('GC') != null}">
+                                    ${%ActiveDirectoryStatus.GlobalCatalogExposed}
+                                </j:when>
+                                <j:otherwise>
+                                    ${%ActiveDirectoryStatus.GlobalCatalogNotExposed}
+                                </j:otherwise>
+                            </j:choose>
+                            <br/>
+                            <j:choose>
+                                ${%ActiveDirectoryStatus.LdapCatalog}
+                                <j:when test="${domain.getServersOnCatalog('LDAP') != null}">
+                                    ${%ActiveDirectoryStatus.LdapCatalogExposed}
+                                </j:when>
+                                <j:otherwise>
+                                    ${%ActiveDirectoryStatus.LdapCatalogNotExposed}
+                                </j:otherwise>
+                            </j:choose>
+                        </td>
+                    </tr>
+                </j:forEach>
+            </table>
+            <h2>${%ActiveDirectoryStatus.ServersHealth}</h2>
+            <em>${%ActiveDirectoryStatus.ServersHealthNote}</em>
+            <br/><br/>
+            <j:set var="domain" value="${request.getParameter('domain')}"/>
+            <form method="POST" action=".">
+                ${%ActiveDirectoryStatus.ServerHealthDomain}
+                <select name="domain">
+                    <j:forEach var="element" items="${it.domains}">
+                        <option value="${element.name}">${element.name}</option>
+                    </j:forEach>
+                </select>
+                <br/><br/>
+                <input name="Check servers" type="submit"/>
+                <br/>
+            </form>
+            <pre>
+            ${it.check}
+            </pre>
+            <script>
+                function display(r) {
+                    r.domainHealth.forEach(function(domainHealth) {
+                        var tr = document.createElement('tr');
+                        var td1 = document.createElement('td');
+                        var td2 = document.createElement('td');
+                        var td3 = document.createElement('td');
+                        var td4 = document.createElement('td');
+                        var text1 = document.createTextNode(domainHealth.host + ' / ' + domainHealth.ipAddress);
+                        var text2 = document.createTextNode(domainHealth.canLogin);
+                        var text3 = document.createTextNode(domainHealth.pingExecutionTime + ' ms');
+                        var text4 = document.createTextNode(domainHealth.loginExecutionTime  + ' ms');
+                        td1.appendChild(text1);
+                        td2.appendChild(text2);
+                        td3.appendChild(text3);
+                        td4.appendChild(text4);
+                        tr.appendChild(td1);
+                        tr.appendChild(td2);
+                        tr.appendChild(td3);
+                        tr.appendChild(td4);
+                        $(demo).appendChild(tr);
+                    });
+                }
+            </script>
+            <l:progressiveRendering handler="${it.startDomainHealthChecks(domain)}" callback="display" tooltip="Checking Domain Controllers..."/>
+            <table id="demo" class="bigtable pane">
+                <tr>
+                    <th class="pane-header">
+                        ${%Domain Controller}
+                    </th>
+                    <th class="pane-header">
+                        ${%Login successful}
+                    </th>
+                    <th class="pane-header">
+                        ${%Connection time}
+                    </th>
+                    <th class="pane-header">
+                        ${%User lookup time}
+                    </th>
+                </tr>
+            </table>
+        </l:main-panel>
+    </l:layout>
+</j:jelly>

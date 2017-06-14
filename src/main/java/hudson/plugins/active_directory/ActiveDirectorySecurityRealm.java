@@ -669,7 +669,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                 Thread.currentThread().setName(oldName);
             }
         }
-        
+
         /**
          * Creates {@link DirContext} for accesssing DNS.
          */
@@ -688,10 +688,6 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         public List<SocketInfo> obtainLDAPServer(ActiveDirectoryDomain activeDirectoryDomain) throws NamingException {
             return obtainLDAPServer(createDNSLookupContext(), activeDirectoryDomain.getName(), activeDirectoryDomain.getSite(), activeDirectoryDomain.getServers());
         }
-
-        // domain name prefixes
-        // see http://technet.microsoft.com/en-us/library/cc759550(WS.10).aspx
-        private static final List<String> CANDIDATES = Arrays.asList("_gc._tcp.", "_ldap._tcp.");
 
         /**
          * Use DNS and obtains the LDAP servers that we should try.
@@ -724,9 +720,9 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             NamingException failure = null;
 
             // try global catalog if it exists first, then the particular domain
-            for (String candidate : CANDIDATES) {
-                ldapServer = candidate+(site!=null ? site+"._sites." : "")+domainName;
-                LOGGER.fine("Attempting to resolve "+ldapServer+" to SRV record");
+            for (ActiveDirectoryDomain.Catalog catalog : ActiveDirectoryDomain.Catalog.values()) {
+                ldapServer = catalog + (site!=null ? site + "._sites." : "") + domainName;
+                LOGGER.fine("Attempting to resolve " + ldapServer + " to SRV record");
                 try {
                     Attributes attributes = ictx.getAttributes(ldapServer, new String[] { "SRV" });
                     a = attributes.get("SRV");
