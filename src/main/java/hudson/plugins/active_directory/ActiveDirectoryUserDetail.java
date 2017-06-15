@@ -25,6 +25,7 @@ package hudson.plugins.active_directory;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -33,11 +34,13 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import hudson.security.HudsonPrivateSecurityRealm;
 import hudson.security.SecurityRealm;
 import hudson.tasks.Mailer;
 import hudson.tasks.Mailer.UserProperty;
 import jenkins.model.Jenkins;
 import org.acegisecurity.GrantedAuthority;
+import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
 import org.acegisecurity.userdetails.User;
 import org.acegisecurity.userdetails.UserDetails;
 import org.apache.commons.collections.CollectionUtils;
@@ -216,6 +219,35 @@ public class ActiveDirectoryUserDetail extends User {
         }
 
         return this;
+    }
+
+    /**
+     * Update the the password for the specified {@link hudson.model.User} in the Jenkins
+     * Internal User Database
+     *
+     *
+     */
+    protected void updatePasswordInJenkinsInternalDatabase(String username, String password) {
+        LOGGER.log(Level.FINEST, String.format("Looking in Jenkins Internal Database for user %s", username));
+        hudson.model.User internalUser = hudson.model.User.get(username);
+        HudsonPrivateSecurityRealm.Details details = internalUser.getProperty(HudsonPrivateSecurityRealm.Details.class);
+        try {
+            //String parameter
+            Class[] paramString = new Class[1];
+            paramString[0] = String.class;
+            Class cls = Class.forName("hudson.security.HudsonPrivateSecurityRealm$Details");
+            Method method = cls.getDeclaredMethod("fromPlainPassword", paramString);
+            method.setAccessible(true);
+            method.invoke(details, new String(password));
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        } catch (NoSuchMethodException e) {
+            e.printStackTrace();
+        } catch (InvocationTargetException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        }
     }
 
     private static final long serialVersionUID = 1L;

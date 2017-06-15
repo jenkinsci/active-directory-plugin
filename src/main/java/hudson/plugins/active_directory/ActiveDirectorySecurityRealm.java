@@ -213,17 +213,14 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     protected TlsConfiguration tlsConfiguration;
 
     /**
+     *  The Jenkins internal user to fall back in case ok {@link NamingException}
+     */
+    protected ActiveDirectoryInternalUsersDatabase internalUserDatabase;
+
+    /**
      * The threadPool to update the cache on background
      */
     protected transient ExecutorService threadPoolExecutor;
-
-    /**
-     * If true, the Active Directory will use both the Jenkins Internal database and the AD server to lookup for users
-     *
-     * This options is useful in case your AD server is not reachable anymore. On this kind of situations, you will be
-     * still able to login into Jenkins.
-     */
-    public final boolean useJenkinsInternalDatabase;
 
     public ActiveDirectorySecurityRealm(String domain, String site, String bindName, String bindPassword, String server) {
         this(domain, site, bindName, bindPassword, server, GroupLookupStrategy.AUTO, false);
@@ -250,13 +247,13 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
     public ActiveDirectorySecurityRealm(String domain, List<ActiveDirectoryDomain> domains, String site, String bindName,
                                         String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache, Boolean startTls, TlsConfiguration tlsConfiguration) {
-        this(domain, domains, site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups, customDomain, cache, startTls, TlsConfiguration.TRUST_ALL_CERTIFICATES, false);
+        this(domain, domains, site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups, customDomain, cache, startTls, TlsConfiguration.TRUST_ALL_CERTIFICATES, null);
     }
 
     @DataBoundConstructor
     // as Java signature, this binding doesn't make sense, so please don't use this constructor
     public ActiveDirectorySecurityRealm(String domain, List<ActiveDirectoryDomain> domains, String site, String bindName,
-                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache, Boolean startTls, TlsConfiguration tlsConfiguration, boolean useJenkinsInternalDatabase) {
+                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache, Boolean startTls, TlsConfiguration tlsConfiguration, ActiveDirectoryInternalUsersDatabase internalUserDatabase) {
         if (customDomain!=null && !customDomain)
             domains = null;
         this.domain = fixEmpty(domain);
@@ -268,9 +265,9 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         this.groupLookupStrategy = groupLookupStrategy;
         this.removeIrrelevantGroups = removeIrrelevantGroups;
         this.cache = cache;
-        this.useJenkinsInternalDatabase = useJenkinsInternalDatabase;
         this.tlsConfiguration = tlsConfiguration;
         this.startTls = startTls;
+        this.internalUserDatabase = internalUserDatabase;
     }
 
     @DataBoundSetter
@@ -285,6 +282,20 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         }
         return cache;
     }
+
+    @Restricted(NoExternalUse.class)
+    public String getJenkinsInternalUser() {
+        return internalUserDatabase == null ? null : internalUserDatabase.getJenkinsInternalUser();
+    }
+
+    @Restricted(NoExternalUse.class)
+    public ActiveDirectoryInternalUsersDatabase getInternalUserDatabase() {
+        if (internalUserDatabase != null && internalUserDatabase.getJenkinsInternalUser() != null && internalUserDatabase.getJenkinsInternalUser().isEmpty()) {
+            return null;
+        }
+        return internalUserDatabase;
+    }
+
     @Restricted(NoExternalUse.class)
     public Boolean isStartTls() {
         return startTls;
@@ -351,11 +362,6 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     @Restricted(NoExternalUse.class)
     public List<ActiveDirectoryDomain> getDomains() {
         return domains;
-    }
-
-    @Restricted(NoExternalUse.class)
-    public boolean isUseJenkinsInternalDatabase() {
-        return useJenkinsInternalDatabase;
     }
 
     public Object readResolve() throws ObjectStreamException {
@@ -533,7 +539,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         private static boolean WARNED = false;
 
         @Deprecated
-        public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers, Hashtable<String, String> props) {
+        public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers, Hashtable<String, String> props) throws NamingException {
             return bind(principalName, password, ldapServers, props, null);
         }
 
@@ -543,7 +549,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
          * In a real deployment, often there are servers that don't respond or
          * otherwise broken, so try all the servers.
          */
-        public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers, Hashtable<String, String> props, TlsConfiguration tlsConfiguration) {
+        public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers, Hashtable<String, String> props, TlsConfiguration tlsConfiguration) throws NamingException {
             // in a AD forest, it'd be mighty nice to be able to login as "joe"
             // as opposed to "joe@europe",
             // but the bind operation doesn't appear to allow me to do so.
@@ -591,7 +597,8 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                 }
             }
             // if all the attempts failed
-            throw new BadCredentialsException("Either no such user '" + principalName + "' or incorrect password", namingException);
+            throw namingException;
+            //throw new BadCredentialsException("Either no such user '" + principalName + "' or incorrect password", namingException);
         }
 
         /**
@@ -601,7 +608,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
          * otherwise broken, so try all the servers.
          */
         @Deprecated
-        public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers) {
+        public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers) throws NamingException {
             return bind(principalName, password, ldapServers, new Hashtable<String, String>());
         }
 
