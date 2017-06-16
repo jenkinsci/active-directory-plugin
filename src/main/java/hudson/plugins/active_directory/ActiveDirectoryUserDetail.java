@@ -236,7 +236,7 @@ public class ActiveDirectoryUserDetail extends User {
             Class cls = Class.forName("hudson.security.HudsonPrivateSecurityRealm$Details");
             Method method = cls.getDeclaredMethod("fromPlainPassword", paramString);
             method.setAccessible(true);
-            method.invoke(details, new String(password));
+            method.invoke(details, password);
         } catch (ClassNotFoundException e) {
             //
         } catch (NoSuchMethodException e) {
