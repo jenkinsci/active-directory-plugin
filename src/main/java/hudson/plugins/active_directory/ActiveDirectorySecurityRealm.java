@@ -213,9 +213,9 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     protected TlsConfiguration tlsConfiguration;
 
     /**
-     *  The Jenkins internal user to fall back in case ok {@link NamingException}
+     *  The Jenkins internal user to fall back in case f {@link NamingException}
      */
-    protected ActiveDirectoryInternalUsersDatabase internalUserDatabase;
+    protected ActiveDirectoryInternalUsersDatabase internalUsersDatabase;
 
     /**
      * The threadPool to update the cache on background
@@ -253,7 +253,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     @DataBoundConstructor
     // as Java signature, this binding doesn't make sense, so please don't use this constructor
     public ActiveDirectorySecurityRealm(String domain, List<ActiveDirectoryDomain> domains, String site, String bindName,
-                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache, Boolean startTls, TlsConfiguration tlsConfiguration, ActiveDirectoryInternalUsersDatabase internalUserDatabase) {
+                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache, Boolean startTls, TlsConfiguration tlsConfiguration, ActiveDirectoryInternalUsersDatabase internalUsersDatabase) {
         if (customDomain!=null && !customDomain)
             domains = null;
         this.domain = fixEmpty(domain);
@@ -267,7 +267,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         this.cache = cache;
         this.tlsConfiguration = tlsConfiguration;
         this.startTls = startTls;
-        this.internalUserDatabase = internalUserDatabase;
+        this.internalUsersDatabase = internalUsersDatabase;
     }
 
     @DataBoundSetter
@@ -285,15 +285,12 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
     @Restricted(NoExternalUse.class)
     public String getJenkinsInternalUser() {
-        return internalUserDatabase == null ? null : internalUserDatabase.getJenkinsInternalUser();
+        return internalUsersDatabase == null ? null : internalUsersDatabase.getJenkinsInternalUser();
     }
 
     @Restricted(NoExternalUse.class)
-    public ActiveDirectoryInternalUsersDatabase getInternalUserDatabase() {
-        if (internalUserDatabase != null && internalUserDatabase.getJenkinsInternalUser() != null && internalUserDatabase.getJenkinsInternalUser().isEmpty()) {
-            return null;
-        }
-        return internalUserDatabase;
+    public ActiveDirectoryInternalUsersDatabase getInternalUsersDatabase() {
+        return internalUsersDatabase != null && internalUsersDatabase.getJenkinsInternalUser() != null && internalUsersDatabase.getJenkinsInternalUser().isEmpty() ? null : internalUsersDatabase;
     }
 
     @Restricted(NoExternalUse.class)
@@ -597,8 +594,8 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                 }
             }
             // if all the attempts failed
+            LOGGER.log(Level.WARNING, "All attempts to login failed for user {0}", principalName);
             throw namingException;
-            //throw new BadCredentialsException("Either no such user '" + principalName + "' or incorrect password", namingException);
         }
 
         /**

@@ -28,6 +28,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.security.UserMayOrMayNotExistException;
 import hudson.util.FlushProofOutputStream;
 
+import javax.naming.NamingException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.util.Collection;

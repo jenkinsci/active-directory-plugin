@@ -40,7 +40,6 @@ import hudson.tasks.Mailer;
 import hudson.tasks.Mailer.UserProperty;
 import jenkins.model.Jenkins;
 import org.acegisecurity.GrantedAuthority;
-import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
 import org.acegisecurity.userdetails.User;
 import org.acegisecurity.userdetails.UserDetails;
 import org.apache.commons.collections.CollectionUtils;
@@ -232,7 +231,6 @@ public class ActiveDirectoryUserDetail extends User {
         hudson.model.User internalUser = hudson.model.User.get(username);
         HudsonPrivateSecurityRealm.Details details = internalUser.getProperty(HudsonPrivateSecurityRealm.Details.class);
         try {
-            //String parameter
             Class[] paramString = new Class[1];
             paramString[0] = String.class;
             Class cls = Class.forName("hudson.security.HudsonPrivateSecurityRealm$Details");
@@ -240,13 +238,13 @@ public class ActiveDirectoryUserDetail extends User {
             method.setAccessible(true);
             method.invoke(details, new String(password));
         } catch (ClassNotFoundException e) {
-            e.printStackTrace();
+            //
         } catch (NoSuchMethodException e) {
-            e.printStackTrace();
+            //
         } catch (InvocationTargetException e) {
-            e.printStackTrace();
+            //
         } catch (IllegalAccessException e) {
-            e.printStackTrace();
+            //
         }
     }
 

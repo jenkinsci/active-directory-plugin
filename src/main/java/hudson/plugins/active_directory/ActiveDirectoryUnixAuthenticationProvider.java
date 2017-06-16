@@ -36,7 +36,6 @@ import hudson.util.DaemonThreadFactory;
 import hudson.util.NamingThreadFactory;
 import hudson.util.Secret;
 
-import javax.naming.CommunicationException;
 import javax.naming.NameNotFoundException;
 
 import hudson.util.TimeUnit2;
@@ -62,6 +61,7 @@ import javax.naming.directory.DirContext;
 import javax.naming.directory.SearchResult;
 import javax.naming.ldap.LdapName;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Hashtable;
@@ -94,6 +94,9 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
 
     private GroupLookupStrategy groupLookupStrategy;
 
+    /**
+     * The internal {@link User} to fall back when {@link NamingException} happens
+     */
     private final ActiveDirectoryInternalUsersDatabase activeDirectoryInternalUser;
 
     protected static final String DN_FORMATTED = "distinguishedNameFormatted";
@@ -180,7 +183,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         this.site = realm.site;
         this.domains = realm.domains;
         this.groupLookupStrategy = realm.getGroupLookupStrategy();
-        this.activeDirectoryInternalUser = realm.internalUserDatabase;
+        this.activeDirectoryInternalUser = realm.internalUsersDatabase;
         this.descriptor = realm.getDescriptor();
         this.cache = realm.cache;
 
@@ -214,7 +217,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     protected UserDetails retrieveUser(final String username, final UsernamePasswordAuthenticationToken authentication) throws AuthenticationException {
         try {
             // this is more seriously error, indicating a failure to search
-            List<BadCredentialsException> errors = new ArrayList<BadCredentialsException>();
+            List<AuthenticationException> errors = new ArrayList<AuthenticationException>();
 
             // this is lesser error, in that we searched and the user was not found
             List<UsernameNotFoundException> notFound = new ArrayList<UsernameNotFoundException>();
@@ -222,9 +225,9 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
             for (ActiveDirectoryDomain domain : domains) {
                 try {
                     return retrieveUser(username, authentication, domain);
-                } catch (NamingException e1) {
+                } catch (NamingException ne) {
                     if (activeDirectoryInternalUser != null && activeDirectoryInternalUser.getJenkinsInternalUser() != null && username.equals(activeDirectoryInternalUser.getJenkinsInternalUser())) {
-                        LOGGER.log(Level.FINEST, String.format("Looking in Jenkins Internal Database for user %s", username));
+                        LOGGER.log(Level.INFO, String.format("Looking into Jenkins Internal Users Database for user %s", username));
                         User internalUser = hudson.model.User.get(username);
                         HudsonPrivateSecurityRealm.Details hudsonPrivateSecurityRealm = internalUser.getProperty(HudsonPrivateSecurityRealm.Details.class);
                         String password = "";
@@ -232,11 +235,12 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                             password = (String) authentication.getCredentials();
                         }
                         if (hudsonPrivateSecurityRealm.isPasswordCorrect(password)) {
+                            LOGGER.log(Level.INFO, String.format("Falling back into the internal user %s", username));
                             return new ActiveDirectoryUserDetail(username, password, true, true, true, true, hudsonPrivateSecurityRealm.getAuthorities(), internalUser.getDisplayName(), "", "");
                         }
                     } else {
-                        LOGGER.log(Level.WARNING, String.format("Credential exception trying to authenticate against %s domain", domain.getName()), e1);
-                        errors.add(new BadCredentialsException("test"));
+                        LOGGER.log(Level.WARNING, String.format("Communications issues when trying to authenticate against %s domain", domain.getName()), ne);
+                        errors.add(new MultiCauseUserMayOrMayNotExistException("We can't tell if the user exists or not: " + username, notFound));
                     }
                 } catch (UsernameNotFoundException e) {
                     notFound.add(e);
@@ -309,8 +313,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         try {
             return descriptor.obtainLDAPServer(domain);
         } catch (NamingException e) {
-            LOGGER.log(Level.WARNING, "Failed to find the LDAP service", e);
-            //throw new AuthenticationServiceException("Failed to find the LDAP service for the domain "+ domain.getName(), e);
+            LOGGER.log(Level.WARNING, "Failed to find the LDAP service for the domain {0}", domain.getName());
             throw  e;
         }
     }

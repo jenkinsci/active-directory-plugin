@@ -24,15 +24,17 @@ package hudson.plugins.active_directory;
  * THE SOFTWARE.
  */
 
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 /**
- * Class to fall back into the Jenkins Internal Database inc ase of any {@link javax.naming.CommunicationException}
+ * Class to fall back into the Jenkins Internal Database in case of any {@link javax.naming.NamingException}
  */
 public class ActiveDirectoryInternalUsersDatabase {
 
     /**
-     * The Jenkins internal user you would like to fall back in order to access Jenkins
+     * The Jenkins internal user to fall back in order to access Jenkins
      * in case of a {@link javax.naming.NamingException}
      */
     private final String jenkinsInternalUser;
@@ -42,6 +44,7 @@ public class ActiveDirectoryInternalUsersDatabase {
         this.jenkinsInternalUser = jenkinsInternalUser;
     }
 
+    @Restricted(NoExternalUse.class)
     public String getJenkinsInternalUser() {
         return jenkinsInternalUser;
     }
