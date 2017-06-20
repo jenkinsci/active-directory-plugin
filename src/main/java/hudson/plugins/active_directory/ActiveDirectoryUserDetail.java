@@ -236,7 +236,11 @@ public class ActiveDirectoryUserDetail extends User {
             Class cls = Class.forName("hudson.security.HudsonPrivateSecurityRealm$Details");
             Method method = cls.getDeclaredMethod("fromPlainPassword", paramString);
             method.setAccessible(true);
-            method.invoke(details, password);
+            Object object = method.invoke(details, password);
+            if (object instanceof HudsonPrivateSecurityRealm.Details) {
+                HudsonPrivateSecurityRealm.Details newDetails = (HudsonPrivateSecurityRealm.Details) object;
+                internalUser.addProperty(newDetails);
+            }
         } catch (ClassNotFoundException e) {
             LOGGER.log(Level.WARNING, String.format("Failed to update the password for user %s in the Jenkins Internal Database", username), e);
         } catch (NoSuchMethodException e) {
@@ -244,6 +248,8 @@ public class ActiveDirectoryUserDetail extends User {
         } catch (InvocationTargetException e) {
             LOGGER.log(Level.WARNING, String.format("Failed to update the password for user %s in the Jenkins Internal Database", username), e);
         } catch (IllegalAccessException e) {
+            LOGGER.log(Level.WARNING, String.format("Failed to update the password for user %s in the Jenkins Internal Database", username), e);
+        } catch (IOException e) {
             LOGGER.log(Level.WARNING, String.format("Failed to update the password for user %s in the Jenkins Internal Database", username), e);
         }
     }
