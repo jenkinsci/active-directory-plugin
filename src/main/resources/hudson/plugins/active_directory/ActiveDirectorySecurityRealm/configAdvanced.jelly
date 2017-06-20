@@ -7,6 +7,11 @@
     <f:entry field="groupLookupStrategy" title="${%Group Membership Lookup Strategy}">
       <f:select />
     </f:entry>
+    <f:optionalBlock field="internalUsersDatabase" title="${%Use Jenkins Internal Database}" checked="${instance.internalUsersDatabase != null}">
+      <f:entry field="jenkinsInternalUser" title="${%Jenkins Internal Database User}">
+        <f:textbox />
+      </f:entry>
+    </f:optionalBlock>
     <f:entry field="removeIrrelevantGroups" title="${%Remove irrelevant groups}">
       <f:checkbox />
     </f:entry>

@@ -25,6 +25,7 @@ package hudson.plugins.active_directory;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -33,6 +34,7 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import hudson.security.HudsonPrivateSecurityRealm;
 import hudson.security.SecurityRealm;
 import hudson.tasks.Mailer;
 import hudson.tasks.Mailer.UserProperty;
@@ -216,6 +218,40 @@ public class ActiveDirectoryUserDetail extends User {
         }
 
         return this;
+    }
+
+    /**
+     * Update the the password for the specified {@link hudson.model.User} in the Jenkins
+     * Internal User Database
+     *
+     *
+     */
+    protected void updatePasswordInJenkinsInternalDatabase(String username, String password) {
+        LOGGER.log(Level.FINEST, String.format("Looking in Jenkins Internal Database for user %s", username));
+        hudson.model.User internalUser = hudson.model.User.get(username);
+        HudsonPrivateSecurityRealm.Details details = internalUser.getProperty(HudsonPrivateSecurityRealm.Details.class);
+        try {
+            Class[] paramString = new Class[1];
+            paramString[0] = String.class;
+            Class cls = Class.forName("hudson.security.HudsonPrivateSecurityRealm$Details");
+            Method method = cls.getDeclaredMethod("fromPlainPassword", paramString);
+            method.setAccessible(true);
+            Object object = method.invoke(details, password);
+            if (object instanceof HudsonPrivateSecurityRealm.Details) {
+                HudsonPrivateSecurityRealm.Details newDetails = (HudsonPrivateSecurityRealm.Details) object;
+                internalUser.addProperty(newDetails);
+            }
+        } catch (ClassNotFoundException e) {
+            LOGGER.log(Level.WARNING, String.format("Failed to update the password for user %s in the Jenkins Internal Database", username), e);
+        } catch (NoSuchMethodException e) {
+            LOGGER.log(Level.WARNING, String.format("Failed to update the password for user %s in the Jenkins Internal Database", username), e);
+        } catch (InvocationTargetException e) {
+            LOGGER.log(Level.WARNING, String.format("Failed to update the password for user %s in the Jenkins Internal Database", username), e);
+        } catch (IllegalAccessException e) {
+            LOGGER.log(Level.WARNING, String.format("Failed to update the password for user %s in the Jenkins Internal Database", username), e);
+        } catch (IOException e) {
+            LOGGER.log(Level.WARNING, String.format("Failed to update the password for user %s in the Jenkins Internal Database", username), e);
+        }
     }
 
     private static final long serialVersionUID = 1L;

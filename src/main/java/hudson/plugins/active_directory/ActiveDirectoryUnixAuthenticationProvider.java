@@ -27,7 +27,9 @@ import com.google.common.cache.Cache;
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Util;
+import hudson.model.User;
 import hudson.security.GroupDetails;
+import hudson.security.HudsonPrivateSecurityRealm;
 import hudson.security.SecurityRealm;
 import hudson.security.UserMayOrMayNotExistException;
 import hudson.util.DaemonThreadFactory;
@@ -90,6 +92,11 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     private final ActiveDirectorySecurityRealm.DescriptorImpl descriptor;
 
     private GroupLookupStrategy groupLookupStrategy;
+
+    /**
+     * The internal {@link User} to fall back when {@link NamingException} happens
+     */
+    private final ActiveDirectoryInternalUsersDatabase activeDirectoryInternalUser;
 
     protected static final String DN_FORMATTED = "distinguishedNameFormatted";
 
@@ -175,6 +182,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         this.site = realm.site;
         this.domains = realm.domains;
         this.groupLookupStrategy = realm.getGroupLookupStrategy();
+        this.activeDirectoryInternalUser = realm.internalUsersDatabase;
         this.descriptor = realm.getDescriptor();
         this.cache = realm.cache;
 
@@ -208,7 +216,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     protected UserDetails retrieveUser(final String username, final UsernamePasswordAuthenticationToken authentication) throws AuthenticationException {
         try {
             // this is more seriously error, indicating a failure to search
-            List<BadCredentialsException> errors = new ArrayList<BadCredentialsException>();
+            List<AuthenticationException> errors = new ArrayList<AuthenticationException>();
 
             // this is lesser error, in that we searched and the user was not found
             List<UsernameNotFoundException> notFound = new ArrayList<UsernameNotFoundException>();
@@ -216,6 +224,26 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
             for (ActiveDirectoryDomain domain : domains) {
                 try {
                     return retrieveUser(username, authentication, domain);
+                } catch (NamingException ne) {
+                    if (activeDirectoryInternalUser != null && activeDirectoryInternalUser.getJenkinsInternalUser() != null && username.equals(activeDirectoryInternalUser.getJenkinsInternalUser())) {
+                        LOGGER.log(Level.WARNING, String.format("Looking into Jenkins Internal Users Database for user %s", username));
+                        User internalUser = hudson.model.User.get(username);
+                        HudsonPrivateSecurityRealm.Details hudsonPrivateSecurityRealm = internalUser.getProperty(HudsonPrivateSecurityRealm.Details.class);
+                        String password = "";
+                        if (authentication.getCredentials() instanceof String) {
+                            password = (String) authentication.getCredentials();
+                        }
+                        if (hudsonPrivateSecurityRealm.isPasswordCorrect(password)) {
+                            LOGGER.log(Level.INFO, String.format("Falling back into the internal user %s", username));
+                            return new ActiveDirectoryUserDetail(username, password, true, true, true, true, hudsonPrivateSecurityRealm.getAuthorities(), internalUser.getDisplayName(), "", "");
+                        } else {
+                            LOGGER.log(Level.WARNING, String.format("Credential exception trying to authenticate against %s domain", domain.getName()), ne);
+                            errors.add(new MultiCauseUserMayOrMayNotExistException("We can't tell if the user exists or not: " + username, notFound));
+                        }
+                    } else {
+                        LOGGER.log(Level.WARNING, String.format("Communications issues when trying to authenticate against %s domain", domain.getName()), ne);
+                        errors.add(new MultiCauseUserMayOrMayNotExistException("We can't tell if the user exists or not: " + username, notFound));
+                    }
                 } catch (UsernameNotFoundException e) {
                     notFound.add(e);
                 } catch (BadCredentialsException bce) {
@@ -263,7 +291,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
      * @param authentication
      *      null if we are just retrieving the said user, instead of trying to authenticate.
      */
-    private UserDetails retrieveUser(String username, UsernamePasswordAuthenticationToken authentication, ActiveDirectoryDomain domain) throws AuthenticationException {
+    private UserDetails retrieveUser(String username, UsernamePasswordAuthenticationToken authentication, ActiveDirectoryDomain domain) throws AuthenticationException, NamingException {
         // when we use custom socket factory below, every LDAP operations result
         // in a classloading via context classloader, so we need it to resolve.
         ClassLoader ccl = Thread.currentThread().getContextClassLoader();
@@ -283,12 +311,12 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
      * Obtains the list of the LDAP servers in the order we should talk to, given how this
      * {@link ActiveDirectoryUnixAuthenticationProvider} is configured.
      */
-    private List<SocketInfo> obtainLDAPServers(ActiveDirectoryDomain domain) throws AuthenticationServiceException {
+    private List<SocketInfo> obtainLDAPServers(ActiveDirectoryDomain domain) throws AuthenticationServiceException, NamingException {
         try {
             return descriptor.obtainLDAPServer(domain);
         } catch (NamingException e) {
-            LOGGER.log(Level.WARNING, "Failed to find the LDAP service", e);
-            throw new AuthenticationServiceException("Failed to find the LDAP service for the domain "+ domain.getName(), e);
+            LOGGER.log(Level.WARNING, "Failed to find the LDAP service for the domain {0}", domain.getName());
+            throw  e;
         }
     }
 
@@ -303,7 +331,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
      * @return never null
      */
     @SuppressFBWarnings(value = "ES_COMPARING_PARAMETER_STRING_WITH_EQ", justification = "Intentional instance check.")
-    public UserDetails retrieveUser(final String username, final String password, final ActiveDirectoryDomain domain, final List<SocketInfo> ldapServers) {
+    public UserDetails retrieveUser(final String username, final String password, final ActiveDirectoryDomain domain, final List<SocketInfo> ldapServers) throws NamingException {
         UserDetails userDetails;
         String hashKey = username + "@@" + DigestUtils.sha1Hex(password);
         final String bindName = domain.getBindName();
@@ -311,7 +339,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         try {
             final ActiveDirectoryUserDetail[] cacheMiss = new ActiveDirectoryUserDetail[1];
             userDetails = userCache.get(hashKey, new Callable<UserDetails>() {
-                public UserDetails call() throws AuthenticationException {
+                public UserDetails call() throws AuthenticationException, NamingException {
                     DirContext context;
                     boolean anonymousBind = false;    // did we bind anonymously?
 
@@ -329,7 +357,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                         try {
                             context = descriptor.bind(bindName, bindPassword, ldapServers, props, tlsConfiguration);
                             anonymousBind = false;
-                        } catch (BadCredentialsException e) {
+                        } catch (NamingException e) {
                             throw new AuthenticationServiceException("Failed to bind to LDAP server with the bind name/password", e);
                         }
                     } else {
@@ -400,6 +428,9 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                         );
                         return cacheMiss[0];
                     } catch (NamingException e) {
+                        if (activeDirectoryInternalUser != null) {
+                            throw e;
+                        }
                         if (anonymousBind && e.getMessage().contains("successful bind must be completed") && e.getMessage().contains("000004DC")) {
                             // sometimes (or always?) anonymous bind itself will succeed but the actual query will fail.
                             // see JENKINS-12619. On my AD the error code is DSID-0C0906DC
@@ -431,6 +462,25 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                         }
                     }
                 });
+                if (activeDirectoryInternalUser != null && activeDirectoryInternalUser.getJenkinsInternalUser() != null&& username.equals(activeDirectoryInternalUser.getJenkinsInternalUser())) {
+                    threadPoolExecutor.execute(new Runnable() {
+                        @Override
+                        public void run() {
+                            final String threadName = Thread.currentThread().getName();
+                            Thread.currentThread().setName(threadName + " updating-internal-jenkins-database-for-user" + cacheMiss[0].getUsername());
+                            LOGGER.log(Level.FINEST, "Starting the Jenkins Internal Database update {0}", new Date());
+                            try {
+                                long t0 = System.currentTimeMillis();
+                                cacheMiss[0].updatePasswordInJenkinsInternalDatabase(username, password);
+                                LOGGER.log(Level.FINEST, "Finished the password update {0}", new Date());
+                                long t1 = System.currentTimeMillis();
+                                LOGGER.log(Level.FINE, "The password update for user {0} took {1} msec", new Object[]{cacheMiss[0].getUsername(), String.valueOf(t1-t0)});
+                            } finally {
+                                Thread.currentThread().setName(threadName);
+                            }
+                        }
+                    });
+                }
 
             }
         } catch (UncheckedExecutionException e) {
@@ -456,7 +506,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     public GroupDetails loadGroupByGroupname(final String groupname) {
         try {
             return groupCache.get(groupname, new Callable<ActiveDirectoryGroupDetails>() {
-                        public ActiveDirectoryGroupDetails call() {
+                        public ActiveDirectoryGroupDetails call() throws NamingException {
                             for (ActiveDirectoryDomain domain : domains) {
                                 if (domain==null) {
                                     throw new UserMayOrMayNotExistException("Unable to retrieve group information without bind DN/password configured");

@@ -213,11 +213,15 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     protected TlsConfiguration tlsConfiguration;
 
     /**
+     *  The Jenkins internal user to fall back in case f {@link NamingException}
+     */
+    protected ActiveDirectoryInternalUsersDatabase internalUsersDatabase;
+
+    /**
      * The threadPool to update the cache on background
      */
     protected transient ExecutorService threadPoolExecutor;
 
-    
     public ActiveDirectorySecurityRealm(String domain, String site, String bindName, String bindPassword, String server) {
         this(domain, site, bindName, bindPassword, server, GroupLookupStrategy.AUTO, false);
     }
@@ -227,7 +231,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     }
 
     public ActiveDirectorySecurityRealm(String domain, String site, String bindName,
-                                         String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups) {
+                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups) {
         this(domain, site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups, null);
     }
 
@@ -241,11 +245,15 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         this(domain, domains, site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups, customDomain, cache, startTls, TlsConfiguration.TRUST_ALL_CERTIFICATES);
     }
 
+    public ActiveDirectorySecurityRealm(String domain, List<ActiveDirectoryDomain> domains, String site, String bindName,
+                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache, Boolean startTls, TlsConfiguration tlsConfiguration) {
+        this(domain, domains, site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups, customDomain, cache, startTls, TlsConfiguration.TRUST_ALL_CERTIFICATES, null);
+    }
 
     @DataBoundConstructor
     // as Java signature, this binding doesn't make sense, so please don't use this constructor
     public ActiveDirectorySecurityRealm(String domain, List<ActiveDirectoryDomain> domains, String site, String bindName,
-                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache, Boolean startTls, TlsConfiguration tlsConfiguration) {
+                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache, Boolean startTls, TlsConfiguration tlsConfiguration, ActiveDirectoryInternalUsersDatabase internalUsersDatabase) {
         if (customDomain!=null && !customDomain)
             domains = null;
         this.domain = fixEmpty(domain);
@@ -259,6 +267,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         this.cache = cache;
         this.tlsConfiguration = tlsConfiguration;
         this.startTls = startTls;
+        this.internalUsersDatabase = internalUsersDatabase;
     }
 
     @DataBoundSetter
@@ -273,6 +282,17 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         }
         return cache;
     }
+
+    @Restricted(NoExternalUse.class)
+    public String getJenkinsInternalUser() {
+        return internalUsersDatabase == null ? null : internalUsersDatabase.getJenkinsInternalUser();
+    }
+
+    @Restricted(NoExternalUse.class)
+    public ActiveDirectoryInternalUsersDatabase getInternalUsersDatabase() {
+        return internalUsersDatabase != null && internalUsersDatabase.getJenkinsInternalUser() != null && internalUsersDatabase.getJenkinsInternalUser().isEmpty() ? null : internalUsersDatabase;
+    }
+
     @Restricted(NoExternalUse.class)
     public Boolean isStartTls() {
         return startTls;
@@ -516,7 +536,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         private static boolean WARNED = false;
 
         @Deprecated
-        public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers, Hashtable<String, String> props) {
+        public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers, Hashtable<String, String> props) throws NamingException {
             return bind(principalName, password, ldapServers, props, null);
         }
 
@@ -526,7 +546,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
          * In a real deployment, often there are servers that don't respond or
          * otherwise broken, so try all the servers.
          */
-        public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers, Hashtable<String, String> props, TlsConfiguration tlsConfiguration) {
+        public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers, Hashtable<String, String> props, TlsConfiguration tlsConfiguration) throws NamingException {
             // in a AD forest, it'd be mighty nice to be able to login as "joe"
             // as opposed to "joe@europe",
             // but the bind operation doesn't appear to allow me to do so.
@@ -574,7 +594,8 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                 }
             }
             // if all the attempts failed
-            throw new BadCredentialsException("Either no such user '" + principalName + "' or incorrect password", namingException);
+            LOGGER.log(Level.WARNING, "All attempts to login failed for user {0}", principalName);
+            throw namingException;
         }
 
         /**
@@ -584,7 +605,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
          * otherwise broken, so try all the servers.
          */
         @Deprecated
-        public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers) {
+        public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers) throws NamingException {
             return bind(principalName, password, ldapServers, new Hashtable<String, String>());
         }
 

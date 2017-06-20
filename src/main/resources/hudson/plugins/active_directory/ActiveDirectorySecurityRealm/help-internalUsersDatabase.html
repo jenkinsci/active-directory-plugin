@@ -1,0 +1,12 @@
+<div>
+    This option allows to fallback into the Jenkins Internal User Database for the specific user selected (ONLY ONE USER).
+
+    <p>
+        Useful when the AD server is not reachable for any reason and you cannot log-in. This option allows a specific user
+    not to disable security on disk and being able to log-in even under networking issues. You can still perform administration tasks under networking issues.
+
+    <p>
+        With this option is enabled the plugin will fallback into the Jenkins Internal User Database for the specific user selected when
+    there is a NamingException. The password of this user will be in sync with the Active Directory as it gets updated each time this user
+    logins into the instance.
+</div>
