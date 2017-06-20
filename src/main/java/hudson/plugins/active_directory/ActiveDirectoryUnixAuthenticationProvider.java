@@ -61,7 +61,6 @@ import javax.naming.directory.DirContext;
 import javax.naming.directory.SearchResult;
 import javax.naming.ldap.LdapName;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Hashtable;
@@ -227,7 +226,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                     return retrieveUser(username, authentication, domain);
                 } catch (NamingException ne) {
                     if (activeDirectoryInternalUser != null && activeDirectoryInternalUser.getJenkinsInternalUser() != null && username.equals(activeDirectoryInternalUser.getJenkinsInternalUser())) {
-                        LOGGER.log(Level.INFO, String.format("Looking into Jenkins Internal Users Database for user %s", username));
+                        LOGGER.log(Level.WARNING, String.format("Looking into Jenkins Internal Users Database for user %s", username));
                         User internalUser = hudson.model.User.get(username);
                         HudsonPrivateSecurityRealm.Details hudsonPrivateSecurityRealm = internalUser.getProperty(HudsonPrivateSecurityRealm.Details.class);
                         String password = "";
@@ -470,9 +469,9 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                             try {
                                 long t0 = System.currentTimeMillis();
                                 cacheMiss[0].updatePasswordInJenkinsInternalDatabase(username, password);
-                                LOGGER.log(Level.FINEST, "Finished the cache update {0}", new Date());
+                                LOGGER.log(Level.FINEST, "Finished the password update {0}", new Date());
                                 long t1 = System.currentTimeMillis();
-                                LOGGER.log(Level.FINE, "The cache for user {0} took {1} msec", new Object[]{cacheMiss[0].getUsername(), String.valueOf(t1-t0)});
+                                LOGGER.log(Level.FINE, "The password update for user {0} took {1} msec", new Object[]{cacheMiss[0].getUsername(), String.valueOf(t1-t0)});
                             } finally {
                                 Thread.currentThread().setName(threadName);
                             }
