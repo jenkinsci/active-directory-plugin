@@ -238,13 +238,13 @@ public class ActiveDirectoryUserDetail extends User {
             method.setAccessible(true);
             method.invoke(details, password);
         } catch (ClassNotFoundException e) {
-            //
+            LOGGER.log(Level.WARNING, String.format("Failed to update the password for user %s in the Jenkins Internal Database", username), e);
         } catch (NoSuchMethodException e) {
-            //
+            LOGGER.log(Level.WARNING, String.format("Failed to update the password for user %s in the Jenkins Internal Database", username), e);
         } catch (InvocationTargetException e) {
-            //
+            LOGGER.log(Level.WARNING, String.format("Failed to update the password for user %s in the Jenkins Internal Database", username), e);
         } catch (IllegalAccessException e) {
-            //
+            LOGGER.log(Level.WARNING, String.format("Failed to update the password for user %s in the Jenkins Internal Database", username), e);
         }
     }
 
