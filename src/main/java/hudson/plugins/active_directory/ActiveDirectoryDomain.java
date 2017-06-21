@@ -280,7 +280,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
 
                 // There should be only one domain as the fake domain only contains one
                 for (ActiveDirectoryDomain activeDirectoryDomain : activeDirectoryDomains) {
-                    if (activeDirectoryDomain.getRecordFromDomain() != null) {
+                    if (activeDirectoryDomain.getRecordFromDomain() == null) {
                         return FormValidation.error(name + " doesn't look like a valid domain name");
                     }
                 }
