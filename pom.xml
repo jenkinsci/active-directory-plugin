@@ -34,7 +34,7 @@
 
   <properties>
     <jenkins.version>1.554.1</jenkins.version>
-    <java.level>6</java.level>
+    <java.level>7</java.level>
     <powermock.version>1.6.1</powermock.version>
   </properties>
 
@@ -70,6 +70,22 @@
       <artifactId>powermock-api-mockito</artifactId>
       <version>${powermock.version}</version>
       <scope>test</scope>
+    </dependency>
+    <!-- For docker integration tests -->
+    <dependency>
+      <groupId>org.jenkins-ci.test</groupId>
+      <artifactId>docker-fixtures</artifactId>
+      <version>1.0</version>
+      <exclusions>
+        <exclusion>
+          <groupId>com.google.guava</groupId>
+          <artifactId>guava</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.google.inject</groupId>
+          <artifactId>guice</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
   </dependencies>
 
