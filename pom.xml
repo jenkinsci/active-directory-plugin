@@ -34,7 +34,8 @@
 
   <properties>
     <jenkins.version>1.554.1</jenkins.version>
-    <java.level>7</java.level>
+    <java.level>6</java.level>
+    <java.level.test>7</java.level.test>
     <powermock.version>1.6.1</powermock.version>
   </properties>
 
@@ -76,6 +77,7 @@
       <groupId>org.jenkins-ci.test</groupId>
       <artifactId>docker-fixtures</artifactId>
       <version>1.0</version>
+      <scope>test</scope>
       <exclusions>
         <exclusion>
           <groupId>com.google.guava</groupId>
