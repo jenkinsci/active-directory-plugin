@@ -80,10 +80,6 @@
       <scope>test</scope>
       <exclusions>
         <exclusion>
-          <groupId>com.google.guava</groupId>
-          <artifactId>guava</artifactId>
-        </exclusion>
-        <exclusion>
           <groupId>com.google.inject</groupId>
           <artifactId>guice</artifactId>
         </exclusion>
