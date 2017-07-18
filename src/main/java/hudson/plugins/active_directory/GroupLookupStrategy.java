@@ -37,7 +37,7 @@ import org.jvnet.localizer.Localizable;
  *
  * @author Kohsuke Kawaguchi
  */
-/*hidden*/ enum GroupLookupStrategy {
+/*hidden*/ public enum GroupLookupStrategy {
     AUTO           (Messages._GroupLookupStrategy_Auto()),
     RECURSIVE      (Messages._GroupLookupStrategy_Recursive()),
     CHAIN          (Messages._GroupLookupStrategy_ChainMatch()),
