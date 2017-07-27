@@ -247,7 +247,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
     public ActiveDirectorySecurityRealm(String domain, List<ActiveDirectoryDomain> domains, String site, String bindName,
                                         String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache, Boolean startTls, TlsConfiguration tlsConfiguration) {
-        this(domain, domains, site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups, customDomain, cache, startTls, TlsConfiguration.TRUST_ALL_CERTIFICATES, null);
+        this(domain, domains, site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups, customDomain, cache, startTls, tlsConfiguration, null);
     }
 
     @DataBoundConstructor
