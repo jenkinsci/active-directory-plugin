@@ -92,14 +92,14 @@ public class TheFlintstonesTest {
 
     @Test
     public void simpleLoginSuccessful() throws Exception {
-        UserDetails userDetails = j.jenkins.getSecurityRealm().loadUserByUsername("Fred");
+        UserDetails userDetails = j.jenkins.getSecurityRealm().loadUserByUsername("Fred2");
         assertThat(userDetails.getUsername(), is("Fred"));
     }
 
     @Test
     public void simpleLoginFails() throws Exception {
         try {
-            j.jenkins.getSecurityRealm().loadUserByUsername("Homer2");
+            j.jenkins.getSecurityRealm().loadUserByUsername("Homer");
         } catch (UsernameNotFoundException e) {
             assertTrue(e.getMessage().contains("Authentication was successful but cannot locate the user information for Homer"));
         }
