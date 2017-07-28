@@ -361,6 +361,15 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         return domains;
     }
 
+    public ActiveDirectoryDomain getDomain(String domain) {
+        for (ActiveDirectoryDomain activeDirectoryDomain : domains) {
+            if (activeDirectoryDomain.getName().equals(domain)) {
+                return activeDirectoryDomain;
+            }
+        }
+        return null;
+    }
+
     public Object readResolve() throws ObjectStreamException {
         if (domain != null) {
             this.domains = new ArrayList<ActiveDirectoryDomain>();

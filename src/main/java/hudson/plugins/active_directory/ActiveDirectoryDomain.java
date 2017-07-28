@@ -271,18 +271,17 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
                     return FormValidation.error("No domain was set");
                 }
 
+                ActiveDirectoryDomain domain = new ActiveDirectoryDomain(name, servers, site, bindName, bindPassword);
+                Attribute domainAttribute = domain.getRecordFromDomain();
+
+                // As per JENKINS-36148 only show error message in case the servers list is empty
+                if (servers.isEmpty() && domainAttribute == null) {
+                    return FormValidation.error(name + " doesn't look like a valid domain name");
+                }
+
                 Secret password = Secret.fromString(bindPassword);
-                if (bindName!=null && password==null)
+                if (bindName!=null && password==null) {
                     return FormValidation.error("Bind DN is specified but not the password");
-
-                // First test the sanity of the domain name itself
-                List<ActiveDirectoryDomain> activeDirectoryDomains = activeDirectorySecurityRealm.getDomains();
-
-                // There should be only one domain as the fake domain only contains one
-                for (ActiveDirectoryDomain activeDirectoryDomain : activeDirectoryDomains) {
-                    if (activeDirectoryDomain.getRecordFromDomain() == null) {
-                        return FormValidation.error(name + " doesn't look like a valid domain name");
-                    }
                 }
                 // Then look for the LDAP server
                 DirContext ictx = activeDirectorySecurityRealm.getDescriptor().createDNSLookupContext();
@@ -338,8 +337,12 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
                         return FormValidation.error(error, "Failed to connect to " + servers);
                     }
                 }
+                // As per JENKINS-36148 looks good but warn that the DNS resolution does not work
+                if (domainAttribute == null) {
+                    return FormValidation.warning("Success - but " + name + " doesn't look like a valid domain name");
+                }
                 // looks good
-                return FormValidation.ok("Success");
+                return FormValidation.ok("Success ");
             } finally {
                 Thread.currentThread().setContextClassLoader(ccl);
             }

@@ -27,6 +27,7 @@ package hudson.plugins.active_directory.docker;
 import hudson.plugins.active_directory.ActiveDirectoryDomain;
 import hudson.plugins.active_directory.ActiveDirectorySecurityRealm;
 import hudson.plugins.active_directory.GroupLookupStrategy;
+import jenkins.model.Jenkins;
 import org.acegisecurity.AuthenticationServiceException;
 import org.acegisecurity.userdetails.UserDetails;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
@@ -62,6 +63,7 @@ public class TheFlintstonesTest {
     public final static String AD_MANAGER_DN = "CN=Administrator,CN=Users,DC=SAMDOM,DC=EXAMPLE,DC=COM";
     public final static String AD_MANAGER_DN_PASSWORD = "ia4uV1EeKait";
     public final static int MAX_RETRIES = 30;
+    public static String DOCKER_IP;
 
     @Before
     public void setUp() throws Exception {
@@ -84,6 +86,8 @@ public class TheFlintstonesTest {
             }
             i ++;
         }
+        DOCKER_IP = d.ipBound(389);
+        System.out.println(DOCKER_IP);
     }
 
     @Test
@@ -99,6 +103,15 @@ public class TheFlintstonesTest {
         } catch (UsernameNotFoundException e) {
             assertTrue(e.getMessage().contains("Authentication was successful but cannot locate the user information for Homer"));
         }
+    }
+
+    @Test
+    public void checkDomainHealth() throws Exception {
+        System.setProperty("samdom.example.com", DOCKER_IP);
+        ActiveDirectorySecurityRealm securityRealm = (ActiveDirectorySecurityRealm) Jenkins.getInstance().getSecurityRealm();
+        ActiveDirectoryDomain domain = securityRealm.getDomain(AD_DOMAIN);
+        domain.getRecordFromDomain();
+        System.out.println(domain.getRecordFromDomain().toString());
     }
 
     @DockerFixture(id = "ad-dc", ports= {389, 3268})
