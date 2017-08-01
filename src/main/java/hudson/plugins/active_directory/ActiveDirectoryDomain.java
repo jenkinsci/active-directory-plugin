@@ -240,7 +240,6 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
 
     @Extension
     public static class DescriptorImpl extends Descriptor<ActiveDirectoryDomain> {
-        @Override
         public String getDisplayName() { return ""; }
         
         public FormValidation doValidateTest(@QueryParameter(fixEmpty = true) String name, @QueryParameter(fixEmpty = true) String servers, @QueryParameter(fixEmpty = true) String site, @QueryParameter(fixEmpty = true) String bindName,
@@ -275,7 +274,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
                 Attribute domainAttribute = domain.getRecordFromDomain();
 
                 // As per JENKINS-36148 only show error message in case the servers list is empty
-                if (servers.isEmpty() && domainAttribute == null) {
+                if (servers != null && servers.isEmpty() && domainAttribute == null) {
                     return FormValidation.error(name + " doesn't look like a valid domain name");
                 }
 

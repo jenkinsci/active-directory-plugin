@@ -27,6 +27,7 @@ package hudson.plugins.active_directory.docker;
 import hudson.plugins.active_directory.ActiveDirectoryDomain;
 import hudson.plugins.active_directory.ActiveDirectorySecurityRealm;
 import hudson.plugins.active_directory.GroupLookupStrategy;
+import hudson.util.FormValidation;
 import jenkins.model.Jenkins;
 import org.acegisecurity.AuthenticationServiceException;
 import org.acegisecurity.userdetails.UserDetails;
@@ -41,9 +42,13 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 
+import javax.naming.NamingException;
+import javax.servlet.ServletException;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import static junit.framework.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertTrue;
@@ -64,9 +69,15 @@ public class TheFlintstonesTest {
     public final static String AD_MANAGER_DN_PASSWORD = "ia4uV1EeKait";
     public final static int MAX_RETRIES = 30;
     public static String DOCKER_IP;
+    public static int DOCKER_PORT;
 
     @Before
     public void setUp() throws Exception {
+        String[] cmd2 = { "echo", "'samdom.example.com ",  DOCKER_IP + "'' > ~/.hosts", ">", "~/.hosts"};
+        ProcessBuilder processBuilder = new ProcessBuilder(cmd2);
+        processBuilder.environment().put("HOSTALIASES", "~/.hosts");
+        processBuilder.start();
+
         TheFlintstones d = docker.get();
         ActiveDirectoryDomain activeDirectoryDomain = new ActiveDirectoryDomain(AD_DOMAIN, d.ipBound(389)+ ":" +  d.port(389) , null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD);
         List<ActiveDirectoryDomain> domains = new ArrayList<ActiveDirectoryDomain>(1);
@@ -87,6 +98,7 @@ public class TheFlintstonesTest {
             i ++;
         }
         DOCKER_IP = d.ipBound(389);
+        DOCKER_PORT = d.port(389);
         System.out.println(DOCKER_IP);
     }
 
@@ -112,6 +124,20 @@ public class TheFlintstonesTest {
         ActiveDirectoryDomain domain = securityRealm.getDomain(AD_DOMAIN);
         domain.getRecordFromDomain();
         System.out.println(domain.getRecordFromDomain().toString());
+    }
+
+    @Test
+    public void validateNoDomain() throws ServletException, NamingException, IOException {
+        ActiveDirectoryDomain.DescriptorImpl joinTriggerDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
+        assertEquals(FormValidation.Kind.OK, joinTriggerDescriptor.doValidateTest(AD_DOMAIN, DOCKER_IP+":"+String.valueOf(DOCKER_PORT), null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD));
+
+    }
+
+    @Test
+    public void validateDomain() throws ServletException, NamingException, IOException {
+        ActiveDirectoryDomain.DescriptorImpl joinTriggerDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
+        assertEquals(FormValidation.Kind.OK, joinTriggerDescriptor.doValidateTest(AD_DOMAIN, null, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD));
+
     }
 
     @DockerFixture(id = "ad-dc", ports= {389, 3268})
