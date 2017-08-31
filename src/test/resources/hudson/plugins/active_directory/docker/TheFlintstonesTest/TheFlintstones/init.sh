@@ -29,7 +29,7 @@ appSetup () {
     # Provision Samba
     rm -f /etc/samba/smb.conf
     rm -rf /var/lib/samba/private/*
-    samba-tool domain provision --use-rfc2307 --use-ntvfs --domain=SAMDOM --realm=SAMDOM.EXAMPLE.COM --server-role=dc\
+    samba-tool domain provision --use-rfc2307 --use-ntvfs --domain=SAMDOM --realm=SAMDOM.EXAMPLE.COM --host-name=dc1 --server-role=dc\
       --dns-backend=BIND9_DLZ --adminpass=$SAMBA_ADMIN_PASSWORD $SAMBA_HOST_IP
     cp /var/lib/samba/private/krb5.conf /etc/krb5.conf
     if [ "${LDAP_ALLOW_INSECURE,,}" == "true" ]; then
@@ -44,7 +44,7 @@ appSetup () {
     # Export kerberos keytab for use with sssd
     if [ "${OMIT_EXPORT_KEY_TAB}" != "true" ]
     then
-        samba-tool domain exportkeytab /etc/krb5.keytab --principal ${HOSTNAME}\$
+        samba-tool domain exportkeytab /etc/krb5.keytab --principal dc1\$
         cp /etc/krb5.keytab $KRBKEYTAP_CONF_BACKUP
     fi
     sed -i "s/SAMBA_REALM/${SAMBA_REALM}/" /etc/sssd/sssd.conf

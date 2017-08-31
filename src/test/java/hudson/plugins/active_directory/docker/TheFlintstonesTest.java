@@ -73,13 +73,23 @@ public class TheFlintstonesTest {
 
     @Before
     public void setUp() throws Exception {
-        String[] cmd2 = { "echo", "'samdom.example.com ",  DOCKER_IP + "'' > ~/.hosts", ">", "~/.hosts"};
-        ProcessBuilder processBuilder = new ProcessBuilder(cmd2);
-        processBuilder.environment().put("HOSTALIASES", "~/.hosts");
-        processBuilder.start();
+        System.setProperty("sun.net.spi.nameservice.nameservers", "127.0.0.1");
+        System.setProperty("sun.net.spi.nameservice.provider.1", "dns,sun");
+        //System.setProperty("sun.net.spi.nameservice.domain", "127.0.0.1");
+
+        //String[] cmd2 = { "echo", "samdom.example.com", DOCKER_IP, ">", "~/.hosts"};
+        //ProcessBuilder processBuilder = new ProcessBuilder("echo", "samdom.example.com", "127.0.0.1", ">", "~/.hosts");
+        //processBuilder.environment().put("HOSTALIASES", "~/.hosts");
+        //processBuilder.start();
 
         TheFlintstones d = docker.get();
-        ActiveDirectoryDomain activeDirectoryDomain = new ActiveDirectoryDomain(AD_DOMAIN, d.ipBound(389)+ ":" +  d.port(389) , null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD);
+        if (DOCKER_IP != null && !DOCKER_IP.isEmpty()) {
+            //System.setProperty("samdom.example.com", DOCKER_IP);
+            //System.setProperty("sun.net.spi.nameservice.nameservers", "8.8.8.8");
+            //System.setProperty("sun.net.spi.nameservice.provider.1", "dns,sun");
+            //System.setProperty("sun.net.spi.nameservice.domain", "127.0.0.1");
+        }
+        ActiveDirectoryDomain activeDirectoryDomain = new ActiveDirectoryDomain(AD_DOMAIN, d.ipBound(3268)+ ":" +  d.port(3268) , null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD);
         List<ActiveDirectoryDomain> domains = new ArrayList<ActiveDirectoryDomain>(1);
         domains.add(activeDirectoryDomain);
         ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, null, null, null, null, GroupLookupStrategy.RECURSIVE, false, true, null, false, null, null);
@@ -97,14 +107,14 @@ public class TheFlintstonesTest {
             }
             i ++;
         }
-        DOCKER_IP = d.ipBound(389);
-        DOCKER_PORT = d.port(389);
+        DOCKER_IP = d.ipBound(3268);
+        DOCKER_PORT = d.port(3268);
         System.out.println(DOCKER_IP);
     }
 
     @Test
     public void simpleLoginSuccessful() throws Exception {
-        UserDetails userDetails = j.jenkins.getSecurityRealm().loadUserByUsername("Fred2");
+        UserDetails userDetails = j.jenkins.getSecurityRealm().loadUserByUsername("Fred");
         assertThat(userDetails.getUsername(), is("Fred"));
     }
 
@@ -140,7 +150,7 @@ public class TheFlintstonesTest {
 
     }
 
-    @DockerFixture(id = "ad-dc", ports= {389, 3268})
+    @DockerFixture(id = "ad-dc", ports= {389, 3268}, matchHostPorts = true)
     public static class TheFlintstones extends DockerContainer {
 
     }
