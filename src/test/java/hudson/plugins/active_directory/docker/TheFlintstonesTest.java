@@ -77,8 +77,7 @@ public class TheFlintstonesTest {
         System.setProperty("sun.net.spi.nameservice.provider.1", "dns,sun");
         //System.setProperty("sun.net.spi.nameservice.domain", "127.0.0.1");
 
-        String[] cmd2 = { "echo", "samdom.example.com", DOCKER_IP, ">", "~/.hosts"};
-        ProcessBuilder processBuilder = new ProcessBuilder("echo", "samdom.example.com", "127.0.0.1", ">", "~/.hosts");
+        ProcessBuilder processBuilder = new ProcessBuilder("echo", "samdom.example.com dc1.samdom.example.com", "127.0.0.1", ">", "~/.hosts");
         processBuilder.environment().put("HOSTALIASES", "~/.hosts");
         processBuilder.start();
 
