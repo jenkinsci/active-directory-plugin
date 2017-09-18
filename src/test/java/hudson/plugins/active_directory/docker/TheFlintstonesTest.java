@@ -38,6 +38,7 @@ import org.jenkinsci.test.acceptance.docker.DockerFixture;
 import org.jenkinsci.test.acceptance.docker.DockerRule;
 
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
@@ -65,7 +66,7 @@ public class TheFlintstonesTest {
     public JenkinsRule j = new JenkinsRule();
 
     public final static String AD_DOMAIN = "samdom.example.com";
-    public final static String AD_MANAGER_DN = "CN=Administrator,CN=Users,DC=SAMDOM,DC=EXAMPLE,DC=COM";
+    public final static String AD_MANAGER_DN = "CN=Fred,CN=Users,DC=SAMDOM,DC=EXAMPLE,DC=COM";
     public final static String AD_MANAGER_DN_PASSWORD = "ia4uV1EeKait";
     public final static int MAX_RETRIES = 30;
     public static String DOCKER_IP;
@@ -73,13 +74,14 @@ public class TheFlintstonesTest {
 
     @Before
     public void setUp() throws Exception {
-        System.setProperty("sun.net.spi.nameservice.nameservers", "127.0.0.1");
-        System.setProperty("sun.net.spi.nameservice.provider.1", "dns,sun");
+        //System.setProperty("sun.net.spi.nameservice.nameservers", "127.0.0.1");
+        //System.setProperty("sun.net.spi.nameservice.provider.1", "dns,sun");
         //System.setProperty("sun.net.spi.nameservice.domain", "127.0.0.1");
 
-        ProcessBuilder processBuilder = new ProcessBuilder("echo", "samdom.example.com dc1.samdom.example.com", "127.0.0.1", ">", "~/.hosts");
-        processBuilder.environment().put("HOSTALIASES", "~/.hosts");
-        processBuilder.start();
+        // https://stackoverflow.com/questions/31735832/how-to-configure-custom-hostname-to-ip-resolutions-in-my-system-for-web-developm
+        //ProcessBuilder processBuilder = new ProcessBuilder("echo", "samdom.example.com dc1.samdom.example.com", "127.0.0.1", ">", "~/.hosts");
+        //processBuilder.environment().put("HOSTALIASES", "~/.hosts");
+        //processBuilder.start();
 
         TheFlintstones d = docker.get();
         if (DOCKER_IP != null && !DOCKER_IP.isEmpty()) {
@@ -88,6 +90,7 @@ public class TheFlintstonesTest {
             //System.setProperty("sun.net.spi.nameservice.provider.1", "dns,sun");
             //System.setProperty("sun.net.spi.nameservice.domain", "127.0.0.1");
         }
+
         ActiveDirectoryDomain activeDirectoryDomain = new ActiveDirectoryDomain(AD_DOMAIN, d.ipBound(3268)+ ":" +  d.port(3268) , null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD);
         List<ActiveDirectoryDomain> domains = new ArrayList<ActiveDirectoryDomain>(1);
         domains.add(activeDirectoryDomain);
@@ -127,29 +130,31 @@ public class TheFlintstonesTest {
     }
 
     @Test
+    @Ignore
     public void checkDomainHealth() throws Exception {
         System.setProperty("samdom.example.com", DOCKER_IP);
         ActiveDirectorySecurityRealm securityRealm = (ActiveDirectorySecurityRealm) Jenkins.getInstance().getSecurityRealm();
         ActiveDirectoryDomain domain = securityRealm.getDomain(AD_DOMAIN);
-        domain.getRecordFromDomain();
-        System.out.println(domain.getRecordFromDomain().toString());
+        assertEquals("NS: dc1.samdom.example.com.", domain.getRecordFromDomain().toString().trim());
     }
 
     @Test
+    @Ignore
     public void validateNoDomain() throws ServletException, NamingException, IOException {
         ActiveDirectoryDomain.DescriptorImpl joinTriggerDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
-        assertEquals(FormValidation.Kind.OK, joinTriggerDescriptor.doValidateTest(AD_DOMAIN, DOCKER_IP+":"+String.valueOf(DOCKER_PORT), null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD));
+        assertEquals("OK: Success", joinTriggerDescriptor.doValidateTest(AD_DOMAIN, DOCKER_IP + ":" + "3268", null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD).toString().trim());
 
     }
 
     @Test
+    @Ignore
     public void validateDomain() throws ServletException, NamingException, IOException {
         ActiveDirectoryDomain.DescriptorImpl joinTriggerDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
-        assertEquals(FormValidation.Kind.OK, joinTriggerDescriptor.doValidateTest(AD_DOMAIN, null, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD));
+        assertEquals("OK: Success", joinTriggerDescriptor.doValidateTest(AD_DOMAIN, null, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD).toString().trim());
 
     }
 
-    @DockerFixture(id = "ad-dc", ports= {389, 3268}, matchHostPorts = true)
+    @DockerFixture(id = "ad-dc", ports= {53, 135, 138, 445, 39, 464, 389, 3268}, udpPorts = {53}, matchHostPorts = true)
     public static class TheFlintstones extends DockerContainer {
 
     }
