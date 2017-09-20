@@ -38,14 +38,28 @@ import org.jenkinsci.test.acceptance.docker.DockerRule;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import static org.junit.Assert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertTrue;
+
+import java.util.logging.Formatter;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
+
+import com.google.common.base.Predicates;
+import com.google.common.collect.Collections2;
+
+import hudson.security.GroupDetails;
+import hudson.util.RingBufferLogHandler;
 
 /**
  * Integration tests with Docker
@@ -99,6 +113,56 @@ public class TheFlintstonesTest {
         } catch (UsernameNotFoundException e) {
             assertTrue(e.getMessage().contains("Authentication was successful but cannot locate the user information for Homer"));
         }
+    }
+
+    @Issue("JENKINS-45576")
+    @Test
+    public void loadGroupFromGroupname() throws Exception {
+        String groupname = "The Rubbles";
+        GroupDetails group = j.jenkins.getSecurityRealm().loadGroupByGroupname(groupname);
+        assertThat(group.getName(), is("The Rubbles"));
+    }
+
+    @Issue("JENKINS-45576")
+    @Test
+    public void loadGroupFromAlias() throws Exception {
+
+        // required to monitor the log messages, removing this line the test will fail
+        List<String> logMessages = captureLogMessages(20);
+
+        String aliasname = "Rubbles";
+        boolean isAlias = false;
+        try {
+            j.jenkins.getSecurityRealm().loadGroupByGroupname(aliasname);
+        } catch (Exception e) {
+        } finally {
+            Collection<String> filter = Collections2.filter(logMessages, Predicates.containsPattern("JENKINS-45576"));
+            isAlias = !filter.isEmpty();
+        }
+
+        assertTrue(isAlias);
+    }
+
+    private List<String> captureLogMessages(int size) {
+
+        final List<String> logMessages = new ArrayList<String>(size);
+        Logger logger = Logger.getLogger("");
+        logger.setLevel(Level.ALL);
+
+        RingBufferLogHandler ringHandler = new RingBufferLogHandler(size) {
+
+            final Formatter f = new SimpleFormatter(); // placeholder instance for what should have been a static method perhaps
+            @Override
+            public synchronized void publish(LogRecord record) {
+                super.publish(record);
+                String message = f.formatMessage(record);
+                Throwable x = record.getThrown();
+                logMessages.add(message == null && x != null ? x.toString() : message);
+            }
+        };
+        logger.addHandler(ringHandler);
+
+        return logMessages;
     }
 
     @DockerFixture(id = "ad-dc", ports= {389, 3268})

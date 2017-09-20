@@ -525,12 +525,23 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                                         if (group==null) {
                                             // failed to find it. Fall back to sAMAccountName.
                                             // see http://www.nabble.com/Re%3A-Hudson-AD-plug-in-td21428668.html
+                                            // new link: https://web.archive.org/web/20090321130122/http://www.nabble.com/Re%3A-Hudson-AD-plug-in-td21428668.html
                                             LOGGER.log(Level.FINE, "Failed to find {0} in cn. Trying sAMAccountName", groupname);
                                             group = new LDAPSearchBuilder(context,domainDN).subTreeScope().searchOne("(& (sAMAccountName={0})(objectCategory=group))", groupname);
-                                            if (group==null) {
-                                                // Group not found in this domain, try next
-                                                continue;
+
+                                            // https://issues.jenkins-ci.org/browse/JENKINS-45576
+                                            // Fall back to sAMAccountName for groups is causing issues with AD exchange alias.
+                                            //   -> see https://technet.microsoft.com/en-us/library/cc539081.aspx
+                                            // When a user login Jenkins, their groups are resolved from the CN (not the sAMAccountName). 
+                                            // If one AD group have different values for CN and sAMAccountName then Jenkins will consider that group as different depending
+                                            // on if you used the CN or the sAMAccountName to get the group. 
+                                            // Ignoring the sAMAccountName search seems to be the best option to avoid confusion
+                                            if (group!=null) {
+                                                String cn = group.get("CN").get().toString();
+                                                LOGGER.log(Level.WARNING, String.format("JENKINS-45576: `%s` is an Exchange alias and aliases are not currently supported. Please use the group common name `%s` instead", groupname, cn));
+                                                group = null;
                                             }
+                                            continue;
                                         }
                                         LOGGER.log(Level.FINE, "Found group {0} : {1}", new Object[] {groupname, group});
                                         return new ActiveDirectoryGroupDetails(groupname);
