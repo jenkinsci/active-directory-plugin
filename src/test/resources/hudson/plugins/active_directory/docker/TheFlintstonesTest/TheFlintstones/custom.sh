@@ -1,4 +1,4 @@
-#!/bin/bash -
+#!/bin/bash
 
 #
 # Custom script to add users, groups and add users to groups
