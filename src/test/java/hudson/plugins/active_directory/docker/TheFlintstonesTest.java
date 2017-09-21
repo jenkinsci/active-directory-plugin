@@ -126,7 +126,6 @@ public class TheFlintstonesTest {
     @Issue("JENKINS-45576")
     @Test
     public void loadGroupFromAlias() throws Exception {
-
         // required to monitor the log messages, removing this line the test will fail
         List<String> logMessages = captureLogMessages(20);
 
@@ -144,7 +143,6 @@ public class TheFlintstonesTest {
     }
 
     private List<String> captureLogMessages(int size) {
-
         final List<String> logMessages = new ArrayList<String>(size);
         Logger logger = Logger.getLogger("");
         logger.setLevel(Level.ALL);
