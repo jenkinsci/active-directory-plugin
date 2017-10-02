@@ -18,14 +18,7 @@
     <f:entry field="tlsConfiguration" title="${%TLS Configuration}">
       <f:select />
     </f:entry>
-    <f:optionalBlock name="cache" title="${%Enable cache}" checked="${instance.cache != null}">
-      <f:entry field="size" title="${%Cache Size}">
-        <f:select default="256"/>
-      </f:entry>
-      <f:entry field="ttl" title="${%Cache TTL}">
-        <f:select default="600"/>
-      </f:entry>
-    </f:optionalBlock>
+    <st:include page="configCache.jelly" class="${descriptor.clazz}"/>
     <f:entry field="environmentProperties" title="${%Environment Properties}">
       <f:repeatableProperty field="environmentProperties" />
     </f:entry>
