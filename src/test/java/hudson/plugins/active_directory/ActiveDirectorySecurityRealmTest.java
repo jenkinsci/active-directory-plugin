@@ -293,4 +293,16 @@ public class ActiveDirectorySecurityRealmTest {
         assertTrue(domElement != null);
     }
 
+    @Issue("JENKINS-46884")
+    @Test
+    public void testCacheOptionAlwaysVisible() throws Exception {
+        ActiveDirectoryDomain activeDirectoryDomain = new ActiveDirectoryDomain(TheFlintstonesTest.AD_DOMAIN, null, null, TheFlintstonesTest.AD_MANAGER_DN, TheFlintstonesTest.AD_MANAGER_DN_PASSWORD);
+        List<ActiveDirectoryDomain> domains = new ArrayList<ActiveDirectoryDomain>(1);
+        domains.add(activeDirectoryDomain);
+        ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, null, null, null, null, GroupLookupStrategy.RECURSIVE, false, true, null, false, null, null);
+        Jenkins.getInstance().setSecurityRealm(activeDirectorySecurityRealm);
+        DomElement domElement = jenkinsRule.createWebClient().goTo("configureSecurity").getElementByName("cache");
+        assertTrue(domElement != null);
+    }
+
 }
