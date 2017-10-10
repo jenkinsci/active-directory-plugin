@@ -143,7 +143,6 @@ public class TheFlintstonesTest {
         }
     }
 
-<<<<<<< HEAD
     @Test
     @Ignore
     public void checkDomainHealth() throws Exception {
