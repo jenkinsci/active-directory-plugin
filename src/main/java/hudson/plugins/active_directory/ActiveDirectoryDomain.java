@@ -41,6 +41,7 @@ import org.kohsuke.stapler.QueryParameter;
 import javax.naming.CommunicationException;
 import javax.naming.Context;
 import javax.naming.NamingException;
+import javax.naming.ServiceUnavailableException;
 import javax.naming.directory.Attribute;
 import javax.naming.directory.Attributes;
 import javax.naming.directory.DirContext;
@@ -274,7 +275,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
                 Attribute domainAttribute = domain.getRecordFromDomain();
 
                 // As per JENKINS-36148 only show error message in case the servers list is empty
-                if (servers != null && !servers.isEmpty() && domainAttribute == null) {
+                if (servers != null && servers.isEmpty() && domainAttribute == null) {
                     return FormValidation.error(name + " doesn't look like a valid domain name");
                 }
 
@@ -314,6 +315,8 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
                         return FormValidation.error(e, "Bad bind username or password");
                     } catch (javax.naming.AuthenticationException e) {
                         return FormValidation.error(e, "Bad bind username or password");
+                    } catch (ServiceUnavailableException e) {
+                        return FormValidation.error(e, "Domain Controller is reachable but the service on the specified port is not reachable");
                     } catch (Exception e) {
                         return FormValidation.error(e, e.getMessage());
                     }
