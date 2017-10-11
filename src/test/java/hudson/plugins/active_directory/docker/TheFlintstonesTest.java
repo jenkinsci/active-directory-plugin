@@ -108,7 +108,6 @@ public class TheFlintstonesTest {
         }
         DOCKER_IP = d.ipBound(3268);
         DOCKER_PORT = d.port(3268);
-        System.out.println(DOCKER_IP);
     }
 
     @Test
