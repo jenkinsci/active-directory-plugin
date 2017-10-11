@@ -274,12 +274,12 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
                 Attribute domainAttribute = domain.getRecordFromDomain();
 
                 // As per JENKINS-36148 only show error message in case the servers list is empty
-                if (servers != null && servers.isEmpty() && domainAttribute == null) {
+                if (servers != null && !servers.isEmpty() && domainAttribute == null) {
                     return FormValidation.error(name + " doesn't look like a valid domain name");
                 }
 
                 Secret password = Secret.fromString(bindPassword);
-                if (bindName!=null && password==null) {
+                if (bindName != null && password == null) {
                     return FormValidation.error("Bind DN is specified but not the password");
                 }
                 // Then look for the LDAP server
@@ -341,7 +341,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
                     return FormValidation.warning("Success - but " + name + " doesn't look like a valid domain name");
                 }
                 // looks good
-                return FormValidation.ok("Success ");
+                return FormValidation.ok("Success");
             } finally {
                 Thread.currentThread().setContextClassLoader(ccl);
             }

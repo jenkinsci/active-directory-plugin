@@ -27,7 +27,6 @@ package hudson.plugins.active_directory.docker;
 import hudson.plugins.active_directory.ActiveDirectoryDomain;
 import hudson.plugins.active_directory.ActiveDirectorySecurityRealm;
 import hudson.plugins.active_directory.GroupLookupStrategy;
-import hudson.util.FormValidation;
 import jenkins.model.Jenkins;
 import org.acegisecurity.AuthenticationServiceException;
 import org.acegisecurity.userdetails.UserDetails;
@@ -88,23 +87,7 @@ public class TheFlintstonesTest {
 
     @Before
     public void setUp() throws Exception {
-        //System.setProperty("sun.net.spi.nameservice.nameservers", "127.0.0.1");
-        //System.setProperty("sun.net.spi.nameservice.provider.1", "dns,sun");
-        //System.setProperty("sun.net.spi.nameservice.domain", "127.0.0.1");
-
-        // https://stackoverflow.com/questions/31735832/how-to-configure-custom-hostname-to-ip-resolutions-in-my-system-for-web-developm
-        //ProcessBuilder processBuilder = new ProcessBuilder("echo", "samdom.example.com dc1.samdom.example.com", "127.0.0.1", ">", "~/.hosts");
-        //processBuilder.environment().put("HOSTALIASES", "~/.hosts");
-        //processBuilder.start();
-
         TheFlintstones d = docker.get();
-        if (DOCKER_IP != null && !DOCKER_IP.isEmpty()) {
-            //System.setProperty("samdom.example.com", DOCKER_IP);
-            //System.setProperty("sun.net.spi.nameservice.nameservers", "8.8.8.8");
-            //System.setProperty("sun.net.spi.nameservice.provider.1", "dns,sun");
-            //System.setProperty("sun.net.spi.nameservice.domain", "127.0.0.1");
-        }
-
         ActiveDirectoryDomain activeDirectoryDomain = new ActiveDirectoryDomain(AD_DOMAIN, d.ipBound(3268)+ ":" +  d.port(3268) , null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD);
         List<ActiveDirectoryDomain> domains = new ArrayList<ActiveDirectoryDomain>(1);
         domains.add(activeDirectoryDomain);
