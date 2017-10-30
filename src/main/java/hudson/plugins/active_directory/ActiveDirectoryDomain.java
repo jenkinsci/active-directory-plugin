@@ -341,7 +341,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
                 }
                 // As per JENKINS-36148 looks good but warn that the DNS resolution does not work
                 if (domainAttribute == null) {
-                    return FormValidation.warning("Success - but " + name + " doesn't look like a valid domain name");
+                    return FormValidation.warning("Success - but " + name + " does not look like a valid domain name");
                 }
                 // looks good
                 return FormValidation.ok("Success");
