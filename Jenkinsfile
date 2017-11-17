@@ -4,9 +4,9 @@ node('docker') {
      }
      stage('use-fbelzunc-docker-fixtures') {
              sh '''
-             git clone https://github.com/jenkinsci/docker-fixtures.git \
-             cd docker-fixtures \
-             git fetch origin pull/4/head:JENKINS-46673 \
+             git clone https://github.com/jenkinsci/docker-fixtures.git
+             cd docker-fixtures
+             git fetch origin pull/4/head:JENKINS-46673
              git checkout JENKINS-46673
              mvn clean install
              '''
