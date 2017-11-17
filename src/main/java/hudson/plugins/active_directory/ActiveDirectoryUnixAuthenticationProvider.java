@@ -436,6 +436,13 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                             // see JENKINS-12619. On my AD the error code is DSID-0C0906DC
                             throw new UserMayOrMayNotExistException("Unable to retrieve the user information without bind DN/password configured");
                         }
+                        if (anonymousBind && e.getMessage().contains("Operation unavailable without authentication") && e.getMessage().contains("00002020")) {
+                            // sometimes (or always?) anonymous bind itself will succeed but the actual query will fail.
+                            // see JENKINS-47133
+                            String msg = String.format("Server doesn't allow to retrieve the information for user `%s` without bind DN/password configured", username);
+                            LOGGER.log(Level.WARNING, msg);
+                            throw new UserMayOrMayNotExistException(msg);
+                        }
 
                         LOGGER.log(Level.WARNING, String.format("Failed to retrieve user information for %s", username), e);
                         throw new BadCredentialsException("Failed to retrieve user information for " + username, e);

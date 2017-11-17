@@ -274,6 +274,14 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
                 ActiveDirectoryDomain domain = new ActiveDirectoryDomain(name, servers, site, bindName, bindPassword);
                 Attribute domainAttribute = domain.getRecordFromDomain();
 
+                if (StringUtils.isBlank(bindName)) {
+                    return FormValidation.warningWithMarkup("Leaving blank <b>`Bind DN`</b> means that any operation performed will use anonymous binding. Keep in mind that this is not recommended as some servers <a href=\"https://support.microsoft.com/en-us/help/326690/anonymous-ldap-operations-to-active-directory-are-disabled-on-windows\">do not allow it by default.</a>");
+                }
+
+                Secret password = Secret.fromString(bindPassword);
+                if (bindName!=null && password==null)
+                    return FormValidation.error("Bind DN is specified but not the password");
+
                 // As per JENKINS-36148 only show error message in case the servers list is empty
                 if (servers != null && servers.isEmpty() && domainAttribute == null) {
                     return FormValidation.error(name + " doesn't look like a valid domain name");
