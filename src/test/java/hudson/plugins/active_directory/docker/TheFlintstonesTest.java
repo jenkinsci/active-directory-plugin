@@ -126,7 +126,6 @@ public class TheFlintstonesTest {
     }
 
     @Test
-    @Ignore
     public void checkDomainHealth() throws Exception {
         System.setProperty("samdom.example.com", DOCKER_IP);
         ActiveDirectorySecurityRealm securityRealm = (ActiveDirectorySecurityRealm) Jenkins.getInstance().getSecurityRealm();
@@ -135,14 +134,12 @@ public class TheFlintstonesTest {
     }
 
     @Test
-    @Ignore
     public void validateNoDomain() throws ServletException, NamingException, IOException {
         ActiveDirectoryDomain.DescriptorImpl joinTriggerDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
         assertEquals("WARNING: Success - but samdom.example.com does not look like a valid domain name", joinTriggerDescriptor.doValidateTest(AD_DOMAIN, DOCKER_IP + ":" + "3268", null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD).toString().trim());
     }
 
     @Test
-    @Ignore
     public void validateDomain() throws ServletException, NamingException, IOException {
         ActiveDirectoryDomain.DescriptorImpl joinTriggerDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
         assertEquals("OK: Success", joinTriggerDescriptor.doValidateTest(AD_DOMAIN, null, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD).toString().trim());
