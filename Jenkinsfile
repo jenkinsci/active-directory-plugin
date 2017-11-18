@@ -11,4 +11,7 @@ node('docker') {
      stage('surefire-report') {
         junit 'target/surefire-reports/*.xml'
      }
+     stage('clean ws') {
+     cleanWs()
+     }
 }
