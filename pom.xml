@@ -72,7 +72,7 @@
       <version>${powermock.version}</version>
       <scope>test</scope>
     </dependency>
-    <!-- For docker integration tests -->
+    <!-- For docker integration tests - test -->
     <dependency>
       <groupId>org.jenkins-ci.test</groupId>
       <artifactId>docker-fixtures</artifactId>
