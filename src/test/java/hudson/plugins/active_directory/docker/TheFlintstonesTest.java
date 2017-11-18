@@ -136,7 +136,7 @@ public class TheFlintstonesTest {
     @Test
     public void validateNoDomain() throws ServletException, NamingException, IOException {
         ActiveDirectoryDomain.DescriptorImpl joinTriggerDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
-        assertEquals("WARNING: Success - but samdom.example.com does not look like a valid domain name", joinTriggerDescriptor.doValidateTest(AD_DOMAIN, DOCKER_IP + ":" + "3268", null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD).toString().trim());
+        assertEquals("OK: Success", joinTriggerDescriptor.doValidateTest(AD_DOMAIN, DOCKER_IP + ":" + "3268", null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD).toString().trim());
     }
 
     @Test
