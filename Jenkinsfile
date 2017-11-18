@@ -1,4 +1,7 @@
 node('docker') {
+     stage('clean ws') {
+     deleteDir()
+     }
      stage('checkout') {
         checkout scm
      }
