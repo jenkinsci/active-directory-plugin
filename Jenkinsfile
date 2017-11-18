@@ -1,7 +1,4 @@
 node('docker') {
-stage('docker-pull') {
-        sh 'rm -rf docker-fixtures'
-     }
      stage('checkout') {
         checkout scm
      }
