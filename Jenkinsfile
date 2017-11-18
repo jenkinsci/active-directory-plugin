@@ -1,6 +1,6 @@
 node('docker') {
-     stage('clean ws') {
-     deleteDir()
+stage('docker-pull') {
+        sh 'rm -rf docker-fixtures'
      }
      stage('checkout') {
         checkout scm
@@ -13,8 +13,5 @@ node('docker') {
      }
      stage('surefire-report') {
         junit 'target/surefire-reports/*.xml'
-     }
-     stage('clean ws') {
-     cleanWs()
      }
 }
