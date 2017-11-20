@@ -72,11 +72,11 @@
       <version>${powermock.version}</version>
       <scope>test</scope>
     </dependency>
-    <!-- For docker integration tests - test -->
+    <!-- For docker integration tests -->
     <dependency>
       <groupId>org.jenkins-ci.test</groupId>
       <artifactId>docker-fixtures</artifactId>
-      <version>1.4-SNAPSHOT</version>
+      <version>1.4-SNAPSHOT-fbelzunc-udp-ports</version>
       <scope>test</scope>
       <exclusions>
         <exclusion>

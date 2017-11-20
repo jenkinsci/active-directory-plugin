@@ -37,7 +37,6 @@ import org.jenkinsci.test.acceptance.docker.DockerFixture;
 import org.jenkinsci.test.acceptance.docker.DockerRule;
 
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
@@ -125,6 +124,7 @@ public class TheFlintstonesTest {
         }
     }
 
+    @Issue("JENKINS-36148")
     @Test
     public void checkDomainHealth() throws Exception {
         System.setProperty("samdom.example.com", DOCKER_IP);
@@ -133,12 +133,14 @@ public class TheFlintstonesTest {
         assertEquals("NS: dc1.samdom.example.com.", domain.getRecordFromDomain().toString().trim());
     }
 
+    @Issue("JENKINS-36148")
     @Test
-    public void validateNoDomain() throws ServletException, NamingException, IOException {
+    public void validateCustomDomainController() throws ServletException, NamingException, IOException {
         ActiveDirectoryDomain.DescriptorImpl joinTriggerDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
         assertEquals("OK: Success", joinTriggerDescriptor.doValidateTest(AD_DOMAIN, DOCKER_IP + ":" + "3268", null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD).toString().trim());
     }
 
+    @Issue("JENKINS-36148")
     @Test
     public void validateDomain() throws ServletException, NamingException, IOException {
         ActiveDirectoryDomain.DescriptorImpl joinTriggerDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
