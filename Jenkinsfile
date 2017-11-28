@@ -2,7 +2,7 @@ node('docker') {
      stage('checkout') {
         checkout scm
      }
-     stage('docker-pull') {
+     stage('docker-pull-latest-v1') {
         sh 'docker pull fbelzunc/ad-build-container-with-docker-fixtures'
      }
      stage('maven') {
