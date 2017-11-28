@@ -196,7 +196,7 @@ public class TheFlintstonesTest {
         return logMessages;
     }
 
-    @DockerFixture(id = "ad-dc", ports= {53, 135, 138, 445, 39, 464, 389, 3268}, udpPorts = {53}, matchHostPorts = true)
+    @DockerFixture(id = "ad-dc", ports= {135, 138, 445, 39, 464, 389, 3268}, udpPorts = {53}, matchHostPorts = true)
     public static class TheFlintstones extends DockerContainer {
 
     }
