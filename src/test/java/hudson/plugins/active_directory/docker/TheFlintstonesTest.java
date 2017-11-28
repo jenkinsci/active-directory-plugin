@@ -81,13 +81,15 @@ public class TheFlintstonesTest {
     public final static String AD_MANAGER_DN = "CN=Fred,CN=Users,DC=SAMDOM,DC=EXAMPLE,DC=COM";
     public final static String AD_MANAGER_DN_PASSWORD = "ia4uV1EeKait";
     public final static int MAX_RETRIES = 30;
-    public static String DOCKER_IP;
-    public static int DOCKER_PORT;
+    public String dockerIp;
+    public int dockerPort;
 
     @Before
     public void setUp() throws Exception {
         TheFlintstones d = docker.get();
-        ActiveDirectoryDomain activeDirectoryDomain = new ActiveDirectoryDomain(AD_DOMAIN, d.ipBound(3268)+ ":" +  d.port(3268) , null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD);
+        dockerIp = d.ipBound(3268);
+        dockerPort = d.port(3268);
+        ActiveDirectoryDomain activeDirectoryDomain = new ActiveDirectoryDomain(AD_DOMAIN, dockerIp + ":" +  dockerPort , null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD);
         List<ActiveDirectoryDomain> domains = new ArrayList<ActiveDirectoryDomain>(1);
         domains.add(activeDirectoryDomain);
         ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, null, null, null, null, GroupLookupStrategy.RECURSIVE, false, true, null, false, null, null);
@@ -105,8 +107,6 @@ public class TheFlintstonesTest {
             }
             i ++;
         }
-        DOCKER_IP = d.ipBound(3268);
-        DOCKER_PORT = d.port(3268);
     }
 
     @Test
@@ -127,7 +127,7 @@ public class TheFlintstonesTest {
     @Issue("JENKINS-36148")
     @Test
     public void checkDomainHealth() throws Exception {
-        System.setProperty("samdom.example.com", DOCKER_IP);
+        System.setProperty("samdom.example.com", dockerIp);
         ActiveDirectorySecurityRealm securityRealm = (ActiveDirectorySecurityRealm) Jenkins.getInstance().getSecurityRealm();
         ActiveDirectoryDomain domain = securityRealm.getDomain(AD_DOMAIN);
         assertEquals("NS: dc1.samdom.example.com.", domain.getRecordFromDomain().toString().trim());
@@ -137,7 +137,7 @@ public class TheFlintstonesTest {
     @Test
     public void validateCustomDomainController() throws ServletException, NamingException, IOException {
         ActiveDirectoryDomain.DescriptorImpl joinTriggerDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
-        assertEquals("OK: Success", joinTriggerDescriptor.doValidateTest(AD_DOMAIN, DOCKER_IP + ":" + "3268", null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD).toString().trim());
+        assertEquals("OK: Success", joinTriggerDescriptor.doValidateTest(AD_DOMAIN, dockerIp + ":" + dockerPort, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD).toString().trim());
     }
 
     @Issue("JENKINS-36148")
