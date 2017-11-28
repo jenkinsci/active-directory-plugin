@@ -76,7 +76,7 @@
     <dependency>
       <groupId>org.jenkins-ci.test</groupId>
       <artifactId>docker-fixtures</artifactId>
-      <version>1.4-SNAPSHOT-fbelzunc-udp-ports</version>
+      <version>1.3-SNAPSHOT</version>
       <scope>test</scope>
       <exclusions>
         <exclusion>
