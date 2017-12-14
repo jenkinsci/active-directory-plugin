@@ -27,6 +27,7 @@ package hudson.plugins.active_directory.docker;
 import hudson.plugins.active_directory.ActiveDirectoryDomain;
 import hudson.plugins.active_directory.ActiveDirectorySecurityRealm;
 import hudson.plugins.active_directory.GroupLookupStrategy;
+import jenkins.model.Jenkins;
 import org.acegisecurity.AuthenticationServiceException;
 import org.acegisecurity.userdetails.UserDetails;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
@@ -41,10 +42,14 @@ import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 
+import javax.naming.NamingException;
+import javax.servlet.ServletException;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import static junit.framework.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertTrue;
@@ -76,11 +81,15 @@ public class TheFlintstonesTest {
     public final static String AD_MANAGER_DN = "CN=Administrator,CN=Users,DC=SAMDOM,DC=EXAMPLE,DC=COM";
     public final static String AD_MANAGER_DN_PASSWORD = "ia4uV1EeKait";
     public final static int MAX_RETRIES = 30;
+    public String dockerIp;
+    public int dockerPort;
 
     @Before
     public void setUp() throws Exception {
         TheFlintstones d = docker.get();
-        ActiveDirectoryDomain activeDirectoryDomain = new ActiveDirectoryDomain(AD_DOMAIN, d.ipBound(389)+ ":" +  d.port(389) , null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD);
+        dockerIp = d.ipBound(3268);
+        dockerPort = d.port(3268);
+        ActiveDirectoryDomain activeDirectoryDomain = new ActiveDirectoryDomain(AD_DOMAIN, dockerIp + ":" +  dockerPort , null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD);
         List<ActiveDirectoryDomain> domains = new ArrayList<ActiveDirectoryDomain>(1);
         domains.add(activeDirectoryDomain);
         ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, null, null, null, null, GroupLookupStrategy.RECURSIVE, false, true, null, false, null, null);
@@ -113,6 +122,29 @@ public class TheFlintstonesTest {
         } catch (UsernameNotFoundException e) {
             assertTrue(e.getMessage().contains("Authentication was successful but cannot locate the user information for Homer"));
         }
+    }
+
+    @Issue("JENKINS-36148")
+    @Test
+    public void checkDomainHealth() throws Exception {
+        ActiveDirectorySecurityRealm securityRealm = (ActiveDirectorySecurityRealm) Jenkins.getInstance().getSecurityRealm();
+        ActiveDirectoryDomain domain = securityRealm.getDomain(AD_DOMAIN);
+        assertEquals("NS: dc1.samdom.example.com.", domain.getRecordFromDomain().toString().trim());
+    }
+
+    @Issue("JENKINS-36148")
+    @Test
+    public void validateCustomDomainController() throws ServletException, NamingException, IOException {
+        ActiveDirectoryDomain.DescriptorImpl adDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
+        assertEquals("OK: Success", adDescriptor.doValidateTest(AD_DOMAIN, dockerIp + ":" + dockerPort, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD).toString().trim());
+    }
+
+    @Issue("JENKINS-36148")
+    @Test
+    public void validateDomain() throws ServletException, NamingException, IOException {
+        ActiveDirectoryDomain.DescriptorImpl adDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
+        assertEquals("OK: Success", adDescriptor.doValidateTest(AD_DOMAIN, null, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD).toString().trim());
+
     }
 
     @Issue("JENKINS-45576")
@@ -163,7 +195,7 @@ public class TheFlintstonesTest {
         return logMessages;
     }
 
-    @DockerFixture(id = "ad-dc", ports= {389, 3268})
+    @DockerFixture(id = "ad-dc", ports= {135, 138, 445, 39, 464, 389, 3268}, udpPorts = {53}, matchHostPorts = true)
     public static class TheFlintstones extends DockerContainer {
 
     }

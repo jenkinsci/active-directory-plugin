@@ -41,6 +41,7 @@ import org.kohsuke.stapler.QueryParameter;
 import javax.naming.CommunicationException;
 import javax.naming.Context;
 import javax.naming.NamingException;
+import javax.naming.ServiceUnavailableException;
 import javax.naming.directory.Attribute;
 import javax.naming.directory.Attributes;
 import javax.naming.directory.DirContext;
@@ -240,7 +241,6 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
 
     @Extension
     public static class DescriptorImpl extends Descriptor<ActiveDirectoryDomain> {
-        @Override
         public String getDisplayName() { return ""; }
         
         public FormValidation doValidateTest(@QueryParameter(fixEmpty = true) String name, @QueryParameter(fixEmpty = true) String servers, @QueryParameter(fixEmpty = true) String site, @QueryParameter(fixEmpty = true) String bindName,
@@ -275,19 +275,19 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
                     return FormValidation.warningWithMarkup("Leaving blank <b>`Bind DN`</b> means that any operation performed will use anonymous binding. Keep in mind that this is not recommended as some servers <a href=\"https://support.microsoft.com/en-us/help/326690/anonymous-ldap-operations-to-active-directory-are-disabled-on-windows\">do not allow it by default.</a>");
                 }
 
-                Secret password = Secret.fromString(bindPassword);
-                if (bindName!=null && password==null)
-                    return FormValidation.error("Bind DN is specified but not the password");
+                ActiveDirectoryDomain domain = activeDirectorySecurityRealm.getDomain(name);
+                Attribute domainAttribute = domain.getRecordFromDomain();
 
-                // First test the sanity of the domain name itself
-                List<ActiveDirectoryDomain> activeDirectoryDomains = activeDirectorySecurityRealm.getDomains();
-
-                // There should be only one domain as the fake domain only contains one
-                for (ActiveDirectoryDomain activeDirectoryDomain : activeDirectoryDomains) {
-                    if (activeDirectoryDomain.getRecordFromDomain() == null) {
-                        return FormValidation.error(name + " doesn't look like a valid domain name");
-                    }
+                // As per JENKINS-36148 only show error message in case the servers list is empty
+                if (servers != null && servers.isEmpty() && domainAttribute == null || servers == null && domainAttribute == null ) {
+                    return FormValidation.error(name + " doesn't look like a valid domain name");
                 }
+
+                Secret password = Secret.fromString(bindPassword);
+                if (bindName != null && password == null) {
+                    return FormValidation.error("Bind DN is specified but not the password");
+                }
+
                 // Then look for the LDAP server
                 DirContext ictx = activeDirectorySecurityRealm.getDescriptor().createDNSLookupContext();
                 List<SocketInfo> obtainerServers;
@@ -320,6 +320,8 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
                         return FormValidation.error(e, "Bad bind username or password");
                     } catch (javax.naming.AuthenticationException e) {
                         return FormValidation.error(e, "Bad bind username or password");
+                    } catch (ServiceUnavailableException e) {
+                        return FormValidation.error(e, "Domain Controller is reachable but the service on the specified port is not reachable");
                     } catch (Exception e) {
                         return FormValidation.error(e, e.getMessage());
                     }
@@ -341,6 +343,10 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
                         LOGGER.log(Level.WARNING, String.format("Failed to connect to %s", servers), error);
                         return FormValidation.error(error, "Failed to connect to " + servers);
                     }
+                }
+                // As per JENKINS-36148 looks good but warn that the DNS resolution does not work
+                if (domainAttribute == null) {
+                    return FormValidation.warning("Success - but " + name + " does not look like a valid domain name");
                 }
                 // looks good
                 return FormValidation.ok("Success");
