@@ -279,7 +279,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
                 Attribute domainAttribute = domain.getRecordFromDomain();
 
                 // As per JENKINS-36148 only show error message in case the servers list is empty
-                if (servers != null && servers.isEmpty() && domainAttribute == null) {
+                if (servers.isEmpty() && domainAttribute == null) {
                     return FormValidation.error(name + " doesn't look like a valid domain name");
                 }
 
