@@ -127,7 +127,6 @@ public class TheFlintstonesTest {
     @Issue("JENKINS-36148")
     @Test
     public void checkDomainHealth() throws Exception {
-        //System.setProperty("samdom.example.com", dockerIp);
         ActiveDirectorySecurityRealm securityRealm = (ActiveDirectorySecurityRealm) Jenkins.getInstance().getSecurityRealm();
         ActiveDirectoryDomain domain = securityRealm.getDomain(AD_DOMAIN);
         assertEquals("NS: dc1.samdom.example.com.", domain.getRecordFromDomain().toString().trim());
