@@ -127,7 +127,7 @@ public class TheFlintstonesTest {
     @Issue("JENKINS-36148")
     @Test
     public void checkDomainHealth() throws Exception {
-        System.setProperty("samdom.example.com", dockerIp);
+        //System.setProperty("samdom.example.com", dockerIp);
         ActiveDirectorySecurityRealm securityRealm = (ActiveDirectorySecurityRealm) Jenkins.getInstance().getSecurityRealm();
         ActiveDirectoryDomain domain = securityRealm.getDomain(AD_DOMAIN);
         assertEquals("NS: dc1.samdom.example.com.", domain.getRecordFromDomain().toString().trim());
@@ -136,15 +136,15 @@ public class TheFlintstonesTest {
     @Issue("JENKINS-36148")
     @Test
     public void validateCustomDomainController() throws ServletException, NamingException, IOException {
-        ActiveDirectoryDomain.DescriptorImpl joinTriggerDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
-        assertEquals("OK: Success", joinTriggerDescriptor.doValidateTest(AD_DOMAIN, dockerIp + ":" + dockerPort, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD).toString().trim());
+        ActiveDirectoryDomain.DescriptorImpl adDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
+        assertEquals("OK: Success", adDescriptor.doValidateTest(AD_DOMAIN, dockerIp + ":" + dockerPort, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD).toString().trim());
     }
 
     @Issue("JENKINS-36148")
     @Test
     public void validateDomain() throws ServletException, NamingException, IOException {
-        ActiveDirectoryDomain.DescriptorImpl joinTriggerDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
-        assertEquals("OK: Success", joinTriggerDescriptor.doValidateTest(AD_DOMAIN, null, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD).toString().trim());
+        ActiveDirectoryDomain.DescriptorImpl adDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
+        assertEquals("OK: Success", adDescriptor.doValidateTest(AD_DOMAIN, null, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD).toString().trim());
 
     }
 
