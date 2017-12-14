@@ -1,0 +1,11 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+    <f:optionalBlock name="cache" title="${%Enable cache}" checked="${instance.cache != null}">
+        <f:entry field="size" title="${%Cache Size}">
+            <f:select default="256"/>
+        </f:entry>
+        <f:entry field="ttl" title="${%Cache TTL}">
+            <f:select default="600"/>
+        </f:entry>
+    </f:optionalBlock>
+</j:jelly>

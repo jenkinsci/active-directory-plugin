@@ -33,7 +33,7 @@
                 </div>
               </f:repeatable>
             </f:entry>
-            <st:include page="configAdvanced.jelly" class="${descriptor.clazz}"/>
+            <st:include page="configCache.jelly" class="${descriptor.clazz}"/>
           </f:optionalBlock>
         </table>
       </f:entry>
