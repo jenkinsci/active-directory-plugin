@@ -78,7 +78,7 @@ public class TheFlintstonesTest {
     public JenkinsRule j = new JenkinsRule();
 
     public final static String AD_DOMAIN = "samdom.example.com";
-    public final static String AD_MANAGER_DN = "CN=Fred,CN=Users,DC=SAMDOM,DC=EXAMPLE,DC=COM";
+    public final static String AD_MANAGER_DN = "CN=Administrator,CN=Users,DC=SAMDOM,DC=EXAMPLE,DC=COM";
     public final static String AD_MANAGER_DN_PASSWORD = "ia4uV1EeKait";
     public final static int MAX_RETRIES = 30;
     public String dockerIp;
