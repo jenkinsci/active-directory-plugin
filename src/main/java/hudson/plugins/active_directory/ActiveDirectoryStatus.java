@@ -79,7 +79,7 @@ public class ActiveDirectoryStatus extends ManagementLink {
      */
     @Restricted(NoExternalUse.class)
     public static List<ActiveDirectoryDomain> getDomains() {
-    SecurityRealm securityRealm = Jenkins.getInstance().getSecurityRealm();
+    SecurityRealm securityRealm = Jenkins.getActiveInstance().getSecurityRealm();
     if (securityRealm instanceof ActiveDirectorySecurityRealm) {
         ActiveDirectorySecurityRealm activeDirectorySecurityRealm = (ActiveDirectorySecurityRealm) securityRealm;
         return activeDirectorySecurityRealm.getDomains();
@@ -103,7 +103,7 @@ public class ActiveDirectoryStatus extends ManagementLink {
                         return;
                     }
                     if (domainItem.getName().equals(domain)) {
-                        SecurityRealm securityRealm = Jenkins.getInstance().getSecurityRealm();
+                        SecurityRealm securityRealm = Jenkins.getActiveInstance().getSecurityRealm();
                         if (securityRealm instanceof ActiveDirectorySecurityRealm) {
                             ActiveDirectorySecurityRealm activeDirectorySecurityRealm = (ActiveDirectorySecurityRealm) securityRealm;
                             List<SocketInfo> servers = activeDirectorySecurityRealm.getDescriptor().obtainLDAPServer(domainItem);
@@ -184,7 +184,7 @@ public class ActiveDirectoryStatus extends ManagementLink {
         private long computeLoginExecutionTime() {
             String username = Jenkins.getAuthentication().getName();
             long t0 = System.currentTimeMillis();
-            UserDetails userDetails = Jenkins.getInstance().getSecurityRealm().loadUserByUsername(username);
+            UserDetails userDetails = Jenkins.getActiveInstance().getSecurityRealm().loadUserByUsername(username);
             long t1 = System.currentTimeMillis();
             return  (userDetails!=null) ? (t1 - t0) : -1;
         }
