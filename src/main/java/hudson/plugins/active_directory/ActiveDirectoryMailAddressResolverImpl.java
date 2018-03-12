@@ -24,10 +24,10 @@
 package hudson.plugins.active_directory;
 
 import hudson.Extension;
-import hudson.model.Hudson;
 import hudson.model.User;
 import hudson.security.SecurityRealm;
 import hudson.tasks.MailAddressResolver;
+import jenkins.model.Jenkins;
 import org.acegisecurity.AcegiSecurityException;
 import org.springframework.dao.DataAccessException;
 
@@ -46,7 +46,7 @@ import static java.util.logging.Level.*;
 public class ActiveDirectoryMailAddressResolverImpl extends
 		MailAddressResolver {
 	public String findMailAddressFor(User u) {
-		SecurityRealm realm = Hudson.getInstance().getSecurityRealm();
+		SecurityRealm realm = Jenkins.getActiveInstance().getSecurityRealm();
 		if(!(realm instanceof ActiveDirectorySecurityRealm)){
 			return null;
 		}   

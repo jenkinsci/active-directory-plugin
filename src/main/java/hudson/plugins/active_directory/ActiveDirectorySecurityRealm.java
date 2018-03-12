@@ -34,7 +34,6 @@ import hudson.init.Terminator;
 import hudson.model.AbstractDescribableImpl;
 import hudson.model.AdministrativeMonitor;
 import hudson.model.Descriptor;
-import hudson.model.Hudson;
 import hudson.security.AbstractPasswordBasedSecurityRealm;
 import hudson.security.AuthorizationStrategy;
 import hudson.security.GroupDetails;
@@ -350,7 +349,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             }
         };
         rms.setUserDetailsService(uds);
-        rms.setKey(Hudson.getInstance().getSecretKey());
+        rms.setKey(Jenkins.getActiveInstance().getSecretKey());
         rms.setParameter("remember_me"); // this is the form field name in login.jelly
 
         return new SecurityComponents( findBean(AuthenticationManager.class, context), uds, rms);
@@ -423,7 +422,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
      */
     public void doAuthTest(StaplerRequest req, StaplerResponse rsp, @QueryParameter String username, @QueryParameter String password) throws IOException, ServletException {
         // require the administrator permission since this is full of debug info.
-        Hudson.getInstance().checkPermission(Hudson.ADMINISTER);
+        Jenkins.getActiveInstance().checkPermission(Jenkins.ADMINISTER);
 
         StringWriter out = new StringWriter();
         PrintWriter pw = new PrintWriter(out);
@@ -661,7 +660,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                 LdapContext context = (LdapContext)LdapCtxFactory.getLdapCtxInstance(ldapUrl, props);
 
                 boolean isStartTls = true;
-                SecurityRealm securityRealm = Jenkins.getInstance().getSecurityRealm();
+                SecurityRealm securityRealm = Jenkins.getActiveInstance().getSecurityRealm();
                 if (securityRealm instanceof ActiveDirectorySecurityRealm) {
                     ActiveDirectorySecurityRealm activeDirectorySecurityRealm = (ActiveDirectorySecurityRealm) securityRealm;
                      isStartTls= activeDirectorySecurityRealm.isStartTls();
@@ -929,7 +928,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     public static final class TlsConfigurationAdministrativeMonitor extends AdministrativeMonitor {
 
         public boolean isActivated() {
-                SecurityRealm securityRealm = Jenkins.getInstance().getSecurityRealm();
+                SecurityRealm securityRealm = Jenkins.getActiveInstance().getSecurityRealm();
                 if (securityRealm instanceof ActiveDirectorySecurityRealm) {
                     ActiveDirectorySecurityRealm activeDirectorySecurityRealm = (ActiveDirectorySecurityRealm) securityRealm;
                     if (activeDirectorySecurityRealm.tlsConfiguration == null) {

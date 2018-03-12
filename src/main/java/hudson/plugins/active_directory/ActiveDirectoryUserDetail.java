@@ -123,12 +123,13 @@ public class ActiveDirectoryUserDetail extends User {
     @Override 
     @SuppressFBWarnings(value="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE", justification="https://github.com/jenkinsci/jenkins/pull/2094")
     protected void setAuthorities(GrantedAuthority[] authorities) {
-        SecurityRealm realm = Jenkins.getInstance().getSecurityRealm();
+        final Jenkins jenkins = Jenkins.getActiveInstance();
+	    SecurityRealm realm = jenkins.getSecurityRealm();
         if ((realm instanceof ActiveDirectorySecurityRealm)) {
             ActiveDirectorySecurityRealm activeDirectoryRealm = (ActiveDirectorySecurityRealm)realm;
             if (activeDirectoryRealm.removeIrrelevantGroups) {
                 Set<String> referencedGroups = new HashSet<String>();
-                for (String group : Jenkins.getInstance().getAuthorizationStrategy().getGroups()) {
+                for (String group : jenkins.getAuthorizationStrategy().getGroups()) {
                     referencedGroups.add(group.toLowerCase());
                 }
                 // We remove irrelevant groups only if the active AuthorizationStrategy has any referenced groups:
