@@ -935,7 +935,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                 if (activeDirectorySecurityRealm.tlsConfiguration == null && activeDirectorySecurityRealm.getDescriptor().canDoNativeAuth() && activeDirectorySecurityRealm.domains != null) {
                     return true;
                 // AdministrativeMonitor in Unix environment if tlsConfiguration not saved
-                } else if (activeDirectorySecurityRealm.tlsConfiguration == null & !activeDirectorySecurityRealm.getDescriptor().canDoNativeAuth()) {
+                } else if (activeDirectorySecurityRealm.tlsConfiguration == null && !activeDirectorySecurityRealm.getDescriptor().canDoNativeAuth()) {
                     return true;
                 }
             }
