@@ -928,15 +928,17 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     public static final class TlsConfigurationAdministrativeMonitor extends AdministrativeMonitor {
 
         public boolean isActivated() {
-                SecurityRealm securityRealm = Jenkins.getActiveInstance().getSecurityRealm();
-                if (securityRealm instanceof ActiveDirectorySecurityRealm) {
-                    ActiveDirectorySecurityRealm activeDirectorySecurityRealm = (ActiveDirectorySecurityRealm) securityRealm;
-                    // AdministrativeMonitor only available if there is not any tlsConfiguration persistent on disk and not doing native authentication
-                    if (activeDirectorySecurityRealm.tlsConfiguration == null && !activeDirectorySecurityRealm.getDescriptor().canDoNativeAuth() && activeDirectorySecurityRealm.domains == null) {
-                        return true;
-                    }
+            SecurityRealm securityRealm = Jenkins.getActiveInstance().getSecurityRealm();
+            if (securityRealm instanceof ActiveDirectorySecurityRealm) {
+                ActiveDirectorySecurityRealm activeDirectorySecurityRealm = (ActiveDirectorySecurityRealm) securityRealm;
+                // AdministrativeMonitor if native authentication, using customDomains and tlsConfiguration not saved
+                if (activeDirectorySecurityRealm.tlsConfiguration == null && activeDirectorySecurityRealm.getDescriptor().canDoNativeAuth() && activeDirectorySecurityRealm.domains != null) {
+                    return true;
+                // AdministrativeMonitor in Unix environment if tlsConfiguration not saved
+                } else if (activeDirectorySecurityRealm.tlsConfiguration == null & !activeDirectorySecurityRealm.getDescriptor().canDoNativeAuth()) {
+                    return true;
                 }
-
+            }
             return false;
         }
 
