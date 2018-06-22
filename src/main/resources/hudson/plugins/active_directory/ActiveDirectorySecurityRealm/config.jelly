@@ -33,9 +33,10 @@
                 </div>
               </f:repeatable>
             </f:entry>
-            <st:include page="configCache.jelly" class="${descriptor.clazz}"/>
+            <st:include page="configAdvanced.jelly" class="${descriptor.clazz}"/>
           </f:optionalBlock>
         </table>
+        <st:include page="configCache.jelly" class="${descriptor.clazz}"/>
       </f:entry>
     </j:when>
     <j:otherwise>
@@ -69,6 +70,7 @@
         </f:repeatable>
       </f:entry>
       <st:include page="configAdvanced.jelly" class="${descriptor.clazz}"/>
+      <st:include page="configCache.jelly" class="${descriptor.clazz}"/>
     </j:otherwise>
   </j:choose>
 </j:jelly>

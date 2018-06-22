@@ -931,7 +931,8 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                 SecurityRealm securityRealm = Jenkins.getActiveInstance().getSecurityRealm();
                 if (securityRealm instanceof ActiveDirectorySecurityRealm) {
                     ActiveDirectorySecurityRealm activeDirectorySecurityRealm = (ActiveDirectorySecurityRealm) securityRealm;
-                    if (activeDirectorySecurityRealm.tlsConfiguration == null) {
+                    // AdministrativeMonitor only available if there is not any tlsConfiguration persistent on disk and not doing native authentication
+                    if (activeDirectorySecurityRealm.tlsConfiguration == null && !activeDirectorySecurityRealm.getDescriptor().canDoNativeAuth() && activeDirectorySecurityRealm.domains == null) {
                         return true;
                     }
                 }
