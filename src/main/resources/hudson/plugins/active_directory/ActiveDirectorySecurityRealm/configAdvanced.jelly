@@ -18,7 +18,6 @@
     <f:entry field="tlsConfiguration" title="${%TLS Configuration}">
       <f:select />
     </f:entry>
-    <st:include page="configCache.jelly" class="${descriptor.clazz}"/>
     <f:entry field="environmentProperties" title="${%Environment Properties}">
       <f:repeatableProperty field="environmentProperties" />
     </f:entry>
