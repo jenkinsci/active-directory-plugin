@@ -311,6 +311,11 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         return environmentProperties;
     }
 
+    @Restricted(NoExternalUse.class)
+    public boolean getCustomDomain() {
+        return domains != null;
+    }
+
     public GroupLookupStrategy getGroupLookupStrategy() {
         if (groupLookupStrategy==null)      return GroupLookupStrategy.AUTO;
         return groupLookupStrategy;
