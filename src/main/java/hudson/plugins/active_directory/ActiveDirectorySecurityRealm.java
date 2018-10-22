@@ -714,7 +714,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         }
 
         /**
-         * Creates {@link DirContext} for accesssing DNS.
+         * Creates {@link DirContext} for accessing DNS.
          */
         public DirContext createDNSLookupContext() throws NamingException {
             Hashtable env = new Hashtable();
