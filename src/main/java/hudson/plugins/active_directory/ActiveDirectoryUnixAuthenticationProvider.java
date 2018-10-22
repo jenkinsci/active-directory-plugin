@@ -38,7 +38,6 @@ import hudson.util.Secret;
 
 import javax.naming.NameNotFoundException;
 
-import hudson.util.TimeUnit2;
 import org.acegisecurity.AuthenticationException;
 import org.acegisecurity.AuthenticationServiceException;
 import org.acegisecurity.BadCredentialsException;
@@ -687,7 +686,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                     long duration = 0;
                     try {
                         found = chainGroupLookup(domainDN, userDN, context, groups);
-                        duration = TimeUnit2.NANOSECONDS.toSeconds(System.nanoTime() - start);
+                        duration = TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - start);
                     } catch (TimeLimitExceededException e) {
                         LOGGER.log(Level.WARNING, "The LDAP request did not terminate within the specified time limit. AD will fall back to recursive lookup", e);
                     } catch (NamingException e) {
