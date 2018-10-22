@@ -730,7 +730,6 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
      *
      * @return
      *      false if it appears that this search failed.
-     * @see
      */
     private boolean chainGroupLookup(String domainDN, String userDN, DirContext context, Set<GrantedAuthority> groups) throws NamingException {
         NamingEnumeration<SearchResult> renum = new LDAPSearchBuilder(context, domainDN).subTreeScope().returns("cn").search(
