@@ -21,7 +21,7 @@ authenticationManager(ProviderManager) {
 
     // these providers apply everywhere
         bean(RememberMeAuthenticationProvider) {
-            key = Hudson.getInstance().getSecretKey();
+            key = Hudson.getInstance().getSecretKey()
         },
         // this doesn't mean we allow anonymous access.
         // we just authenticate anonymous users as such,
