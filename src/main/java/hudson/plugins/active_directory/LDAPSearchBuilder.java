@@ -102,7 +102,7 @@ class LDAPSearchBuilder {
             // NamingEnumeration is returning a PartialResultException. Again, In my opinion this should
             // not be a blocker. We should just log the Exception and return null like on the case where
             // any user was found.
-            LOG.log(Level.WARNING, String.format("JENKINS-42687 The user we are looking for might exist"), e);
+            LOG.log(Level.WARNING, "JENKINS-42687 The user we are looking for might exist", e);
             return null;
         } finally {
             r.close();
