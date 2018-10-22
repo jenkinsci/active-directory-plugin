@@ -126,13 +126,13 @@ public class ActiveDirectoryUserDetail extends User {
         if ((realm instanceof ActiveDirectorySecurityRealm)) {
             ActiveDirectorySecurityRealm activeDirectoryRealm = (ActiveDirectorySecurityRealm)realm;
             if (activeDirectoryRealm.removeIrrelevantGroups) {
-                Set<String> referencedGroups = new HashSet<String>();
+                Set<String> referencedGroups = new HashSet<>();
                 for (String group : jenkins.getAuthorizationStrategy().getGroups()) {
                     referencedGroups.add(group.toLowerCase());
                 }
                 // We remove irrelevant groups only if the active AuthorizationStrategy has any referenced groups:
                 if (!referencedGroups.isEmpty()) {
-                    List<GrantedAuthority> relevantGroups = new ArrayList<GrantedAuthority>();
+                    List<GrantedAuthority> relevantGroups = new ArrayList<>();
 
                     for (GrantedAuthority group : authorities) {
                         String groupName = group.getAuthority();

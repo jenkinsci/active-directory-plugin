@@ -111,7 +111,7 @@ class LDAPSearchBuilder {
 
     public NamingEnumeration<SearchResult> search(String filter, Object... args) throws NamingException {
         if (LOG.isLoggable(Level.FINER)) {
-            Map<Object,Object> env = new HashMap<Object,Object>(context.getEnvironment());
+            Map<Object,Object> env = new HashMap<>(context.getEnvironment());
             if (env.containsKey(Context.SECURITY_CREDENTIALS)) {
                 env.put(Context.SECURITY_CREDENTIALS, "…");
             }

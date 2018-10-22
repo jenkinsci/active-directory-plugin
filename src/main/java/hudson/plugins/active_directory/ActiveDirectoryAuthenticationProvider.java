@@ -174,7 +174,7 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
                         if (usr == null)    // the user name was in fact a group
                             throw new UsernameNotFoundException("User not found: "+ username);
 
-                        List<GrantedAuthority> groups = new ArrayList<GrantedAuthority>();
+                        List<GrantedAuthority> groups = new ArrayList<>();
                         for( Com4jObject g : usr.groups() ) {
                             if (g==null) {
                                 continue;   // according to JENKINS-17357 in some environment the collection contains null

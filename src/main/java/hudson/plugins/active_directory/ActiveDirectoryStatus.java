@@ -96,7 +96,7 @@ public class ActiveDirectoryStatus extends ManagementLink {
     @Restricted(NoExternalUse.class)
     public ProgressiveRendering startDomainHealthChecks(final String domain) {
         return new ProgressiveRendering() {
-            final List<ServerHealth> domainHealth = new LinkedList<ServerHealth>();
+            final List<ServerHealth> domainHealth = new LinkedList<>();
             @Override protected void compute() throws Exception {
                 for (ActiveDirectoryDomain domainItem : getDomains()) {
                     if (canceled()) {

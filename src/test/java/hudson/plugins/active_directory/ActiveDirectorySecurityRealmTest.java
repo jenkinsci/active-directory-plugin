@@ -285,7 +285,7 @@ public class ActiveDirectorySecurityRealmTest {
     @Test
     public void testAdvancedOptionsVisibleWithNonNativeAuthentication() throws Exception {
         ActiveDirectoryDomain activeDirectoryDomain = new ActiveDirectoryDomain(TheFlintstonesTest.AD_DOMAIN, null, null, TheFlintstonesTest.AD_MANAGER_DN, TheFlintstonesTest.AD_MANAGER_DN_PASSWORD);
-        List<ActiveDirectoryDomain> domains = new ArrayList<ActiveDirectoryDomain>(1);
+        List<ActiveDirectoryDomain> domains = new ArrayList<>(1);
         domains.add(activeDirectoryDomain);
         ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, null, null, null, null, GroupLookupStrategy.RECURSIVE, false, true, null, false, null, null);
         Jenkins.getInstance().setSecurityRealm(activeDirectorySecurityRealm);
@@ -297,7 +297,7 @@ public class ActiveDirectorySecurityRealmTest {
     @Test
     public void testCacheOptionAlwaysVisible() throws Exception {
         ActiveDirectoryDomain activeDirectoryDomain = new ActiveDirectoryDomain(TheFlintstonesTest.AD_DOMAIN, null, null, TheFlintstonesTest.AD_MANAGER_DN, TheFlintstonesTest.AD_MANAGER_DN_PASSWORD);
-        List<ActiveDirectoryDomain> domains = new ArrayList<ActiveDirectoryDomain>(1);
+        List<ActiveDirectoryDomain> domains = new ArrayList<>(1);
         domains.add(activeDirectoryDomain);
         ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, null, null, null, null, GroupLookupStrategy.RECURSIVE, false, true, null, false, null, null);
         Jenkins.getInstance().setSecurityRealm(activeDirectorySecurityRealm);
