@@ -140,7 +140,7 @@ public class ActiveDirectoryUserDetail extends User {
                             relevantGroups.add(group);
                         }
                     }
-                    authorities = relevantGroups.toArray(new GrantedAuthority[relevantGroups.size()]);
+                    authorities = relevantGroups.toArray(new GrantedAuthority[0]);
                 }
             }
         }

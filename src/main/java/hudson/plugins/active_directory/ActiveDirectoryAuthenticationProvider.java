@@ -191,7 +191,7 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
                                 username, password,
                                 !isAccountDisabled(usr),
                                 true, true, true,
-                                groups.toArray(new GrantedAuthority[groups.size()]),
+                                groups.toArray(new GrantedAuthority[0]),
                                 getFullName(usr), getEmailAddress(usr), getTelephoneNumber(usr)
                         ).updateUserInfo();
                     } finally {

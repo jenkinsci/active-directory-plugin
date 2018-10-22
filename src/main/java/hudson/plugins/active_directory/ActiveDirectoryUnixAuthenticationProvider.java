@@ -420,7 +420,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                         Set<GrantedAuthority> groups = resolveGroups(domainDN, dnFormatted, context);
                         groups.add(SecurityRealm.AUTHENTICATED_AUTHORITY);
 
-                        cacheMiss[0] = new ActiveDirectoryUserDetail(username, password, true, true, true, true, groups.toArray(new GrantedAuthority[groups.size()]),
+                        cacheMiss[0] = new ActiveDirectoryUserDetail(username, password, true, true, true, true, groups.toArray(new GrantedAuthority[0]),
                                 getStringAttribute(user, "displayName"),
                                 getStringAttribute(user, "mail"),
                                 getStringAttribute(user, "telephoneNumber")
