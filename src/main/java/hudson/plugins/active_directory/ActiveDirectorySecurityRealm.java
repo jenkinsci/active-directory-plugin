@@ -30,7 +30,6 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import groovy.lang.Binding;
 import hudson.Extension;
 import hudson.Functions;
-import hudson.init.Terminator;
 import hudson.model.AbstractDescribableImpl;
 import hudson.model.AdministrativeMonitor;
 import hudson.model.Descriptor;
@@ -39,7 +38,6 @@ import hudson.security.AuthorizationStrategy;
 import hudson.security.GroupDetails;
 import hudson.security.SecurityRealm;
 import hudson.security.TokenBasedRememberMeServices2;
-import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import hudson.util.Secret;
 import hudson.util.spring.BeanBuilder;
@@ -86,7 +84,6 @@ import java.io.PrintWriter;
 import java.io.Serializable;
 import java.io.StringWriter;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Hashtable;
 import java.util.LinkedHashMap;
@@ -97,7 +94,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static hudson.Util.*;
-import static hudson.plugins.active_directory.ActiveDirectoryUnixAuthenticationProvider.*;
 
 /**
  * {@link SecurityRealm} that talks to Active Directory.
