@@ -28,9 +28,9 @@ import hudson.Extension;
 import hudson.Functions;
 import hudson.model.AbstractDescribableImpl;
 import hudson.model.Descriptor;
-import hudson.model.Hudson;
 import hudson.util.FormValidation;
 import hudson.util.Secret;
+import jenkins.model.Jenkins;
 import org.acegisecurity.BadCredentialsException;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.accmod.Restricted;
@@ -252,7 +252,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
             ClassLoader ccl = Thread.currentThread().getContextClassLoader();
             Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
             try {
-                Functions.checkPermission(Hudson.ADMINISTER);
+                Functions.checkPermission(Jenkins.ADMINISTER);
 
                 // In case we can do native authentication
                 if (activeDirectorySecurityRealm.getDescriptor().canDoNativeAuth() && name==null) {
