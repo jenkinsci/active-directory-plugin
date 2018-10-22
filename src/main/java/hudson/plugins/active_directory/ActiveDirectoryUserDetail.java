@@ -146,7 +146,7 @@ public class ActiveDirectoryUserDetail extends User {
         }
 
         super.setAuthorities(authorities);
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         sb.append(super.toString()).append(": ");
         sb.append("Username: ").append(getUsername()).append("; ");
         sb.append("Password: [PROTECTED]; ");
