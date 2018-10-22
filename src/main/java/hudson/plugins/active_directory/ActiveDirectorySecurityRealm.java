@@ -678,9 +678,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                             rsp.negotiate();
                         }
                         LOGGER.fine("Connection upgraded to TLS");
-                    } catch (NamingException e) {
-                        LOGGER.log(Level.FINE, "Failed to start TLS. Authentication will be done via plain-text LDAP", e);
-                    } catch (IOException e) {
+                    } catch (NamingException | IOException e) {
                         LOGGER.log(Level.FINE, "Failed to start TLS. Authentication will be done via plain-text LDAP", e);
                     }
                 }

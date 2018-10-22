@@ -240,15 +240,7 @@ public class ActiveDirectoryUserDetail extends User {
                 HudsonPrivateSecurityRealm.Details newDetails = (HudsonPrivateSecurityRealm.Details) object;
                 internalUser.addProperty(newDetails);
             }
-        } catch (ClassNotFoundException e) {
-            LOGGER.log(Level.WARNING, String.format("Failed to update the password for user %s in the Jenkins Internal Database", username), e);
-        } catch (NoSuchMethodException e) {
-            LOGGER.log(Level.WARNING, String.format("Failed to update the password for user %s in the Jenkins Internal Database", username), e);
-        } catch (InvocationTargetException e) {
-            LOGGER.log(Level.WARNING, String.format("Failed to update the password for user %s in the Jenkins Internal Database", username), e);
-        } catch (IllegalAccessException e) {
-            LOGGER.log(Level.WARNING, String.format("Failed to update the password for user %s in the Jenkins Internal Database", username), e);
-        } catch (IOException e) {
+        } catch (ClassNotFoundException | IOException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
             LOGGER.log(Level.WARNING, String.format("Failed to update the password for user %s in the Jenkins Internal Database", username), e);
         }
     }

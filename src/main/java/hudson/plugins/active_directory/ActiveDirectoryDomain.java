@@ -223,10 +223,8 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
         try {
             Attributes attributes = createDNSLookupContext().getAttributes(ldapServer, new String[] { "SRV" });
             return attributes.get("SRV");
-        } catch (NamingException e) {
+        } catch (NamingException | NumberFormatException e) {
             LOGGER.log(Level.WARNING, String.format("Failed to resolve %s", ldapServer), e);
-        } catch (NumberFormatException x) {
-            LOGGER.log(Level.WARNING, String.format("Failed to resolve %s", ldapServer), x);
         }
         return null;
     }
