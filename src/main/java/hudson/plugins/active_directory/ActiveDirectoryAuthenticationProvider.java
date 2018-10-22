@@ -51,7 +51,6 @@ import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
 import org.acegisecurity.userdetails.UserDetails;
 import org.acegisecurity.userdetails.UserDetailsService;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
-import org.kohsuke.stapler.framework.io.IOException2;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -118,7 +117,7 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
             this.userCache = cache.getUserCache();
             this.groupCache = cache.getGroupCache();
         } catch (ExecutionException e) {
-            throw new IOException2("Failed to connect to Active Directory. Does this machine belong to Active Directory?",e);
+            throw new IOException("Failed to connect to Active Directory. Does this machine belong to Active Directory?", e);
         }
     }
 
