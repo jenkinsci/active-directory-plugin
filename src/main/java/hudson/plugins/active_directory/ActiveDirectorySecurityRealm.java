@@ -960,6 +960,11 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         public static TlsConfigurationAdministrativeMonitor get() {
             return AdministrativeMonitor.all().get(TlsConfigurationAdministrativeMonitor.class);
         }
+
+        @Override
+        public String getDisplayName() {
+            return Messages.TlsConfiguration_AdministrativeMonitor_DisplayName();
+        }
     }
 
 }
