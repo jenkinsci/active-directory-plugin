@@ -38,7 +38,6 @@ import hudson.util.Secret;
 
 import javax.naming.NameNotFoundException;
 
-import hudson.util.TimeUnit2;
 import org.acegisecurity.AuthenticationException;
 import org.acegisecurity.AuthenticationServiceException;
 import org.acegisecurity.BadCredentialsException;
@@ -123,7 +122,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     /**
      * Properties to be passed to the current LDAP context
      */
-    private Hashtable<String, String> props = new Hashtable<String, String>();
+    private Hashtable<String, String> props = new Hashtable<>();
 
     /**
      * Timeout if no connection after 30 seconds
@@ -216,10 +215,10 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     protected UserDetails retrieveUser(final String username, final UsernamePasswordAuthenticationToken authentication) throws AuthenticationException {
         try {
             // this is more seriously error, indicating a failure to search
-            List<AuthenticationException> errors = new ArrayList<AuthenticationException>();
+            List<AuthenticationException> errors = new ArrayList<>();
 
             // this is lesser error, in that we searched and the user was not found
-            List<UsernameNotFoundException> notFound = new ArrayList<UsernameNotFoundException>();
+            List<UsernameNotFoundException> notFound = new ArrayList<>();
 
             for (ActiveDirectoryDomain domain : domains) {
                 try {
@@ -421,7 +420,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                         Set<GrantedAuthority> groups = resolveGroups(domainDN, dnFormatted, context);
                         groups.add(SecurityRealm.AUTHENTICATED_AUTHORITY);
 
-                        cacheMiss[0] = new ActiveDirectoryUserDetail(username, password, true, true, true, true, groups.toArray(new GrantedAuthority[groups.size()]),
+                        cacheMiss[0] = new ActiveDirectoryUserDetail(username, password, true, true, true, true, groups.toArray(new GrantedAuthority[0]),
                                 getStringAttribute(user, "displayName"),
                                 getStringAttribute(user, "mail"),
                                 getStringAttribute(user, "telephoneNumber")
@@ -637,7 +636,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         if (userDN.contains("/")) {
             userDN = userDN.replace("/","\\/");
         }
-        Set<GrantedAuthority> groups = new HashSet<GrantedAuthority>();
+        Set<GrantedAuthority> groups = new HashSet<>();
 
         LOGGER.log(Level.FINER, "Looking up group of {0}", userDN);
         Attributes id = context.getAttributes(userDN,new String[]{"tokenGroups","memberOf","CN"});
@@ -652,7 +651,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         else {
             // build up the query to retrieve all the groups
             StringBuilder query = new StringBuilder("(|");
-            List<byte[]> sids = new ArrayList<byte[]>();
+            List<byte[]> sids = new ArrayList<>();
     
             NamingEnumeration<?> tokenGroups = tga.getAll();
             while (tokenGroups.hasMore()) {
@@ -687,7 +686,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                     long duration = 0;
                     try {
                         found = chainGroupLookup(domainDN, userDN, context, groups);
-                        duration = TimeUnit2.NANOSECONDS.toSeconds(System.nanoTime() - start);
+                        duration = TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - start);
                     } catch (TimeLimitExceededException e) {
                         LOGGER.log(Level.WARNING, "The LDAP request did not terminate within the specified time limit. AD will fall back to recursive lookup", e);
                     } catch (NamingException e) {
@@ -731,7 +730,6 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
      *
      * @return
      *      false if it appears that this search failed.
-     * @see
      */
     private boolean chainGroupLookup(String domainDN, String userDN, DirContext context, Set<GrantedAuthority> groups) throws NamingException {
         NamingEnumeration<SearchResult> renum = new LDAPSearchBuilder(context, domainDN).subTreeScope().returns("cn").search(
@@ -766,7 +764,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
      * See JENKINS-22830
      */
     private void recursiveGroupLookup(DirContext context, Attributes id, Set<GrantedAuthority> groups) throws NamingException {
-        Stack<Attributes> q = new Stack<Attributes>();
+        Stack<Attributes> q = new Stack<>();
         q.push(id);
         while (!q.isEmpty()) {
             Attributes identity = q.pop();

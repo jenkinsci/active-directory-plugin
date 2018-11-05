@@ -28,9 +28,9 @@ import hudson.Extension;
 import hudson.Functions;
 import hudson.model.AbstractDescribableImpl;
 import hudson.model.Descriptor;
-import hudson.model.Hudson;
 import hudson.util.FormValidation;
 import hudson.util.Secret;
+import jenkins.model.Jenkins;
 import org.acegisecurity.BadCredentialsException;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.accmod.Restricted;
@@ -200,7 +200,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
     }
 
     /**
-     * Creates {@link DirContext} for accesssing DNS.
+     * Creates {@link DirContext} for accessing DNS.
      */
     public DirContext createDNSLookupContext() throws NamingException {
         Hashtable env = new Hashtable();
@@ -223,10 +223,8 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
         try {
             Attributes attributes = createDNSLookupContext().getAttributes(ldapServer, new String[] { "SRV" });
             return attributes.get("SRV");
-        } catch (NamingException e) {
+        } catch (NamingException | NumberFormatException e) {
             LOGGER.log(Level.WARNING, String.format("Failed to resolve %s", ldapServer), e);
-        } catch (NumberFormatException x) {
-            LOGGER.log(Level.WARNING, String.format("Failed to resolve %s", ldapServer), x);
         }
         return null;
     }
@@ -252,7 +250,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
             ClassLoader ccl = Thread.currentThread().getContextClassLoader();
             Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
             try {
-                Functions.checkPermission(Hudson.ADMINISTER);
+                Functions.checkPermission(Jenkins.ADMINISTER);
 
                 // In case we can do native authentication
                 if (activeDirectorySecurityRealm.getDescriptor().canDoNativeAuth() && name==null) {

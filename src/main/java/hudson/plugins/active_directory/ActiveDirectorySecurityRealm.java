@@ -30,7 +30,6 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import groovy.lang.Binding;
 import hudson.Extension;
 import hudson.Functions;
-import hudson.init.Terminator;
 import hudson.model.AbstractDescribableImpl;
 import hudson.model.AdministrativeMonitor;
 import hudson.model.Descriptor;
@@ -39,7 +38,6 @@ import hudson.security.AuthorizationStrategy;
 import hudson.security.GroupDetails;
 import hudson.security.SecurityRealm;
 import hudson.security.TokenBasedRememberMeServices2;
-import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import hudson.util.Secret;
 import hudson.util.spring.BeanBuilder;
@@ -86,7 +84,6 @@ import java.io.PrintWriter;
 import java.io.Serializable;
 import java.io.StringWriter;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Hashtable;
 import java.util.LinkedHashMap;
@@ -97,7 +94,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static hudson.Util.*;
-import static hudson.plugins.active_directory.ActiveDirectoryUnixAuthenticationProvider.*;
 
 /**
  * {@link SecurityRealm} that talks to Active Directory.
@@ -385,7 +381,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
     public Object readResolve() throws ObjectStreamException {
         if (domain != null) {
-            this.domains = new ArrayList<ActiveDirectoryDomain>();
+            this.domains = new ArrayList<>();
             domain = domain.trim();
             String[] oldDomains = domain.split(",");
             for (String oldDomain : oldDomains) {
@@ -572,7 +568,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             // in a AD forest, it'd be mighty nice to be able to login as "joe"
             // as opposed to "joe@europe",
             // but the bind operation doesn't appear to allow me to do so.
-            Hashtable<String, String> newProps = new Hashtable<String, String>();
+            Hashtable<String, String> newProps = new Hashtable<>();
 
             // Sometimes might be useful to ignore referral. Use this System property is under the user risk
             Boolean ignoreReferrals = Boolean.valueOf(System.getProperty("hudson.plugins.active_directory.referral.ignore", "false"));
@@ -682,9 +678,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                             rsp.negotiate();
                         }
                         LOGGER.fine("Connection upgraded to TLS");
-                    } catch (NamingException e) {
-                        LOGGER.log(Level.FINE, "Failed to start TLS. Authentication will be done via plain-text LDAP", e);
-                    } catch (IOException e) {
+                    } catch (NamingException | IOException e) {
                         LOGGER.log(Level.FINE, "Failed to start TLS. Authentication will be done via plain-text LDAP", e);
                     }
                 }
@@ -714,7 +708,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         }
 
         /**
-         * Creates {@link DirContext} for accesssing DNS.
+         * Creates {@link DirContext} for accessing DNS.
          */
         public DirContext createDNSLookupContext() throws NamingException {
             Hashtable env = new Hashtable();
@@ -746,7 +740,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
          * @return A list with at least one item.
          */
         public List<SocketInfo> obtainLDAPServer(DirContext ictx, String domainName, String site, String preferredServers) throws NamingException {
-            List<SocketInfo> result = new ArrayList<SocketInfo>();
+            List<SocketInfo> result = new ArrayList<>();
             if (preferredServers==null || preferredServers.isEmpty())
                 preferredServers = DOMAIN_CONTROLLERS;
 
@@ -795,7 +789,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                         return that.priority - this.priority; // sort them so that bigger priority comes first
                     }
                 }
-                List<PrioritizedSocketInfo> plist = new ArrayList<PrioritizedSocketInfo>();
+                List<PrioritizedSocketInfo> plist = new ArrayList<>();
                 for (NamingEnumeration ne = a.getAll(); ne.hasMoreElements();) {
                     String record = ne.next().toString();
                     LOGGER.fine("SRV record found: "+record);
@@ -904,7 +898,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         }
 
         public static Map<String,String> toMap(List<EnvironmentProperty> properties) {
-            final Map<String, String> result = new LinkedHashMap<String, String>();
+            final Map<String, String> result = new LinkedHashMap<>();
             if (properties != null) {
                 for (EnvironmentProperty property:properties) {
                     result.put(property.getName(), property.getValue());

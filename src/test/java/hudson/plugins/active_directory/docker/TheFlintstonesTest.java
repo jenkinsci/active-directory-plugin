@@ -72,7 +72,7 @@ import hudson.util.RingBufferLogHandler;
 public class TheFlintstonesTest {
 
     @Rule
-    public DockerRule<TheFlintstones> docker = new DockerRule<TheFlintstones>(TheFlintstones.class);
+    public DockerRule<TheFlintstones> docker = new DockerRule<>(TheFlintstones.class);
 
     @Rule
     public JenkinsRule j = new JenkinsRule();
@@ -90,7 +90,7 @@ public class TheFlintstonesTest {
         dockerIp = d.ipBound(3268);
         dockerPort = d.port(3268);
         ActiveDirectoryDomain activeDirectoryDomain = new ActiveDirectoryDomain(AD_DOMAIN, dockerIp + ":" +  dockerPort , null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD);
-        List<ActiveDirectoryDomain> domains = new ArrayList<ActiveDirectoryDomain>(1);
+        List<ActiveDirectoryDomain> domains = new ArrayList<>(1);
         domains.add(activeDirectoryDomain);
         ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, null, null, null, null, GroupLookupStrategy.RECURSIVE, false, true, null, false, null, null);
         j.getInstance().setSecurityRealm(activeDirectorySecurityRealm);
@@ -175,7 +175,7 @@ public class TheFlintstonesTest {
     }
 
     private List<String> captureLogMessages(int size) {
-        final List<String> logMessages = new ArrayList<String>(size);
+        final List<String> logMessages = new ArrayList<>(size);
         Logger logger = Logger.getLogger("");
         logger.setLevel(Level.ALL);
 

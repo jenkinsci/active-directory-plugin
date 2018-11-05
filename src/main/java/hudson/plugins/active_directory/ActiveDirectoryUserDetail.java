@@ -27,7 +27,6 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -42,7 +41,6 @@ import jenkins.model.Jenkins;
 import org.acegisecurity.GrantedAuthority;
 import org.acegisecurity.userdetails.User;
 import org.acegisecurity.userdetails.UserDetails;
-import org.apache.commons.collections.CollectionUtils;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
@@ -128,13 +126,13 @@ public class ActiveDirectoryUserDetail extends User {
         if ((realm instanceof ActiveDirectorySecurityRealm)) {
             ActiveDirectorySecurityRealm activeDirectoryRealm = (ActiveDirectorySecurityRealm)realm;
             if (activeDirectoryRealm.removeIrrelevantGroups) {
-                Set<String> referencedGroups = new HashSet<String>();
+                Set<String> referencedGroups = new HashSet<>();
                 for (String group : jenkins.getAuthorizationStrategy().getGroups()) {
                     referencedGroups.add(group.toLowerCase());
                 }
                 // We remove irrelevant groups only if the active AuthorizationStrategy has any referenced groups:
                 if (!referencedGroups.isEmpty()) {
-                    List<GrantedAuthority> relevantGroups = new ArrayList<GrantedAuthority>();
+                    List<GrantedAuthority> relevantGroups = new ArrayList<>();
 
                     for (GrantedAuthority group : authorities) {
                         String groupName = group.getAuthority();
@@ -142,13 +140,13 @@ public class ActiveDirectoryUserDetail extends User {
                             relevantGroups.add(group);
                         }
                     }
-                    authorities = relevantGroups.toArray(new GrantedAuthority[relevantGroups.size()]);
+                    authorities = relevantGroups.toArray(new GrantedAuthority[0]);
                 }
             }
         }
 
         super.setAuthorities(authorities);
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         sb.append(super.toString()).append(": ");
         sb.append("Username: ").append(getUsername()).append("; ");
         sb.append("Password: [PROTECTED]; ");
@@ -242,15 +240,7 @@ public class ActiveDirectoryUserDetail extends User {
                 HudsonPrivateSecurityRealm.Details newDetails = (HudsonPrivateSecurityRealm.Details) object;
                 internalUser.addProperty(newDetails);
             }
-        } catch (ClassNotFoundException e) {
-            LOGGER.log(Level.WARNING, String.format("Failed to update the password for user %s in the Jenkins Internal Database", username), e);
-        } catch (NoSuchMethodException e) {
-            LOGGER.log(Level.WARNING, String.format("Failed to update the password for user %s in the Jenkins Internal Database", username), e);
-        } catch (InvocationTargetException e) {
-            LOGGER.log(Level.WARNING, String.format("Failed to update the password for user %s in the Jenkins Internal Database", username), e);
-        } catch (IllegalAccessException e) {
-            LOGGER.log(Level.WARNING, String.format("Failed to update the password for user %s in the Jenkins Internal Database", username), e);
-        } catch (IOException e) {
+        } catch (ClassNotFoundException | IOException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
             LOGGER.log(Level.WARNING, String.format("Failed to update the password for user %s in the Jenkins Internal Database", username), e);
         }
     }

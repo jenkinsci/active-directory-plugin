@@ -64,9 +64,7 @@ public abstract class TrustAllSocketFactory extends SocketFactory {
                 }
             }}, new SecureRandom());
             return context.getSocketFactory();
-        } catch (NoSuchAlgorithmException e) {
-            throw new Error(e);
-        } catch (KeyManagementException e) {
+        } catch (NoSuchAlgorithmException | KeyManagementException e) {
             throw new Error(e);
         }
     }

@@ -71,7 +71,7 @@ public class RemoveIrrelevantGroupsTest {
      * return argument groups.
      */
     private void setUpJenkinsUsedGroups(String... groups) {
-        Set<String> usedGroups = new HashSet<String>();
+        Set<String> usedGroups = new HashSet<>();
         for (String group : groups) {
             usedGroups.add(group);
         }

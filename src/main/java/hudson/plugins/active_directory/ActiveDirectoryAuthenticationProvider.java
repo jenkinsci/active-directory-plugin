@@ -51,7 +51,6 @@ import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
 import org.acegisecurity.userdetails.UserDetails;
 import org.acegisecurity.userdetails.UserDetailsService;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
-import org.kohsuke.stapler.framework.io.IOException2;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -118,7 +117,7 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
             this.userCache = cache.getUserCache();
             this.groupCache = cache.getGroupCache();
         } catch (ExecutionException e) {
-            throw new IOException2("Failed to connect to Active Directory. Does this machine belong to Active Directory?",e);
+            throw new IOException("Failed to connect to Active Directory. Does this machine belong to Active Directory?", e);
         }
     }
 
@@ -170,12 +169,12 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
                             // this is failing
                             String msg = String.format("Incorrect password for %s DN=%s: error=%08X", username, dn, e.getHRESULT());
                             LOGGER.log(Level.FINE, String.format("Login failure: Incorrect password for %s DN=%s: error=%08X", username, dn, e.getHRESULT()), e);
-                            throw (BadCredentialsException)new BadCredentialsException(msg).initCause(e);
+                            throw new BadCredentialsException(msg, e);
                         }
                         if (usr == null)    // the user name was in fact a group
                             throw new UsernameNotFoundException("User not found: "+ username);
 
-                        List<GrantedAuthority> groups = new ArrayList<GrantedAuthority>();
+                        List<GrantedAuthority> groups = new ArrayList<>();
                         for( Com4jObject g : usr.groups() ) {
                             if (g==null) {
                                 continue;   // according to JENKINS-17357 in some environment the collection contains null
@@ -192,7 +191,7 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
                                 username, password,
                                 !isAccountDisabled(usr),
                                 true, true, true,
-                                groups.toArray(new GrantedAuthority[groups.size()]),
+                                groups.toArray(new GrantedAuthority[0]),
                                 getFullName(usr), getEmailAddress(usr), getTelephoneNumber(usr)
                         ).updateUserInfo();
                     } finally {
