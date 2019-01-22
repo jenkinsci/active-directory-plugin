@@ -29,6 +29,7 @@ import hudson.Functions;
 import hudson.model.AbstractDescribableImpl;
 import hudson.model.Descriptor;
 import hudson.util.FormValidation;
+import hudson.util.ListBoxModel;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
 import org.acegisecurity.BadCredentialsException;
@@ -49,6 +50,7 @@ import javax.naming.directory.InitialDirContext;
 import javax.servlet.ServletException;
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.logging.Level;
@@ -105,6 +107,18 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
 
     public Secret bindPassword;
 
+    /**
+     * Selects the SSL strategy to follow on the TLS connections
+     *
+     * <p>
+     *     Even if we are not using any of the TLS ports (3269/636) the plugin will try to establish a TLS channel
+     *     using startTLS. Because of this, we need to be able to specify the SSL strategy on the plugin
+     *
+     * <p>
+     *     For the moment there are two possible values: trustAllCertificates and trustStore.
+     */
+    protected TlsConfiguration tlsConfiguration;
+
     // domain name prefixes
     // see http://technet.microsoft.com/en-us/library/cc759550(WS.10).aspx
     public enum Catalog {
@@ -126,8 +140,13 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
         this(name, servers, null, null, null);
     }
 
-    @DataBoundConstructor
+    @Deprecated
     public ActiveDirectoryDomain(String name, String servers, String site, String bindName, String bindPassword) {
+        this(name, servers, site, bindName, bindPassword, TlsConfiguration.TRUST_ALL_CERTIFICATES);
+    }
+
+    @DataBoundConstructor
+    public ActiveDirectoryDomain(String name, String servers, String site, String bindName, String bindPassword, TlsConfiguration tlsConfiguration) {
         this.name = name;
         // Append default port if not specified
         servers = fixEmpty(servers);
@@ -144,6 +163,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
         this.site = fixEmpty(site);
         this.bindName = fixEmpty(bindName);
         this.bindPassword = Secret.fromString(fixEmpty(bindPassword));
+        this.tlsConfiguration = tlsConfiguration;
     }
 
     @Restricted(NoExternalUse.class)
@@ -169,6 +189,11 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
     @Restricted(NoExternalUse.class)
     public String getSite() {
         return site;
+    }
+
+    @Restricted(NoExternalUse.class)
+    public TlsConfiguration getTlsConfiguration() {
+        return tlsConfiguration;
     }
 
     /**
@@ -240,12 +265,23 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
     @Extension
     public static class DescriptorImpl extends Descriptor<ActiveDirectoryDomain> {
         public String getDisplayName() { return ""; }
+
+        public ListBoxModel doFillTlsConfigurationItems() {
+            ListBoxModel model = new ListBoxModel();
+            for (TlsConfiguration tlsConfiguration : TlsConfiguration.values()) {
+                model.add(tlsConfiguration.getDisplayName(),tlsConfiguration.name());
+            }
+            return model;
+        }
         
         public FormValidation doValidateTest(@QueryParameter(fixEmpty = true) String name, @QueryParameter(fixEmpty = true) String servers, @QueryParameter(fixEmpty = true) String site, @QueryParameter(fixEmpty = true) String bindName,
-                                             @QueryParameter(fixEmpty = true) String bindPassword) throws IOException, ServletException, NamingException {
+                                             @QueryParameter(fixEmpty = true) String bindPassword, @QueryParameter(fixEmpty = true) TlsConfiguration tlsConfiguration) throws IOException, ServletException, NamingException {
+            ActiveDirectoryDomain domain = new ActiveDirectoryDomain(name, servers, site, bindName, bindPassword, tlsConfiguration);
+            List<ActiveDirectoryDomain> domains = new ArrayList<>(1);
+            domains.add(domain);
 
-            // Create a fake ActiveDirectorySecurityRealm
-            ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(name, site, bindName, bindPassword, servers);
+            ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, site, bindName,
+                    bindPassword, null, GroupLookupStrategy.AUTO, false, true, null, false, (ActiveDirectoryInternalUsersDatabase) null);
 
             ClassLoader ccl = Thread.currentThread().getContextClassLoader();
             Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
@@ -273,7 +309,6 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
                     return FormValidation.warningWithMarkup("Leaving blank <b>`Bind DN`</b> means that any operation performed will use anonymous binding. Keep in mind that this is not recommended as some servers <a href=\"https://support.microsoft.com/en-us/help/326690/anonymous-ldap-operations-to-active-directory-are-disabled-on-windows\">do not allow it by default.</a>");
                 }
 
-                ActiveDirectoryDomain domain = activeDirectorySecurityRealm.getDomain(name);
                 Attribute domainAttribute = domain.getRecordFromDomain();
 
                 // As per JENKINS-36148 only show error message in case the servers list is empty
@@ -300,7 +335,8 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
                 if (bindName != null) {
                     // Make sure the bind actually works
                     try {
-                        DirContext context = activeDirectorySecurityRealm.getDescriptor().bind(bindName, Secret.toString(password), obtainerServers);
+                        Hashtable<String, String> props = new Hashtable<>(0);
+                        DirContext context = activeDirectorySecurityRealm.getDescriptor().bind(bindName, Secret.toString(password), obtainerServers, props, tlsConfiguration);
                         try {
                             // Actually do a search to make sure the credential is valid
                             Attributes userAttributes = new LDAPSearchBuilder(context, toDC(name)).subTreeScope().searchOne("(objectClass=user)");

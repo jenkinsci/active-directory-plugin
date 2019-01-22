@@ -205,7 +205,8 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
      * <p>
      *     For the moment there are two possible values: trustAllCertificates and trustStore.
      */
-    protected TlsConfiguration tlsConfiguration;
+    @Deprecated
+    protected transient TlsConfiguration tlsConfiguration;
 
     /**
      *  The Jenkins internal user to fall back in case f {@link NamingException}
@@ -245,10 +246,17 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         this(domain, domains, site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups, customDomain, cache, startTls, tlsConfiguration, null);
     }
 
+    @Deprecated
+    public ActiveDirectorySecurityRealm(String domain, List<ActiveDirectoryDomain> domains, String site, String bindName,
+                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache, Boolean startTls, TlsConfiguration tlsConfiguration, ActiveDirectoryInternalUsersDatabase internalUsersDatabase) {
+        this(domain, domains, site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups, customDomain, cache, startTls, (ActiveDirectoryInternalUsersDatabase) null);
+    }
+
+
     @DataBoundConstructor
     // as Java signature, this binding doesn't make sense, so please don't use this constructor
     public ActiveDirectorySecurityRealm(String domain, List<ActiveDirectoryDomain> domains, String site, String bindName,
-                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache, Boolean startTls, TlsConfiguration tlsConfiguration, ActiveDirectoryInternalUsersDatabase internalUsersDatabase) {
+                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache, Boolean startTls, ActiveDirectoryInternalUsersDatabase internalUsersDatabase) {
         if (customDomain!=null && !customDomain)
             domains = null;
         this.domain = fixEmpty(domain);
@@ -260,7 +268,6 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         this.groupLookupStrategy = groupLookupStrategy;
         this.removeIrrelevantGroups = removeIrrelevantGroups;
         this.cache = cache;
-        this.tlsConfiguration = tlsConfiguration;
         this.startTls = startTls;
         this.internalUsersDatabase = internalUsersDatabase;
     }
@@ -318,6 +325,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     }
 
     // for jelly use only
+    @Deprecated
     @Restricted(NoExternalUse.class)
     public TlsConfiguration getTlsConfiguration() {
         return tlsConfiguration;
@@ -403,6 +411,12 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             if (site != null) {
                 for (ActiveDirectoryDomain activeDirectoryDomain : activeDirectoryDomains) {
                     activeDirectoryDomain.site = site;
+                }
+            }
+            // SECURITY-859 Make tlsConfiguration independent of each domain
+            if (tlsConfiguration != null) {
+                for (ActiveDirectoryDomain activeDirectoryDomain : activeDirectoryDomains) {
+                    activeDirectoryDomain.tlsConfiguration = tlsConfiguration;
                 }
             }
         }
@@ -539,14 +553,6 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             return model;
         }
 
-        public ListBoxModel doFillTlsConfigurationItems() {
-            ListBoxModel model = new ListBoxModel();
-            for (TlsConfiguration tlsConfiguration : TlsConfiguration.values()) {
-                model.add(tlsConfiguration.getDisplayName(),tlsConfiguration.name());
-            }
-            return model;
-        }
-
         private boolean isTrustAllCertificatesEnabled(TlsConfiguration tlsConfiguration) {
             return (tlsConfiguration == null || TlsConfiguration.TRUST_ALL_CERTIFICATES.equals(tlsConfiguration));
         }
@@ -555,7 +561,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
         @Deprecated
         public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers, Hashtable<String, String> props) throws NamingException {
-            return bind(principalName, password, ldapServers, props, null);
+            return bind(principalName, password, ldapServers, props, TlsConfiguration.TRUST_ALL_CERTIFICATES);
         }
 
         /**
@@ -590,7 +596,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
             for (SocketInfo ldapServer : ldapServers) {
                 try {
-                    LdapContext context = bind(principalName, password, ldapServer, newProps);
+                    LdapContext context = bind(principalName, password, ldapServer, newProps, tlsConfiguration);
                     LOGGER.fine("Bound to " + ldapServer);
                     return context;
                 } catch (javax.naming.AuthenticationException e) {
@@ -640,6 +646,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
              customizeLdapProperty(props, "com.sun.jndi.ldap.read.timeout");
         }
 
+        @SuppressFBWarnings(value = "UPM_UNCALLED_PRIVATE_METHOD", justification = "Deprecated method.It will removed at some point")
         @IgnoreJRERequirement
         @Deprecated
         private LdapContext bind(String principalName, String password, SocketInfo server, Hashtable<String, String> props) throws NamingException {
@@ -930,12 +937,14 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             SecurityRealm securityRealm = Jenkins.getActiveInstance().getSecurityRealm();
             if (securityRealm instanceof ActiveDirectorySecurityRealm) {
                 ActiveDirectorySecurityRealm activeDirectorySecurityRealm = (ActiveDirectorySecurityRealm) securityRealm;
-                // AdministrativeMonitor if native authentication, using customDomains and tlsConfiguration not saved
-                if (activeDirectorySecurityRealm.tlsConfiguration == null && activeDirectorySecurityRealm.getDescriptor().canDoNativeAuth() && activeDirectorySecurityRealm.domains != null) {
-                    return true;
-                // AdministrativeMonitor in Unix environment if tlsConfiguration not saved
-                } else if (activeDirectorySecurityRealm.tlsConfiguration == null && !activeDirectorySecurityRealm.getDescriptor().canDoNativeAuth()) {
-                    return true;
+                for (ActiveDirectoryDomain activeDirectoryDomain : activeDirectorySecurityRealm.getDomains()) {
+                    // AdministrativeMonitor if native authentication, using customDomains and tlsConfiguration not saved
+                    if (activeDirectoryDomain.tlsConfiguration == null && activeDirectorySecurityRealm.getDescriptor().canDoNativeAuth() && activeDirectorySecurityRealm.domains != null) {
+                        return true;
+                        // AdministrativeMonitor in Unix environment if tlsConfiguration not saved
+                    } else if (activeDirectoryDomain.tlsConfiguration == null && !activeDirectorySecurityRealm.getDescriptor().canDoNativeAuth()) {
+                        return true;
+                    }
                 }
             }
             return false;

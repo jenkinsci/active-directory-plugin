@@ -154,6 +154,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
      * <p>
      *     For the moment there are two possible values: trustAllCertificates and trustStore.
      */
+    @Deprecated
     protected TlsConfiguration tlsConfiguration;
 
     /**
@@ -195,7 +196,6 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         }
         this.userCache = cache.getUserCache();
         this.groupCache = cache.getGroupCache();
-        this.tlsConfiguration =realm.tlsConfiguration;
         this.threadPoolExecutor = new ThreadPoolExecutor(
                 corePoolSize,
                 maxPoolSize,
@@ -354,7 +354,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                         // two step approach. Use a special credential to obtain DN for the
                         // user trying to login, then authenticate.
                         try {
-                            context = descriptor.bind(bindName, bindPassword, ldapServers, props, tlsConfiguration);
+                            context = descriptor.bind(bindName, bindPassword, ldapServers, props, domain.getTlsConfiguration());
                             anonymousBind = false;
                         } catch (NamingException e) {
                             throw new AuthenticationServiceException("Failed to bind to LDAP server with the bind name/password", e);
@@ -367,7 +367,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                         try {
                             // if we are just retrieving the user, try using anonymous bind by empty password (see RFC 2829 5.1)
                             // but if that fails, that's not BadCredentialException but UserMayOrMayNotExistException
-                            context = descriptor.bind(userPrincipalName, anonymousBind ? "" : password, ldapServers, props);
+                            context = descriptor.bind(userPrincipalName, anonymousBind ? "" : password, ldapServers, props, domain.getTlsConfiguration());
                         } catch (BadCredentialsException e) {
                             if (anonymousBind)
                                 // in my observation, if we attempt an anonymous bind and AD doesn't allow it, it still passes the bind method
@@ -407,7 +407,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                             // if we've used the credential specifically for the bind, we
                             // need to verify the provided password to do authentication
                             LOGGER.log(Level.FINE, "Attempting to validate password for DN={0}", dn);
-                            DirContext test = descriptor.bind(dnFormatted, password, ldapServers, props, tlsConfiguration);
+                            DirContext test = descriptor.bind(dnFormatted, password, ldapServers, props, domain.getTlsConfiguration());
                             // Binding alone is not enough to test the credential. Need to actually perform some query operation.
                             // but if the authentication fails this throws an exception
                             try {
@@ -522,7 +522,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                                 ClassLoader ccl = Thread.currentThread().getContextClassLoader();
                                 Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
                                 try {
-                                    DirContext context = descriptor.bind(domain.getBindName(), domain.getBindPassword().getPlainText(), obtainLDAPServers(domain));
+                                    DirContext context = descriptor.bind(domain.getBindName(), domain.getBindPassword().getPlainText(), obtainLDAPServers(domain), props, domain.getTlsConfiguration());
 
                                     try {
                                         final String domainDN = toDC(domain.getName());

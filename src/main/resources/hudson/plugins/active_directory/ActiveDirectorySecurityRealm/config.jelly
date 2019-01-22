@@ -60,8 +60,11 @@
             <f:entry field="bindPassword" title="${%Bind Password}">
               <f:password />
             </f:entry>
+            <f:entry field="tlsConfiguration" title="${%TLS Configuration}">
+              <f:select />
+            </f:entry>
             <f:nested>
-              <f:validateButton with="name,servers,site,site,bindName,bindPassword" title="${%Test Domain}" method="validateTest"/>
+              <f:validateButton with="name,servers,site,bindName,bindPassword,tlsConfiguration" title="${%Test Domain}" method="validateTest"/>
             </f:nested>
           </table>
           <div align="right">

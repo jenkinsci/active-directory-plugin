@@ -16,6 +16,7 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertFalse;
 
@@ -24,6 +25,9 @@ public class ActiveDirectorySecurityRealmTest {
 
     @Rule
     public JenkinsRule jenkinsRule = new JenkinsRule();
+
+    public final static String AD_DOMAIN = "samdom.example.com";
+    public final static String AD_MANAGER_DN = "CN=Administrator,CN=Users,DC=samdom,DC=example,DC=com";
 
     @LocalData
     @Test
@@ -41,6 +45,8 @@ public class ActiveDirectorySecurityRealmTest {
             assertNotNull(activeDirectorySecurityRealm.getDomains().get(0).getBindPassword());
             // JENKINS-39423 Make Site independent of each domain
             assertEquals("site", activeDirectorySecurityRealm.getDomains().get(0).getSite());
+            // SECURITY-859 Make tlsConfiguration independent of each domain
+            assertEquals(TlsConfiguration.TRUST_ALL_CERTIFICATES, activeDirectorySecurityRealm.getDomains().get(0).getTlsConfiguration());
         }
     }
 
@@ -60,6 +66,8 @@ public class ActiveDirectorySecurityRealmTest {
             assertNotNull(activeDirectorySecurityRealm.getDomains().get(0).getBindPassword());
             // JENKINS-39423 Make Site independent of each domain
             assertEquals("site", activeDirectorySecurityRealm.getDomains().get(0).getSite());
+            // SECURITY-859 Make tlsConfiguration independent of each domain
+            assertEquals(TlsConfiguration.TRUST_ALL_CERTIFICATES, activeDirectorySecurityRealm.getDomains().get(0).getTlsConfiguration());
         }
     }
 
@@ -79,6 +87,8 @@ public class ActiveDirectorySecurityRealmTest {
             assertNotNull(activeDirectorySecurityRealm.getDomains().get(0).getBindPassword());
             // JENKINS-39423 Make Site independent of each domain
             assertEquals("site", activeDirectorySecurityRealm.getDomains().get(0).getSite());
+            // SECURITY-859 Make tlsConfiguration independent of each domain
+            assertEquals(TlsConfiguration.TRUST_ALL_CERTIFICATES, activeDirectorySecurityRealm.getDomains().get(0).getTlsConfiguration());
         }
     }
 
@@ -100,6 +110,9 @@ public class ActiveDirectorySecurityRealmTest {
             assertNotNull(activeDirectorySecurityRealm.getDomains().get(0).getBindPassword());
             assertEquals("bindUser", activeDirectorySecurityRealm.getDomains().get(1).getBindName());
             assertNotNull(activeDirectorySecurityRealm.getDomains().get(1).getBindPassword());
+            // SECURITY-859 Make tlsConfiguration independent of each domain
+            assertEquals(TlsConfiguration.TRUST_ALL_CERTIFICATES, activeDirectorySecurityRealm.getDomains().get(0).getTlsConfiguration());
+            assertEquals(TlsConfiguration.TRUST_ALL_CERTIFICATES, activeDirectorySecurityRealm.getDomains().get(1).getTlsConfiguration());
         }
     }
 
@@ -121,6 +134,9 @@ public class ActiveDirectorySecurityRealmTest {
             assertNotNull(activeDirectorySecurityRealm.getDomains().get(0).getBindPassword());
             assertEquals("bindUser", activeDirectorySecurityRealm.getDomains().get(1).getBindName());
             assertNotNull(activeDirectorySecurityRealm.getDomains().get(1).getBindPassword());
+            // SECURITY-859 Make tlsConfiguration independent of each domain
+            assertEquals(TlsConfiguration.TRUST_ALL_CERTIFICATES, activeDirectorySecurityRealm.getDomains().get(0).getTlsConfiguration());
+            assertEquals(TlsConfiguration.TRUST_ALL_CERTIFICATES, activeDirectorySecurityRealm.getDomains().get(1).getTlsConfiguration());
         }
     }
 
@@ -142,6 +158,9 @@ public class ActiveDirectorySecurityRealmTest {
             assertNotNull(activeDirectorySecurityRealm.getDomains().get(0).getBindPassword());
             assertEquals("bindUser", activeDirectorySecurityRealm.getDomains().get(1).getBindName());
             assertNotNull(activeDirectorySecurityRealm.getDomains().get(1).getBindPassword());
+            // SECURITY-859 Make tlsConfiguration independent of each domain
+            assertEquals(TlsConfiguration.TRUST_ALL_CERTIFICATES, activeDirectorySecurityRealm.getDomains().get(0).getTlsConfiguration());
+            assertEquals(TlsConfiguration.TRUST_ALL_CERTIFICATES, activeDirectorySecurityRealm.getDomains().get(1).getTlsConfiguration());
         }
     }
 
@@ -163,6 +182,9 @@ public class ActiveDirectorySecurityRealmTest {
             assertNotNull(activeDirectorySecurityRealm.getDomains().get(0).getBindPassword());
             assertEquals("bindUser", activeDirectorySecurityRealm.getDomains().get(1).getBindName());
             assertNotNull(activeDirectorySecurityRealm.getDomains().get(1).getBindPassword());
+            // SECURITY-859 Make tlsConfiguration independent of each domain
+            assertEquals(TlsConfiguration.TRUST_ALL_CERTIFICATES, activeDirectorySecurityRealm.getDomains().get(0).getTlsConfiguration());
+            assertEquals(TlsConfiguration.TRUST_ALL_CERTIFICATES, activeDirectorySecurityRealm.getDomains().get(1).getTlsConfiguration());
         }
     }
 
@@ -184,6 +206,9 @@ public class ActiveDirectorySecurityRealmTest {
             assertNotNull(activeDirectorySecurityRealm.getDomains().get(0).getBindPassword());
             assertEquals("bindUser", activeDirectorySecurityRealm.getDomains().get(1).getBindName());
             assertNotNull(activeDirectorySecurityRealm.getDomains().get(1).getBindPassword());
+            // SECURITY-859 Make tlsConfiguration independent of each domain
+            assertEquals(TlsConfiguration.TRUST_ALL_CERTIFICATES, activeDirectorySecurityRealm.getDomains().get(0).getTlsConfiguration());
+            assertEquals(TlsConfiguration.TRUST_ALL_CERTIFICATES, activeDirectorySecurityRealm.getDomains().get(1).getTlsConfiguration());
         }
     }
 
@@ -205,6 +230,9 @@ public class ActiveDirectorySecurityRealmTest {
             assertNotNull(activeDirectorySecurityRealm.getDomains().get(0).getBindPassword());
             assertEquals("bindUser", activeDirectorySecurityRealm.getDomains().get(1).getBindName());
             assertNotNull(activeDirectorySecurityRealm.getDomains().get(1).getBindPassword());
+            // SECURITY-859 Make tlsConfiguration independent of each domain
+            assertEquals(TlsConfiguration.TRUST_ALL_CERTIFICATES, activeDirectorySecurityRealm.getDomains().get(0).getTlsConfiguration());
+            assertEquals(TlsConfiguration.TRUST_ALL_CERTIFICATES, activeDirectorySecurityRealm.getDomains().get(1).getTlsConfiguration());
         }
     }
 
@@ -224,7 +252,8 @@ public class ActiveDirectorySecurityRealmTest {
             assertNotNull(activeDirectorySecurityRealm.getDomains().get(0).getBindPassword());
             // JENKINS-39423 Make Site independent of each domain
             assertEquals("site", activeDirectorySecurityRealm.getDomains().get(0).getSite());
-        }
+            // SECURITY-859 If there is not tlsConfiguration saved on disk, keep it as null
+            assertNull(activeDirectorySecurityRealm.getDomains().get(0).getTlsConfiguration());        }
     }
 
     @LocalData
@@ -248,6 +277,10 @@ public class ActiveDirectorySecurityRealmTest {
             // JENKINS-39423 Make Site independent of each domain
             assertEquals("site", activeDirectorySecurityRealm.getDomains().get(0).getSite());
             assertEquals("site", activeDirectorySecurityRealm.getDomains().get(1).getSite());
+            // SECURITY-859 If there is not tlsConfiguration saved on disk, keep it as null
+            assertNull(activeDirectorySecurityRealm.getDomains().get(0).getTlsConfiguration());
+            assertNull(activeDirectorySecurityRealm.getDomains().get(1).getTlsConfiguration());
+
         }
     }
 
@@ -303,6 +336,29 @@ public class ActiveDirectorySecurityRealmTest {
         Jenkins.getInstance().setSecurityRealm(activeDirectorySecurityRealm);
         DomElement domElement = jenkinsRule.createWebClient().goTo("configureSecurity").getElementByName("cache");
         assertTrue(domElement != null);
+    }
+
+    @Issue("SECURITY-859")
+    @LocalData
+    @Test
+    public void testReadResolveMultipleDomainsOneDomainEndToEnd() throws Exception {
+        ActiveDirectorySecurityRealm activeDirectorySecurityRealm = (ActiveDirectorySecurityRealm) jenkinsRule.jenkins.getSecurityRealm();
+        // Check there is one domain
+        assertEquals(activeDirectorySecurityRealm.getDomains().size(), 1);
+        // Check domain
+        assertEquals(activeDirectorySecurityRealm.getDomains().get(0).getName(), AD_DOMAIN);
+        // Check bindName
+        assertEquals(activeDirectorySecurityRealm.getDomains().get(0).getBindName(), AD_MANAGER_DN);
+        // Check groupLookupStrategy
+        assertEquals(activeDirectorySecurityRealm.getGroupLookupStrategy(), GroupLookupStrategy.RECURSIVE);
+        // Check removeIrrelevantGroups
+        assertEquals(activeDirectorySecurityRealm.removeIrrelevantGroups,true);
+        // Check cache Size
+        assertEquals(activeDirectorySecurityRealm.getCache().getSize(),500);
+        // Check cache TTLS
+        assertEquals(activeDirectorySecurityRealm.getCache().getTtl(),1800);
+        // Check tlsConfiguration
+        assertEquals(activeDirectorySecurityRealm.getDomains().get(0).getTlsConfiguration(), TlsConfiguration.JDK_TRUSTSTORE);
     }
 
 }
