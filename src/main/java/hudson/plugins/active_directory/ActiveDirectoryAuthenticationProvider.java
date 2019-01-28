@@ -54,6 +54,7 @@ import org.acegisecurity.userdetails.UsernameNotFoundException;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.logging.Level;
@@ -190,7 +191,9 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
                         return new ActiveDirectoryUserDetail(
                                 username, password,
                                 !isAccountDisabled(usr),
-                                true, true, true,
+                                !isAccountExpired(usr),
+                                !isPasswordExpired(usr), 
+                                !isAccountLocked(usr),
                                 groups.toArray(new GrantedAuthority[0]),
                                 getFullName(usr), getEmailAddress(usr), getTelephoneNumber(usr)
                         ).updateUserInfo();
@@ -261,6 +264,50 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
                     so assume this account is enabled.
                  */
                 return false;
+            throw e;
+        }
+    }
+
+    private boolean isAccountExpired(IADsUser usr) {
+        try {
+            Date expirationDate = usr.accountExpirationDate();
+            if (expirationDate != null) {
+                return new Date().after(expirationDate);
+            }
+            return false;
+        } catch (ComException e) {
+            // keep the same behavior as in isAccountDisabled, not sure of the details as the linked page is now a 404
+            if (e.getHRESULT() == 0x8000500D) {
+                return false;
+            }
+            throw e;
+        }
+    }
+
+    private boolean isPasswordExpired(IADsUser usr) {
+        try {
+            Date expirationDate = usr.passwordExpirationDate();
+            if (expirationDate != null) {
+                return new Date().after(expirationDate);
+            }
+            return false;
+        } catch (ComException e) {
+            // keep the same behavior as in isAccountDisabled, not sure of the details as the linked page is now a 404
+            if (e.getHRESULT() == 0x8000500D) {
+                return false;
+            }
+            throw e;
+        }
+    }
+
+    private boolean isAccountLocked(IADsUser usr) {
+        try {
+            return usr.isAccountLocked();
+        } catch (ComException e) {
+            // keep the same behavior as in isAccountDisabled, not sure of the details as the linked page is now a 404
+            if (e.getHRESULT() == 0x8000500D) {
+                return false;
+            }
             throw e;
         }
     }

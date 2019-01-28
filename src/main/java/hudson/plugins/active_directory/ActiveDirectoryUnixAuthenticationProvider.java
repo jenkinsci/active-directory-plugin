@@ -60,7 +60,9 @@ import javax.naming.directory.DirContext;
 import javax.naming.directory.SearchResult;
 import javax.naming.ldap.LdapName;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
+import java.util.GregorianCalendar;
 import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.List;
@@ -420,7 +422,14 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                         Set<GrantedAuthority> groups = resolveGroups(domainDN, dnFormatted, context);
                         groups.add(SecurityRealm.AUTHENTICATED_AUTHORITY);
 
-                        cacheMiss[0] = new ActiveDirectoryUserDetail(username, password, true, true, true, true, groups.toArray(new GrantedAuthority[0]),
+                        boolean isEnabled = UserAttributesHelper.checkIfUserIsEnabled(user);
+                        boolean isAccountNonExpired = UserAttributesHelper.checkIfAccountNonExpired(user);
+                        boolean areCredentialsNotExpired = UserAttributesHelper.checkIfCredentialsAreNonExpired(user);
+                        boolean isAccountNonLocked = UserAttributesHelper.checkIfAccountNonLocked(user);
+
+                        cacheMiss[0] = new ActiveDirectoryUserDetail(username, password,
+                                isEnabled, isAccountNonExpired, areCredentialsNotExpired, isAccountNonLocked,
+                                groups.toArray(new GrantedAuthority[0]),
                                 getStringAttribute(user, "displayName"),
                                 getStringAttribute(user, "mail"),
                                 getStringAttribute(user, "telephoneNumber")
