@@ -43,21 +43,21 @@ import java.util.concurrent.TimeUnit;
 @Restricted(NoExternalUse.class)
 public class UserAttributesHelper {
     // https://support.microsoft.com/en-us/help/305144/how-to-use-the-useraccountcontrol-flags-to-manipulate-user-account-pro
-    private static String ATTR_USER_ACCOUNT_CONTROL = "userAccountControl";
-    private static String ATTR_ACCOUNT_EXPIRES = "accountExpires";
+    private static final String ATTR_USER_ACCOUNT_CONTROL = "userAccountControl";
+    private static final String ATTR_ACCOUNT_EXPIRES = "accountExpires";
     // for Windows Server 2003-based domain
-    private static String ATTR_USER_ACCOUNT_CONTROL_COMPUTED = "msDS-User-Account-Control-Computed";
+    private static final String ATTR_USER_ACCOUNT_CONTROL_COMPUTED = "msDS-User-Account-Control-Computed";
     // for ADAM (Active Directory Application Mode), replace the ADS_UF_DISABLED
-    private static String ATTR_USER_ACCOUNT_DISABLED = "msDS-UserAccountDisabled";
+    private static final String ATTR_USER_ACCOUNT_DISABLED = "msDS-UserAccountDisabled";
     // for ADAM, replace the ADS_UF_PASSWORD_EXPIRED
-    private static String ATTR_USER_PASSWORD_EXPIRED = "msDS-UserPasswordExpired";
+    private static final String ATTR_USER_PASSWORD_EXPIRED = "msDS-UserPasswordExpired";
 
     // https://docs.microsoft.com/en-us/windows/desktop/adschema/a-accountexpires
     // constant names follow the code in Iads.h
-    private static long ACCOUNT_NO_EXPIRATION = 0x7FFFFFFFFFFFFFFFL;
-    private static int ADS_UF_DISABLED = 0x0002;
-    private static int ADS_UF_LOCK_OUT = 0x0010;
-    private static int ADS_UF_PASSWORD_EXPIRED = 0x800000;
+    private static final long ACCOUNT_NO_EXPIRATION = 0x7FFF_FFFF_FFFF_FFFFL;
+    private static final int ADS_UF_DISABLED = 0x0002;
+    private static final int ADS_UF_LOCK_OUT = 0x0010;
+    private static final int ADS_UF_PASSWORD_EXPIRED = 0x80_0000;
 
     public static boolean checkIfUserIsEnabled(@Nonnull Attributes user) {
         try {
@@ -93,7 +93,7 @@ public class UserAttributesHelper {
                     return true;
                 }
 
-                long nowIn100NsFromJan1601 = getNowIn100NsFromJan1601();
+                long nowIn100NsFromJan1601 = getWin32EpochHundredNanos();
                 boolean expired = expirationAsLong < nowIn100NsFromJan1601;
                 return !expired;
             }
@@ -106,7 +106,7 @@ public class UserAttributesHelper {
 
     // documentation: https://docs.microsoft.com/en-us/windows/desktop/adschema/a-accountexpires
     // code inspired by https://community.oracle.com/thread/1157460
-    private static long getNowIn100NsFromJan1601() {
+    private static long getWin32EpochHundredNanos() {
         GregorianCalendar win32Epoch = new GregorianCalendar(1601, Calendar.JANUARY, 1);
         Date win32EpochDate = win32Epoch.getTime();
         // note that 1/1/1601 will be returned as a negative value by Java

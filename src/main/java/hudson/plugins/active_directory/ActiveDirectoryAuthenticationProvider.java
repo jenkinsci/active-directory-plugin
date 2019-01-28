@@ -66,6 +66,13 @@ import java.util.logging.Logger;
  * @author Kohsuke Kawaguchi
  */
 public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirectoryAuthenticationProvider {
+    
+    /**
+     * See https://docs.microsoft.com/en-us/windows/desktop/adsi/example-code-for-reading-a-constructed-attribute
+     * And https://issues.jenkins-ci.org/browse/JENKINS-10086
+     */
+    private static final int E_ADS_PROPERTY_NOT_FOUND = 0x8000_500D;
+    
     private final String defaultNamingContext;
     /**
      * ADO connection for searching Active Directory.
@@ -227,8 +234,9 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
             Object t = usr.telephoneNumber();
             return t==null ? null : t.toString();
         } catch (ComException e) {
-            if (e.getHRESULT()==0x8000500D) // see http://support.microsoft.com/kb/243440
+            if (e.getHRESULT() == E_ADS_PROPERTY_NOT_FOUND) {
                 return null;
+            }
             throw e;
         }
     }
@@ -237,8 +245,9 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
         try {
             return usr.emailAddress();
         } catch (ComException e) {
-            if (e.getHRESULT()==0x8000500D) // see http://support.microsoft.com/kb/243440
+            if (e.getHRESULT() == E_ADS_PROPERTY_NOT_FOUND){
                 return null;
+            }
             throw e;
         }
     }
@@ -247,8 +256,9 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
         try {
             return usr.fullName();
         } catch (ComException e) {
-            if (e.getHRESULT()==0x8000500D) // see http://support.microsoft.com/kb/243440
+            if (e.getHRESULT() == E_ADS_PROPERTY_NOT_FOUND) {
                 return null;
+            }
             throw e;
         }
     }
@@ -257,13 +267,9 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
         try {
             return usr.accountDisabled();
         } catch (ComException e) {
-            if (e.getHRESULT()==0x8000500D)
-                /*
-                    See http://support.microsoft.com/kb/243440 and JENKINS-10086
-                    We suspect this to be caused by old directory items that do not have this value,
-                    so assume this account is enabled.
-                 */
+            if (e.getHRESULT() == E_ADS_PROPERTY_NOT_FOUND) {
                 return false;
+            }
             throw e;
         }
     }
@@ -276,8 +282,7 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
             }
             return false;
         } catch (ComException e) {
-            // keep the same behavior as in isAccountDisabled, not sure of the details as the linked page is now a 404
-            if (e.getHRESULT() == 0x8000500D) {
+            if (e.getHRESULT() == E_ADS_PROPERTY_NOT_FOUND) {
                 return false;
             }
             throw e;
@@ -292,8 +297,7 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
             }
             return false;
         } catch (ComException e) {
-            // keep the same behavior as in isAccountDisabled, not sure of the details as the linked page is now a 404
-            if (e.getHRESULT() == 0x8000500D) {
+            if (e.getHRESULT() == E_ADS_PROPERTY_NOT_FOUND) {
                 return false;
             }
             throw e;
@@ -304,8 +308,7 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
         try {
             return usr.isAccountLocked();
         } catch (ComException e) {
-            // keep the same behavior as in isAccountDisabled, not sure of the details as the linked page is now a 404
-            if (e.getHRESULT() == 0x8000500D) {
+            if (e.getHRESULT() == E_ADS_PROPERTY_NOT_FOUND) {
                 return false;
             }
             throw e;
