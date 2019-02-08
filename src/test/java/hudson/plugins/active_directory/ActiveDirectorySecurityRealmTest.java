@@ -284,36 +284,6 @@ public class ActiveDirectorySecurityRealmTest {
         }
     }
 
-    public void testCheckAdministrativeMonitorDisabledIfADDescriptorNotUsed() throws Exception {
-        ActiveDirectorySecurityRealm.TlsConfigurationAdministrativeMonitor tlsConfigurationAdministrativeMonitor =
-                AdministrativeMonitor.all().get(ActiveDirectorySecurityRealm.TlsConfigurationAdministrativeMonitor.class);
-        assertTrue(tlsConfigurationAdministrativeMonitor.isActivated());
-    }
-
-    @LocalData
-    @Test
-    public void testCheckAdministrativeMonitorEnabledOnFreshDescriptor() throws Exception {
-        ActiveDirectorySecurityRealm.TlsConfigurationAdministrativeMonitor tlsConfigurationAdministrativeMonitor =
-                AdministrativeMonitor.all().get(ActiveDirectorySecurityRealm.TlsConfigurationAdministrativeMonitor.class);
-        assertTrue(tlsConfigurationAdministrativeMonitor.isActivated());
-    }
-
-    @LocalData
-    @Test
-    public void testCheckAdministrativeMonitorDisabledWhenTrustingAllCertificates() throws Exception {
-        ActiveDirectorySecurityRealm.TlsConfigurationAdministrativeMonitor tlsConfigurationAdministrativeMonitor =
-                AdministrativeMonitor.all().get(ActiveDirectorySecurityRealm.TlsConfigurationAdministrativeMonitor.class);
-        assertFalse(tlsConfigurationAdministrativeMonitor.isActivated());
-    }
-
-    @LocalData
-    @Test
-    public void testCheckAdministrativeMonitorDisabledWhenUsingJDKTrustStore() throws Exception {
-        ActiveDirectorySecurityRealm.TlsConfigurationAdministrativeMonitor tlsConfigurationAdministrativeMonitor =
-                AdministrativeMonitor.all().get(ActiveDirectorySecurityRealm.TlsConfigurationAdministrativeMonitor.class);
-        assertFalse(tlsConfigurationAdministrativeMonitor.isActivated());
-    }
-
     @Issue("JENKINS-46884")
     @Test
     public void testAdvancedOptionsVisibleWithNonNativeAuthentication() throws Exception {
