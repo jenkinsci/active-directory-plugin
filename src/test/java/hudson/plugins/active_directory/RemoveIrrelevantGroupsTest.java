@@ -50,7 +50,7 @@ import static org.powermock.api.mockito.PowerMockito.when;
  * @author Fredrik Persson &lt;fredrik6.persson@sonymobile.com&gt;
  */
 @RunWith(PowerMockRunner.class)
-@PowerMockIgnore("javax.crypto.*")
+@PowerMockIgnore({"javax.crypto.*", "javax.xml.*", "com.sun.*", "org.xml.*"})
 public class RemoveIrrelevantGroupsTest {
 
     @Rule
