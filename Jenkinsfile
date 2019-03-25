@@ -1,3 +1,5 @@
+buildPlugin(configurations: buildPlugin.recommendedConfigurations())
+
 node('docker') {
      stage('checkout') {
         checkout scm
