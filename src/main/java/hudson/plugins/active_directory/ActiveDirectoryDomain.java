@@ -317,9 +317,6 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
                 }
 
                 Secret password = Secret.fromString(bindPassword);
-                if (bindName != null && password == null) {
-                    return FormValidation.error("Bind DN is specified but not the password");
-                }
 
                 // Then look for the LDAP server
                 DirContext ictx = activeDirectorySecurityRealm.getDescriptor().createDNSLookupContext();

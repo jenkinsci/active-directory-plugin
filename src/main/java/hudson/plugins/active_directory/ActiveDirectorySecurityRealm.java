@@ -920,7 +920,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
             @Override
             public String getDisplayName() {
-                return null;
+                return "Active Directory";
             }
         }
     }
