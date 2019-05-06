@@ -677,8 +677,9 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                 if (!FORCE_LDAPS && isStartTls) {
                     // try to upgrade to TLS if we can, but failing to do so isn't fatal
                     // see http://download.oracle.com/javase/jndi/tutorial/ldap/ext/starttls.html
+                    StartTlsResponse rsp = null;
                     try {
-                        StartTlsResponse rsp = (StartTlsResponse)context.extendedOperation(new StartTlsRequest());
+                        rsp = (StartTlsResponse)context.extendedOperation(new StartTlsRequest());
                         if (isTrustAllCertificatesEnabled(tlsConfiguration)) {
                             rsp.negotiate((SSLSocketFactory)TrustAllSocketFactory.getDefault());
                         } else {
@@ -687,6 +688,17 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                         LOGGER.fine("Connection upgraded to TLS");
                     } catch (NamingException | IOException e) {
                         LOGGER.log(Level.FINE, "Failed to start TLS. Authentication will be done via plain-text LDAP", e);
+                        try {
+                            if (rsp != null) {
+                                rsp.close();
+                            }
+                        } catch (IOException e1) {
+                            LOGGER.log(Level.FINE, "Failed to close StartTLS connection", e1);
+                        }
+                        // JENKINS-44787 It seems than to go back to plain-text LDAP does not work
+                        // in all cases and to re-create the context is necessary
+                        context.close();
+                        context = (LdapContext)LdapCtxFactory.getLdapCtxInstance(ldapUrl, props);
                     }
                 }
 
