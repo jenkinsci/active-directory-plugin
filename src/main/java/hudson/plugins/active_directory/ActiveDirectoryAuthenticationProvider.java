@@ -54,7 +54,6 @@ import org.acegisecurity.userdetails.UsernameNotFoundException;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.logging.Level;
@@ -66,13 +65,6 @@ import java.util.logging.Logger;
  * @author Kohsuke Kawaguchi
  */
 public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirectoryAuthenticationProvider {
-    
-    /**
-     * See https://docs.microsoft.com/en-us/windows/desktop/adsi/example-code-for-reading-a-constructed-attribute
-     * And https://issues.jenkins-ci.org/browse/JENKINS-10086
-     */
-    private static final int E_ADS_PROPERTY_NOT_FOUND = 0x8000_500D;
-    
     private final String defaultNamingContext;
     /**
      * ADO connection for searching Active Directory.
@@ -198,9 +190,7 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
                         return new ActiveDirectoryUserDetail(
                                 username, password,
                                 !isAccountDisabled(usr),
-                                !isAccountExpired(usr),
-                                !isPasswordExpired(usr), 
-                                !isAccountLocked(usr),
+                                true, true, true,
                                 groups.toArray(new GrantedAuthority[0]),
                                 getFullName(usr), getEmailAddress(usr), getTelephoneNumber(usr)
                         ).updateUserInfo();
@@ -234,9 +224,8 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
             Object t = usr.telephoneNumber();
             return t==null ? null : t.toString();
         } catch (ComException e) {
-            if (e.getHRESULT() == E_ADS_PROPERTY_NOT_FOUND) {
+            if (e.getHRESULT()==0x8000500D) // see http://support.microsoft.com/kb/243440
                 return null;
-            }
             throw e;
         }
     }
@@ -245,9 +234,8 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
         try {
             return usr.emailAddress();
         } catch (ComException e) {
-            if (e.getHRESULT() == E_ADS_PROPERTY_NOT_FOUND){
+            if (e.getHRESULT()==0x8000500D) // see http://support.microsoft.com/kb/243440
                 return null;
-            }
             throw e;
         }
     }
@@ -256,9 +244,8 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
         try {
             return usr.fullName();
         } catch (ComException e) {
-            if (e.getHRESULT() == E_ADS_PROPERTY_NOT_FOUND) {
+            if (e.getHRESULT()==0x8000500D) // see http://support.microsoft.com/kb/243440
                 return null;
-            }
             throw e;
         }
     }
@@ -267,50 +254,13 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
         try {
             return usr.accountDisabled();
         } catch (ComException e) {
-            if (e.getHRESULT() == E_ADS_PROPERTY_NOT_FOUND) {
+            if (e.getHRESULT()==0x8000500D)
+                /*
+                    See http://support.microsoft.com/kb/243440 and JENKINS-10086
+                    We suspect this to be caused by old directory items that do not have this value,
+                    so assume this account is enabled.
+                 */
                 return false;
-            }
-            throw e;
-        }
-    }
-
-    private boolean isAccountExpired(IADsUser usr) {
-        try {
-            Date expirationDate = usr.accountExpirationDate();
-            if (expirationDate != null) {
-                return new Date().after(expirationDate);
-            }
-            return false;
-        } catch (ComException e) {
-            if (e.getHRESULT() == E_ADS_PROPERTY_NOT_FOUND) {
-                return false;
-            }
-            throw e;
-        }
-    }
-
-    private boolean isPasswordExpired(IADsUser usr) {
-        try {
-            Date expirationDate = usr.passwordExpirationDate();
-            if (expirationDate != null) {
-                return new Date().after(expirationDate);
-            }
-            return false;
-        } catch (ComException e) {
-            if (e.getHRESULT() == E_ADS_PROPERTY_NOT_FOUND) {
-                return false;
-            }
-            throw e;
-        }
-    }
-
-    private boolean isAccountLocked(IADsUser usr) {
-        try {
-            return usr.isAccountLocked();
-        } catch (ComException e) {
-            if (e.getHRESULT() == E_ADS_PROPERTY_NOT_FOUND) {
-                return false;
-            }
             throw e;
         }
     }
