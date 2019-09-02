@@ -1,7 +1,6 @@
 package hudson.plugins.active_directory;
 
 import com.gargoylesoftware.htmlunit.html.DomElement;
-import hudson.model.AdministrativeMonitor;
 import hudson.plugins.active_directory.docker.TheFlintstonesTest;
 import hudson.security.HudsonPrivateSecurityRealm;
 import hudson.security.SecurityRealm;
@@ -21,8 +20,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertFalse;
-
 
 public class ActiveDirectorySecurityRealmTest {
 
@@ -293,7 +290,7 @@ public class ActiveDirectorySecurityRealmTest {
         ActiveDirectoryDomain activeDirectoryDomain = new ActiveDirectoryDomain(TheFlintstonesTest.AD_DOMAIN, null, null, TheFlintstonesTest.AD_MANAGER_DN, TheFlintstonesTest.AD_MANAGER_DN_PASSWORD);
         List<ActiveDirectoryDomain> domains = new ArrayList<>(1);
         domains.add(activeDirectoryDomain);
-        ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, null, null, null, null, GroupLookupStrategy.RECURSIVE, false, true, null, false, null, null);
+        ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, null, null, null, null, GroupLookupStrategy.RECURSIVE, false, true, null, false, null, null, null);
         Jenkins.getInstance().setSecurityRealm(activeDirectorySecurityRealm);
         DomElement domElement = jenkinsRule.createWebClient().goTo("configureSecurity").getElementByName("startTls");
         assertTrue(domElement != null);
@@ -305,7 +302,7 @@ public class ActiveDirectorySecurityRealmTest {
         ActiveDirectoryDomain activeDirectoryDomain = new ActiveDirectoryDomain(TheFlintstonesTest.AD_DOMAIN, null, null, TheFlintstonesTest.AD_MANAGER_DN, TheFlintstonesTest.AD_MANAGER_DN_PASSWORD);
         List<ActiveDirectoryDomain> domains = new ArrayList<>(1);
         domains.add(activeDirectoryDomain);
-        ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, null, null, null, null, GroupLookupStrategy.RECURSIVE, false, true, null, false, null, null);
+        ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, null, null, null, null, GroupLookupStrategy.RECURSIVE, false, true, null, false, null, null, null);
         Jenkins.getInstance().setSecurityRealm(activeDirectorySecurityRealm);
         DomElement domElement = jenkinsRule.createWebClient().goTo("configureSecurity").getElementByName("cache");
         assertTrue(domElement != null);

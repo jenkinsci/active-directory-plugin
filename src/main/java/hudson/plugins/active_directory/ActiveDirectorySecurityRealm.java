@@ -46,11 +46,7 @@ import org.acegisecurity.userdetails.UsernameNotFoundException;
 import org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
-import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.DataBoundSetter;
-import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.StaplerRequest;
-import org.kohsuke.stapler.StaplerResponse;
+import org.kohsuke.stapler.*;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 import org.springframework.dao.DataAccessException;
 
@@ -80,11 +76,11 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import static hudson.Util.*;
+import static hudson.Util.fixEmpty;
 
 /**
  * {@link SecurityRealm} that talks to Active Directory.
- * 
+ *
  * @author Kohsuke Kawaguchi
  */
 public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityRealm {
@@ -122,7 +118,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
      * Active directory site (which specifies the physical concentration of the
      * servers), if any. If the value is non-null, we'll only contact servers in
      * this site.
-     * 
+     *
      * <p>
      * On Windows, I'm assuming ADSI takes care of everything automatically.
      *
@@ -183,6 +179,11 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     protected List<EnvironmentProperty> environmentProperties;
 
     /**
+     * If not null, we check if this header exists and use the username in the header to load the user.
+     */
+    protected String userFromHTTPHeader;
+
+    /**
      * Selects the SSL strategy to follow on the TLS connections
      *
      * <p>
@@ -206,41 +207,59 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         this(domain, site, bindName, bindPassword, server, GroupLookupStrategy.AUTO, false);
     }
 
-    public ActiveDirectorySecurityRealm(String domain, String site, String bindName, String bindPassword, String server, GroupLookupStrategy groupLookupStrategy) {
+    public ActiveDirectorySecurityRealm(String domain, String site, String bindName, String bindPassword, String server,
+                                        GroupLookupStrategy groupLookupStrategy) {
         this(domain,site,bindName,bindPassword,server,groupLookupStrategy,false);
     }
 
     public ActiveDirectorySecurityRealm(String domain, String site, String bindName,
-                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups) {
+                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy,
+                                        boolean removeIrrelevantGroups) {
         this(domain, site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups, null);
     }
 
     public ActiveDirectorySecurityRealm(String domain, String site, String bindName,
-                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, CacheConfiguration cache) {
-        this(domain, Lists.newArrayList(new ActiveDirectoryDomain(domain, server)), site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups, domain!=null, cache, true);
+                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy,
+                                        boolean removeIrrelevantGroups, CacheConfiguration cache) {
+        this(domain, Lists.newArrayList(new ActiveDirectoryDomain(domain, server)), site, bindName, bindPassword,
+                server, groupLookupStrategy, removeIrrelevantGroups, domain!=null, cache, true);
     }
 
     public ActiveDirectorySecurityRealm(String domain, List<ActiveDirectoryDomain> domains, String site, String bindName,
-                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache, Boolean startTls) {
-        this(domain, domains, site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups, customDomain, cache, startTls, TlsConfiguration.TRUST_ALL_CERTIFICATES);
+                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy,
+                                        boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache,
+                                        Boolean startTls) {
+        this(domain, domains, site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups,
+                customDomain, cache, startTls, TlsConfiguration.TRUST_ALL_CERTIFICATES, null);
     }
 
     public ActiveDirectorySecurityRealm(String domain, List<ActiveDirectoryDomain> domains, String site, String bindName,
-                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache, Boolean startTls, TlsConfiguration tlsConfiguration) {
-        this(domain, domains, site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups, customDomain, cache, startTls, tlsConfiguration, null);
+                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy,
+                                        boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache,
+                                        Boolean startTls, TlsConfiguration tlsConfiguration, String userFromHTTPHeader) {
+        this(domain, domains, site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups,
+                customDomain, cache, startTls, tlsConfiguration, null, userFromHTTPHeader);
     }
 
     @Deprecated
     public ActiveDirectorySecurityRealm(String domain, List<ActiveDirectoryDomain> domains, String site, String bindName,
-                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache, Boolean startTls, TlsConfiguration tlsConfiguration, ActiveDirectoryInternalUsersDatabase internalUsersDatabase) {
-        this(domain, domains, site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups, customDomain, cache, startTls, (ActiveDirectoryInternalUsersDatabase) null);
+                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy,
+                                        boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache,
+                                        Boolean startTls, TlsConfiguration tlsConfiguration,
+                                        ActiveDirectoryInternalUsersDatabase internalUsersDatabase,
+                                        String userFromHTTPHeader) {
+        this(domain, domains, site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups,
+                customDomain, cache, startTls, (ActiveDirectoryInternalUsersDatabase) null, userFromHTTPHeader);
     }
 
 
     @DataBoundConstructor
     // as Java signature, this binding doesn't make sense, so please don't use this constructor
     public ActiveDirectorySecurityRealm(String domain, List<ActiveDirectoryDomain> domains, String site, String bindName,
-                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache, Boolean startTls, ActiveDirectoryInternalUsersDatabase internalUsersDatabase) {
+                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy,
+                                        boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache,
+                                        Boolean startTls, ActiveDirectoryInternalUsersDatabase internalUsersDatabase,
+                                        String userFromHTTPHeader) {
         if (customDomain!=null && !customDomain)
             domains = null;
         this.domain = fixEmpty(domain);
@@ -254,6 +273,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         this.cache = cache;
         this.startTls = startTls;
         this.internalUsersDatabase = internalUsersDatabase;
+        this.userFromHTTPHeader = userFromHTTPHeader;
     }
 
     @DataBoundSetter
@@ -407,7 +427,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 	                    pw.println("Domain= " + domain.getName() + " site= "+ domain.getSite());
 	                    List<SocketInfo> ldapServers = descriptor.obtainLDAPServer(domain);
 	                    pw.println("List of domain controllers: "+ldapServers);
-	                    
+
 	                    for (SocketInfo ldapServer : ldapServers) {
 	                        pw.println("Trying a domain controller at "+ldapServer);
 	                        try {
@@ -586,7 +606,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                 props.put(propName, prop);
             }
         }
-        
+
         /** Lookups for hardcoded LDAP properties if they are specified as System properties and uses them */
         private void customizeLdapProperties(Hashtable<String, String> props) {
              customizeLdapProperty(props, "com.sun.jndi.ldap.connect.timeout");
@@ -609,9 +629,9 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             try {
                 props.put(Context.PROVIDER_URL, ldapUrl);
                 props.put("java.naming.ldap.version", "3");
-                
+
                 customizeLdapProperties(props);
-                
+
                 LdapContext context = (LdapContext)LdapCtxFactory.getLdapCtxInstance(ldapUrl, props);
 
                 boolean isStartTls = true;
@@ -798,6 +818,14 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     @Override
     public GroupDetails loadGroupByGroupname(String groupname) throws UsernameNotFoundException, DataAccessException {
         return getAuthenticationProvider().loadGroupByGroupname(groupname);
+    }
+
+    public String getUserFromHTTPHeader() {
+        return userFromHTTPHeader;
+    }
+
+    public void setUserFromHTTPHeader(String userFromHTTPHeader) {
+        this.userFromHTTPHeader = userFromHTTPHeader;
     }
 
     /**

@@ -25,11 +25,15 @@
 package hudson.plugins.active_directory.docker;
 
 import com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException;
+import com.google.common.base.Predicates;
+import com.google.common.collect.Collections2;
 import hudson.plugins.active_directory.ActiveDirectoryDomain;
 import hudson.plugins.active_directory.ActiveDirectoryInternalUsersDatabase;
 import hudson.plugins.active_directory.ActiveDirectorySecurityRealm;
 import hudson.plugins.active_directory.CacheConfiguration;
 import hudson.plugins.active_directory.GroupLookupStrategy;
+import hudson.security.GroupDetails;
+import hudson.util.RingBufferLogHandler;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
 import org.acegisecurity.AuthenticationServiceException;
@@ -39,11 +43,11 @@ import org.apache.commons.io.FileUtils;
 import org.jenkinsci.test.acceptance.docker.DockerContainer;
 import org.jenkinsci.test.acceptance.docker.DockerFixture;
 import org.jenkinsci.test.acceptance.docker.DockerRule;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.recipes.LocalData;
 
 import javax.naming.CommunicationException;
 import javax.naming.NamingException;
@@ -52,6 +56,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.logging.*;
 
 import static junit.framework.Assert.assertEquals;
 import static org.hamcrest.Matchers.contains;
@@ -104,7 +109,7 @@ public class TheFlintstonesTest {
         ActiveDirectoryDomain activeDirectoryDomain = new ActiveDirectoryDomain(AD_DOMAIN, dockerIp + ":" +  dockerPort , null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD);
         List<ActiveDirectoryDomain> domains = new ArrayList<>(1);
         domains.add(activeDirectoryDomain);
-        ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, null, null, null, null, GroupLookupStrategy.RECURSIVE, false, true, null, false, null, null);
+        ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, null, null, null, null, GroupLookupStrategy.RECURSIVE, false, true, null, false, null, null, null);
         j.getInstance().setSecurityRealm(activeDirectorySecurityRealm);
         while(!FileUtils.readFileToString(d.getLogfile()).contains("custom (exit status 0; expected)")) {
             Thread.sleep(1000);

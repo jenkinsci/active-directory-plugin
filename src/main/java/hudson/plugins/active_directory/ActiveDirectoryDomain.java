@@ -284,7 +284,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
             domains.add(domain);
 
             ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, site, bindName,
-                    bindPassword, null, GroupLookupStrategy.AUTO, false, true, null, false, (ActiveDirectoryInternalUsersDatabase) null);
+                    bindPassword, null, GroupLookupStrategy.AUTO, false, true, null, false, (ActiveDirectoryInternalUsersDatabase) null, null);
 
             ClassLoader ccl = Thread.currentThread().getContextClassLoader();
             Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
