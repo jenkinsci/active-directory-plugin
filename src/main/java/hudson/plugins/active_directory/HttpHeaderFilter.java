@@ -8,6 +8,7 @@ import org.acegisecurity.Authentication;
 import org.acegisecurity.GrantedAuthority;
 import org.acegisecurity.context.SecurityContextHolder;
 import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
+import org.acegisecurity.providers.anonymous.AnonymousAuthenticationToken;
 import org.acegisecurity.userdetails.UserDetails;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
 
@@ -30,23 +31,27 @@ class HttpHeaderFilter implements Filter {
                          ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
         HttpServletRequest request = (HttpServletRequest) servletRequest;
-        Authentication auth = Jenkins.ANONYMOUS;
-        String authenticatedUserFromApiToken = getUserFromAuthorizationHeader(request);
 
-        String userName = authenticatedUserFromApiToken == null ? getUserFromReverseProxyHeader(request) : authenticatedUserFromApiToken;
-        if (userName != null) {
-            try {
-                UserDetails userDetails = activeDirectorySecurityRealm.getAuthenticationProvider().loadUserByUsername(userName);
+        if (SecurityContextHolder.getContext().getAuthentication() == null ||
+                SecurityContextHolder.getContext().getAuthentication() instanceof AnonymousAuthenticationToken) {
+            Authentication auth = Jenkins.ANONYMOUS;
+            String authenticatedUserFromApiToken = getUserFromAuthorizationHeader(request);
 
-                GrantedAuthority[] authorities = userDetails.getAuthorities();
+            String userName = authenticatedUserFromApiToken == null ? getUserFromReverseProxyHeader(request) : authenticatedUserFromApiToken;
+            if (userName != null) {
+                try {
+                    UserDetails userDetails = activeDirectorySecurityRealm.getAuthenticationProvider().loadUserByUsername(userName);
 
-                auth = new UsernamePasswordAuthenticationToken(userName, "", authorities);
-            } catch (UsernameNotFoundException e) {
-                LOGGER.log(Level.FINE, "User from HTTP Header {0} not found in LDAP", userName);
+                    GrantedAuthority[] authorities = userDetails.getAuthorities();
+
+                    auth = new UsernamePasswordAuthenticationToken(userName, "", authorities);
+                } catch (UsernameNotFoundException e) {
+                    LOGGER.log(Level.FINE, "User from HTTP Header {0} not found in LDAP", userName);
+                }
             }
-        }
 
-        SecurityContextHolder.getContext().setAuthentication(auth);
+            SecurityContextHolder.getContext().setAuthentication(auth);
+        }
         chain.doFilter(request, response);
     }
 
