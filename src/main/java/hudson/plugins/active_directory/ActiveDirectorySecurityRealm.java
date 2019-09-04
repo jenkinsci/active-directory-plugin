@@ -46,7 +46,11 @@ import org.acegisecurity.userdetails.UsernameNotFoundException;
 import org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
-import org.kohsuke.stapler.*;
+import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
+import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.StaplerRequest;
+import org.kohsuke.stapler.StaplerResponse;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 import org.springframework.dao.DataAccessException;
 
@@ -230,15 +234,15 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                                         boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache,
                                         Boolean startTls) {
         this(domain, domains, site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups,
-                customDomain, cache, startTls, TlsConfiguration.TRUST_ALL_CERTIFICATES, null);
+                customDomain, cache, startTls, TlsConfiguration.TRUST_ALL_CERTIFICATES);
     }
 
     public ActiveDirectorySecurityRealm(String domain, List<ActiveDirectoryDomain> domains, String site, String bindName,
                                         String bindPassword, String server, GroupLookupStrategy groupLookupStrategy,
                                         boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache,
-                                        Boolean startTls, TlsConfiguration tlsConfiguration, String userFromHTTPHeader) {
+                                        Boolean startTls, TlsConfiguration tlsConfiguration) {
         this(domain, domains, site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups,
-                customDomain, cache, startTls, tlsConfiguration, null, userFromHTTPHeader);
+                customDomain, cache, startTls, tlsConfiguration, null);
     }
 
     @Deprecated
@@ -246,10 +250,9 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                                         String bindPassword, String server, GroupLookupStrategy groupLookupStrategy,
                                         boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache,
                                         Boolean startTls, TlsConfiguration tlsConfiguration,
-                                        ActiveDirectoryInternalUsersDatabase internalUsersDatabase,
-                                        String userFromHTTPHeader) {
+                                        ActiveDirectoryInternalUsersDatabase internalUsersDatabase) {
         this(domain, domains, site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups,
-                customDomain, cache, startTls, (ActiveDirectoryInternalUsersDatabase) null, userFromHTTPHeader);
+                customDomain, cache, startTls, (ActiveDirectoryInternalUsersDatabase) null);
     }
 
 
@@ -258,8 +261,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     public ActiveDirectorySecurityRealm(String domain, List<ActiveDirectoryDomain> domains, String site, String bindName,
                                         String bindPassword, String server, GroupLookupStrategy groupLookupStrategy,
                                         boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache,
-                                        Boolean startTls, ActiveDirectoryInternalUsersDatabase internalUsersDatabase,
-                                        String userFromHTTPHeader) {
+                                        Boolean startTls, ActiveDirectoryInternalUsersDatabase internalUsersDatabase) {
         if (customDomain!=null && !customDomain)
             domains = null;
         this.domain = fixEmpty(domain);
@@ -273,7 +275,6 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         this.cache = cache;
         this.startTls = startTls;
         this.internalUsersDatabase = internalUsersDatabase;
-        this.userFromHTTPHeader = userFromHTTPHeader;
     }
 
     @DataBoundSetter
@@ -824,6 +825,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         return userFromHTTPHeader;
     }
 
+    @DataBoundSetter
     public void setUserFromHTTPHeader(String userFromHTTPHeader) {
         this.userFromHTTPHeader = userFromHTTPHeader;
     }

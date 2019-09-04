@@ -12,7 +12,12 @@ import org.acegisecurity.providers.anonymous.AnonymousAuthenticationToken;
 import org.acegisecurity.userdetails.UserDetails;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
 
-import javax.servlet.*;
+import javax.servlet.Filter;
+import javax.servlet.FilterChain;
+import javax.servlet.FilterConfig;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.util.logging.Level;
@@ -32,8 +37,7 @@ class HttpHeaderFilter implements Filter {
             throws IOException, ServletException {
         HttpServletRequest request = (HttpServletRequest) servletRequest;
 
-        if (SecurityContextHolder.getContext().getAuthentication() == null ||
-                SecurityContextHolder.getContext().getAuthentication() instanceof AnonymousAuthenticationToken) {
+        if (Jenkins.getAuthentication() instanceof AnonymousAuthenticationToken) {
             Authentication auth = Jenkins.ANONYMOUS;
             String authenticatedUserFromApiToken = getUserFromAuthorizationHeader(request);
 
