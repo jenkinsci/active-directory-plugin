@@ -50,13 +50,14 @@ import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.recipes.LocalData;
 
 import javax.naming.CommunicationException;
-import javax.naming.NamingException;
-import javax.servlet.ServletException;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.logging.*;
+import java.util.logging.Formatter;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 
 import static junit.framework.Assert.assertEquals;
 import static org.hamcrest.Matchers.contains;
@@ -109,7 +110,7 @@ public class TheFlintstonesTest {
         ActiveDirectoryDomain activeDirectoryDomain = new ActiveDirectoryDomain(AD_DOMAIN, dockerIp + ":" +  dockerPort , null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD);
         List<ActiveDirectoryDomain> domains = new ArrayList<>(1);
         domains.add(activeDirectoryDomain);
-        ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, null, null, null, null, GroupLookupStrategy.RECURSIVE, false, true, null, false, null, null, null);
+        ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, null, null, null, null, GroupLookupStrategy.RECURSIVE, false, true, null, false, null, null);
         j.getInstance().setSecurityRealm(activeDirectorySecurityRealm);
         while(!FileUtils.readFileToString(d.getLogfile()).contains("custom (exit status 0; expected)")) {
             Thread.sleep(1000);
@@ -206,7 +207,7 @@ public class TheFlintstonesTest {
 
     @Issue("JENKINS-36148")
     @Test
-    public void validateCustomDomainController() throws ServletException, NamingException, IOException, Exception {
+    public void validateCustomDomainController() throws Exception {
         dynamicSetUp();
         ActiveDirectoryDomain.DescriptorImpl adDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
         assertEquals("OK: Success", adDescriptor.doValidateTest(AD_DOMAIN, dockerIp + ":" + dockerPort, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD, null).toString().trim());
@@ -214,7 +215,7 @@ public class TheFlintstonesTest {
 
     @Issue("JENKINS-36148")
     @Test
-    public void validateDomain() throws ServletException, NamingException, IOException, Exception {
+    public void validateDomain() throws Exception {
         dynamicSetUp();
         ActiveDirectoryDomain.DescriptorImpl adDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
         assertEquals("OK: Success", adDescriptor.doValidateTest(AD_DOMAIN, null, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD, null).toString().trim());
