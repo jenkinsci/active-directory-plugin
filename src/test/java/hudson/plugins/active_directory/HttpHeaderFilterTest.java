@@ -54,7 +54,7 @@ public class HttpHeaderFilterTest {
     static class TestRealm extends ActiveDirectorySecurityRealm {
         TestRealm(String headerField, String regex) {
             super("", "", "", "", "");
-            setUserFromHTTPHeader(headerField);
+            setUserFromHttpHeader(headerField);
             setUsernameExtractionExpression(regex);
         }
     }

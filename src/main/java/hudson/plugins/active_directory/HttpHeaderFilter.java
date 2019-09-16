@@ -1,12 +1,13 @@
 package hudson.plugins.active_directory;
 
 import hudson.model.User;
+import hudson.security.ACL;
+import hudson.security.ACLContext;
 import hudson.util.Scrambler;
 import jenkins.model.Jenkins;
 import jenkins.security.ApiTokenProperty;
 import org.acegisecurity.Authentication;
 import org.acegisecurity.GrantedAuthority;
-import org.acegisecurity.context.SecurityContextHolder;
 import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
 import org.acegisecurity.providers.anonymous.AnonymousAuthenticationToken;
 import org.acegisecurity.userdetails.UserDetails;
@@ -57,9 +58,12 @@ class HttpHeaderFilter implements Filter {
                 }
             }
 
-            SecurityContextHolder.getContext().setAuthentication(auth);
+            try (ACLContext _ = ACL.as(auth)) {
+                chain.doFilter(request, response);
+            }
+        } else {
+            chain.doFilter(request, response);
         }
-        chain.doFilter(request, response);
     }
 
     String getUserFromAuthorizationHeader(HttpServletRequest request) {
@@ -112,7 +116,7 @@ class HttpHeaderFilter implements Filter {
     }
 
     private String getUserHeader() {
-        return activeDirectorySecurityRealm.userFromHTTPHeader;
+        return activeDirectorySecurityRealm.userFromHttpHeader;
     }
 
     private String getUsernameExtractionExpression() {

@@ -1,7 +1,7 @@
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
   <f:advanced>
-    <f:entry field="userFromHTTPHeader" title="${%Use HTTP-Header as username provider. Example: 'X-Forwarded-User'}">
+    <f:entry field="userFromHttpHeader" title="${%Use HTTP-Header as username provider}">
       <f:textbox />
     </f:entry>
     <f:entry field="usernameExtractionExpression" title="${%Regular expression with one capture group to extract the username out of the HTTP-Header}">

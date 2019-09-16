@@ -185,7 +185,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     /**
      * If not null, we check if this header exists and use the username in the header to load the user.
      */
-    protected String userFromHTTPHeader;
+    protected String userFromHttpHeader;
 
     /**
      * Regular expression, if set, extracts the username out of the given userFromHTTPHeader.
@@ -826,13 +826,13 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         return getAuthenticationProvider().loadGroupByGroupname(groupname);
     }
 
-    public String getUserFromHTTPHeader() {
-        return userFromHTTPHeader;
+    public String getUserFromHttpHeader() {
+        return userFromHttpHeader;
     }
 
     @DataBoundSetter
-    public void setUserFromHTTPHeader(String userFromHTTPHeader) {
-        this.userFromHTTPHeader = userFromHTTPHeader;
+    public void setUserFromHttpHeader(String userFromHttpHeader) {
+        this.userFromHttpHeader = userFromHttpHeader;
     }
 
     public String getUsernameExtractionExpression() {
