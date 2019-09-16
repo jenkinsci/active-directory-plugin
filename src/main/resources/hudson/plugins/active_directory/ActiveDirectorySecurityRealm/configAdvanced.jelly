@@ -4,6 +4,9 @@
     <f:entry field="userFromHTTPHeader" title="${%Use HTTP-Header as username provider. Example: 'X-Forwarded-User'}">
       <f:textbox />
     </f:entry>
+    <f:entry field="usernameExtractionExpression" title="${%Regular expression with one capture group to extract the username out of the HTTP-Header}">
+      <f:textbox />
+    </f:entry>
     <f:entry field="startTls" title="${%Enable StartTls}">
       <f:checkbox name="startTls" default="true" />
     </f:entry>

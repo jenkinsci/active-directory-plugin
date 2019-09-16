@@ -22,6 +22,9 @@ import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 class HttpHeaderFilter implements Filter {
     private static final Logger LOGGER = Logger.getLogger(HttpHeaderFilter.class.getName());
@@ -59,7 +62,7 @@ class HttpHeaderFilter implements Filter {
         chain.doFilter(request, response);
     }
 
-    private String getUserFromAuthorizationHeader(HttpServletRequest request) {
+    String getUserFromAuthorizationHeader(HttpServletRequest request) {
         String authorization;
         if ((authorization = request.getHeader("Authorization")) != null && authorization.toLowerCase().startsWith("basic ")) {
             String uidpassword = Scrambler.descramble(authorization.substring(6));
@@ -86,17 +89,34 @@ class HttpHeaderFilter implements Filter {
         return null;
     }
 
-    private String getUserFromReverseProxyHeader(HttpServletRequest request) {
+    String getUserFromReverseProxyHeader(HttpServletRequest request) {
         String userFromHeader;
         if ((getUserHeader() != null && (userFromHeader = request.getHeader(getUserHeader())) != null)) {
             LOGGER.log(Level.FINE, "User from HTTP Header: {0}", userFromHeader);
-            return userFromHeader;
+            if (getUsernameExtractionExpression() != null && !getUsernameExtractionExpression().equals("")) {
+                try {
+                    Pattern pattern = Pattern.compile(getUsernameExtractionExpression(), Pattern.CASE_INSENSITIVE);
+                    Matcher m = pattern.matcher(userFromHeader);
+                    if (m.find()) {
+                        return m.group(1);
+                    } else
+                        return userFromHeader;
+                } catch (PatternSyntaxException ex) {
+                    LOGGER.log(Level.WARNING, "Error in username extraction expression: {0}", ex);
+                    return userFromHeader;
+                }
+            } else
+                return userFromHeader;
         }
         return null;
     }
 
     private String getUserHeader() {
         return activeDirectorySecurityRealm.userFromHTTPHeader;
+    }
+
+    private String getUsernameExtractionExpression() {
+        return activeDirectorySecurityRealm.usernameExtractionExpression;
     }
 
     @Override

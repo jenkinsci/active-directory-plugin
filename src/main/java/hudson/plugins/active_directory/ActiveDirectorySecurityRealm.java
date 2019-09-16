@@ -188,6 +188,11 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     protected String userFromHTTPHeader;
 
     /**
+     * Regular expression, if set, extracts the username out of the given userFromHTTPHeader.
+     */
+    protected String usernameExtractionExpression;
+
+    /**
      * Selects the SSL strategy to follow on the TLS connections
      *
      * <p>
@@ -828,6 +833,15 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     @DataBoundSetter
     public void setUserFromHTTPHeader(String userFromHTTPHeader) {
         this.userFromHTTPHeader = userFromHTTPHeader;
+    }
+
+    public String getUsernameExtractionExpression() {
+        return usernameExtractionExpression;
+    }
+
+    @DataBoundSetter
+    public void setUsernameExtractionExpression(String usernameExtractionExpression) {
+        this.usernameExtractionExpression = usernameExtractionExpression;
     }
 
     /**
