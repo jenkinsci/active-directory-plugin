@@ -6,7 +6,6 @@ import hudson.security.ACLContext;
 import hudson.util.Scrambler;
 import jenkins.model.Jenkins;
 import jenkins.security.ApiTokenProperty;
-import org.acegisecurity.Authentication;
 import org.acegisecurity.GrantedAuthority;
 import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
 import org.acegisecurity.providers.anonymous.AnonymousAuthenticationToken;
@@ -42,7 +41,6 @@ class HttpHeaderFilter implements Filter {
         HttpServletRequest request = (HttpServletRequest) servletRequest;
 
         if (Jenkins.getAuthentication() instanceof AnonymousAuthenticationToken) {
-            Authentication auth = Jenkins.ANONYMOUS;
             String authenticatedUserFromApiToken = getUserFromAuthorizationHeader(request);
 
             String userName = authenticatedUserFromApiToken == null ? getUserFromReverseProxyHeader(request) : authenticatedUserFromApiToken;
@@ -52,18 +50,18 @@ class HttpHeaderFilter implements Filter {
 
                     GrantedAuthority[] authorities = userDetails.getAuthorities();
 
-                    auth = new UsernamePasswordAuthenticationToken(userName, "", authorities);
+                    UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(userName, "", authorities);
+
+                    try (ACLContext _ = ACL.as(auth)) {
+                        chain.doFilter(request, response);
+                    }
+                    return;
                 } catch (UsernameNotFoundException e) {
                     LOGGER.log(Level.FINE, "User from HTTP Header {0} not found in LDAP", userName);
                 }
             }
-
-            try (ACLContext _ = ACL.as(auth)) {
-                chain.doFilter(request, response);
-            }
-        } else {
-            chain.doFilter(request, response);
         }
+        chain.doFilter(request, response);
     }
 
     String getUserFromAuthorizationHeader(HttpServletRequest request) {
@@ -112,6 +110,7 @@ class HttpHeaderFilter implements Filter {
             } else
                 return userFromHeader;
         }
+        LOGGER.log(Level.FINE, "NO user header found");
         return null;
     }
 
