@@ -4,14 +4,11 @@ import hudson.model.User;
 import hudson.security.ACL;
 import hudson.security.ACLContext;
 import hudson.util.Scrambler;
-import jenkins.model.Jenkins;
-import jenkins.security.ApiTokenProperty;
-import org.acegisecurity.GrantedAuthority;
-import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
-import org.acegisecurity.providers.anonymous.AnonymousAuthenticationToken;
-import org.acegisecurity.userdetails.UserDetails;
-import org.acegisecurity.userdetails.UsernameNotFoundException;
-
+import java.io.IOException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
@@ -19,12 +16,13 @@ import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
-import java.io.IOException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.regex.PatternSyntaxException;
+import jenkins.model.Jenkins;
+import jenkins.security.ApiTokenProperty;
+import org.acegisecurity.GrantedAuthority;
+import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
+import org.acegisecurity.providers.anonymous.AnonymousAuthenticationToken;
+import org.acegisecurity.userdetails.UserDetails;
+import org.acegisecurity.userdetails.UsernameNotFoundException;
 
 class HttpHeaderFilter implements Filter {
     private static final Logger LOGGER = Logger.getLogger(HttpHeaderFilter.class.getName());
@@ -96,17 +94,11 @@ class HttpHeaderFilter implements Filter {
         if ((getUserHeader() != null && (userFromHeader = request.getHeader(getUserHeader())) != null)) {
             LOGGER.log(Level.FINE, "User from HTTP Header: {0}", userFromHeader);
             if (getUsernameExtractionExpression() != null && !getUsernameExtractionExpression().equals("")) {
-                try {
-                    Pattern pattern = Pattern.compile(getUsernameExtractionExpression(), Pattern.CASE_INSENSITIVE);
-                    Matcher m = pattern.matcher(userFromHeader);
-                    if (m.find()) {
-                        return m.group(1);
-                    } else
-                        return userFromHeader;
-                } catch (PatternSyntaxException ex) {
-                    LOGGER.log(Level.WARNING, "Error in username extraction expression: {0}", ex);
+                Matcher m = getUsernameExtractionExpression().matcher(userFromHeader);
+                if (m.find() && m.groupCount()==1) {
+                    return m.group(1);
+                } else
                     return userFromHeader;
-                }
             } else
                 return userFromHeader;
         }
@@ -118,7 +110,7 @@ class HttpHeaderFilter implements Filter {
         return activeDirectorySecurityRealm.userFromHttpHeader;
     }
 
-    private String getUsernameExtractionExpression() {
+    private Pattern getUsernameExtractionExpression() {
         return activeDirectorySecurityRealm.usernameExtractionExpression;
     }
 

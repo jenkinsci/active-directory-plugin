@@ -1,14 +1,14 @@
 package hudson.plugins.active_directory;
 
 import hudson.util.Secret;
+import java.util.regex.Pattern;
+import javax.servlet.http.HttpServletRequest;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
-
-import javax.servlet.http.HttpServletRequest;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -30,7 +30,7 @@ public class HttpHeaderFilterTest {
         String headerField = "x-user-name";
         String username = "CN=abcde,OU=yes,C=no";
 
-        HttpHeaderFilter filter = new HttpHeaderFilter(new TestRealm(headerField, ""));
+        HttpHeaderFilter filter = new HttpHeaderFilter(new TestRealm(headerField, Pattern.compile("")));
         HttpServletRequest request = mock(HttpServletRequest.class);
         when(request.getHeader(headerField)).thenReturn(username);
 
@@ -43,7 +43,7 @@ public class HttpHeaderFilterTest {
         String headerField = "x-user-name";
         String username = "CN=abcde,OU=yes,C=no";
 
-        HttpHeaderFilter filter = new HttpHeaderFilter(new TestRealm(headerField, "^CN=([^,]*).*"));
+        HttpHeaderFilter filter = new HttpHeaderFilter(new TestRealm(headerField, Pattern.compile("^CN=([^,]*).*")));
         HttpServletRequest request = mock(HttpServletRequest.class);
         when(request.getHeader(headerField)).thenReturn(username);
 
@@ -52,7 +52,7 @@ public class HttpHeaderFilterTest {
     }
 
     static class TestRealm extends ActiveDirectorySecurityRealm {
-        TestRealm(String headerField, String regex) {
+        TestRealm(String headerField, Pattern regex) {
             super("", "", "", "", "");
             setUserFromHttpHeader(headerField);
             setUsernameExtractionExpression(regex);
