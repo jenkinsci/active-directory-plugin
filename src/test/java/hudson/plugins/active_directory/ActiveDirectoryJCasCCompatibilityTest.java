@@ -71,4 +71,5 @@ public class ActiveDirectoryJCasCCompatibilityTest extends RoundTripAbstractTest
     protected String stringInLogExpected() {
         return "Setting class hudson.plugins.active_directory.ActiveDirectorySecurityRealm.groupLookupStrategy = RECURSIVE";
     }
+    
 }
