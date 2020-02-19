@@ -77,6 +77,7 @@ import javax.net.ssl.SSLSocketFactory;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectStreamException;
@@ -745,6 +746,10 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             return obtainLDAPServer(createDNSLookupContext(), activeDirectoryDomain.getName(), activeDirectoryDomain.getSite(), activeDirectoryDomain.getServers());
         }
 
+        private boolean serverIsInDomain(String serverToken, String domainName) {
+            return serverToken.split(":")[0].endsWith(domainName);
+        }
+        
         /**
          * Use DNS and obtains the LDAP servers that we should try.
          *
@@ -765,7 +770,8 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
             if (preferredServers!=null) {
                 for (String token : preferredServers.split(",")) {
-                    result.add(new SocketInfo(token.trim()));
+                    if (serverIsInDomain(token, domainName))
+                        result.add(new SocketInfo(token.trim()));
                 }
                 return result;
             }
