@@ -5,17 +5,11 @@ import hudson.security.ACL;
 import hudson.security.ACLContext;
 import hudson.util.Scrambler;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.servlet.Filter;
-import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletRequest;
 import jenkins.model.Jenkins;
 import jenkins.security.ApiTokenProperty;
 import org.acegisecurity.GrantedAuthority;
@@ -23,11 +17,18 @@ import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
 import org.acegisecurity.providers.anonymous.AnonymousAuthenticationToken;
 import org.acegisecurity.userdetails.UserDetails;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
+import javax.servlet.Filter;
+import javax.servlet.FilterChain;
+import javax.servlet.FilterConfig;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
+import javax.servlet.http.HttpServletRequest;
 
 class HttpHeaderFilter implements Filter {
     private static final Logger LOGGER = Logger.getLogger(HttpHeaderFilter.class.getName());
 
-    private ActiveDirectorySecurityRealm activeDirectorySecurityRealm;
+    private final ActiveDirectorySecurityRealm activeDirectorySecurityRealm;
 
     HttpHeaderFilter(ActiveDirectorySecurityRealm activeDirectorySecurityRealm) {
         this.activeDirectorySecurityRealm = activeDirectorySecurityRealm;
@@ -50,7 +51,7 @@ class HttpHeaderFilter implements Filter {
 
                     UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(userName, "", authorities);
 
-                    try (ACLContext _ = ACL.as(auth)) {
+                    try (ACLContext ignore = ACL.as(auth)) {
                         chain.doFilter(request, response);
                     }
                     return;
@@ -72,7 +73,7 @@ class HttpHeaderFilter implements Filter {
                 String password = uidpassword.substring(idx + 1);
 
                 // attempt to authenticate as API token
-                User u = User.get(username, false);
+                User u = User.get(username, false, Collections.emptyMap());
                 if (u != null) {
                     ApiTokenProperty t = u.getProperty(ApiTokenProperty.class);
                     if (t != null && t.matchesPassword(password)) { // Authenticate API-Token
@@ -93,7 +94,7 @@ class HttpHeaderFilter implements Filter {
         String userFromHeader;
         if ((getUserHeader() != null && (userFromHeader = request.getHeader(getUserHeader())) != null)) {
             LOGGER.log(Level.FINE, "User from HTTP Header: {0}", userFromHeader);
-            if (getUsernameExtractionExpression() != null && !getUsernameExtractionExpression().equals("")) {
+            if (getUsernameExtractionExpression() != null && !getUsernameExtractionExpression().toString().equals("")) {
                 Matcher m = getUsernameExtractionExpression().matcher(userFromHeader);
                 if (m.find() && m.groupCount()==1) {
                     return m.group(1);
