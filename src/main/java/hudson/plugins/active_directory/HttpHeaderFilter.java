@@ -6,6 +6,7 @@ import hudson.security.ACLContext;
 import hudson.util.Scrambler;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.Locale;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -65,7 +66,7 @@ class HttpHeaderFilter implements Filter {
 
     String getUserFromAuthorizationHeader(HttpServletRequest request) {
         String authorization;
-        if ((authorization = request.getHeader("Authorization")) != null && authorization.toLowerCase().startsWith("basic ")) {
+        if ((authorization = request.getHeader("Authorization")) != null && authorization.toLowerCase(Locale.ROOT).startsWith("basic ")) {
             String uidpassword = Scrambler.descramble(authorization.substring(6));
             int idx = uidpassword.indexOf(':');
             if (idx >= 0) {
