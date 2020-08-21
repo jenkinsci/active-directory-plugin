@@ -27,30 +27,22 @@ import com.google.common.collect.Lists;
 import com.sun.jndi.ldap.LdapCtxFactory;
 import com4j.typelibs.ado20.ClassFactory;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import groovy.lang.Binding;
 import hudson.Extension;
 import hudson.Functions;
 import hudson.model.AbstractDescribableImpl;
-import hudson.model.AdministrativeMonitor;
 import hudson.model.Descriptor;
 import hudson.security.AbstractPasswordBasedSecurityRealm;
 import hudson.security.AuthorizationStrategy;
 import hudson.security.GroupDetails;
 import hudson.security.SecurityRealm;
-import hudson.security.TokenBasedRememberMeServices2;
 import hudson.util.ListBoxModel;
 import hudson.util.Secret;
-import hudson.util.spring.BeanBuilder;
 import jenkins.model.Jenkins;
-import org.acegisecurity.Authentication;
 import org.acegisecurity.AuthenticationException;
-import org.acegisecurity.AuthenticationManager;
 import org.acegisecurity.BadCredentialsException;
 import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
 import org.acegisecurity.userdetails.UserDetails;
-import org.acegisecurity.userdetails.UserDetailsService;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
-import org.apache.commons.io.IOUtils;
 import org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
@@ -61,7 +53,6 @@ import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
 import org.springframework.dao.DataAccessException;
-import org.springframework.web.context.WebApplicationContext;
 
 import javax.naming.Context;
 import javax.naming.NamingEnumeration;
@@ -75,10 +66,7 @@ import javax.naming.ldap.StartTlsRequest;
 import javax.naming.ldap.StartTlsResponse;
 import javax.net.ssl.SSLSocketFactory;
 import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.ObjectStreamException;
 import java.io.PrintWriter;
 import java.io.Serializable;
@@ -331,39 +319,6 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         return tlsConfiguration;
     }
 
-    public SecurityComponents createSecurityComponents() {
-        BeanBuilder builder = new BeanBuilder(getClass().getClassLoader());
-        Binding binding = new Binding();
-        binding.setVariable("realm", this);
-        InputStream i = getClass().getResourceAsStream("ActiveDirectory.groovy");
-        try {
-            builder.parse(i, binding);
-        } finally {
-            IOUtils.closeQuietly(i);
-        }
-        WebApplicationContext context = builder.createApplicationContext();
-
-        //final AbstractActiveDirectoryAuthenticationProvider adp = findBean(AbstractActiveDirectoryAuthenticationProvider.class, context);
-        findBean(AbstractActiveDirectoryAuthenticationProvider.class, context); //Keeping the call because there might be side effects?
-        final UserDetailsService uds = findBean(UserDetailsService.class, context);
-
-        TokenBasedRememberMeServices2 rms = new TokenBasedRememberMeServices2() {
-            public Authentication autoLogin(HttpServletRequest request, HttpServletResponse response) {
-                try {
-                    return super.autoLogin(request, response);
-                } catch (Exception e) {// TODO: this check is made redundant with 1.556, but needed with earlier versions
-                    cancelCookie(request, response, "Failed to handle remember-me cookie: "+Functions.printThrowable(e));
-                    return null;
-                }
-            }
-        };
-        rms.setUserDetailsService(uds);
-        rms.setKey(Jenkins.getActiveInstance().getSecretKey());
-        rms.setParameter("remember_me"); // this is the form field name in login.jelly
-
-        return new SecurityComponents( findBean(AuthenticationManager.class, context), uds, rms);
-    }
-
     @Restricted(NoExternalUse.class)
     public List<ActiveDirectoryDomain> getDomains() {
         return domains;
@@ -445,7 +400,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         ClassLoader ccl = Thread.currentThread().getContextClassLoader();
         Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
         try {
-            UserDetailsService uds = getAuthenticationProvider();
+            AbstractActiveDirectoryAuthenticationProvider uds = getAuthenticationProvider();
             if (uds instanceof ActiveDirectoryUnixAuthenticationProvider) {
                 ActiveDirectoryUnixAuthenticationProvider p = (ActiveDirectoryUnixAuthenticationProvider) uds;
                 DescriptorImpl descriptor = getDescriptor();
@@ -857,7 +812,12 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
      * Interface that actually talks to Active Directory.
      */
     public AbstractActiveDirectoryAuthenticationProvider getAuthenticationProvider() {
-        return (AbstractActiveDirectoryAuthenticationProvider)getSecurityComponents().userDetails;
+        if (getDomains() == null && getDescriptor().canDoNativeAuth()) {
+            // Windows path requires com4j, which is currently only supported on Win32
+            return new ActiveDirectoryAuthenticationProvider(this);
+        } else {
+            return new ActiveDirectoryUnixAuthenticationProvider(this);
+        }
     }
 
     @Override

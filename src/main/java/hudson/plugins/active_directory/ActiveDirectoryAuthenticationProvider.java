@@ -58,6 +58,8 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DataAccessResourceFailureException;
 
 /**
  * {@link AuthenticationProvider} with Active Directory, plus {@link UserDetailsService}
@@ -90,7 +92,7 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
         this(null);
     }
 
-    public ActiveDirectoryAuthenticationProvider(ActiveDirectorySecurityRealm realm)throws IOException {
+    public ActiveDirectoryAuthenticationProvider(ActiveDirectorySecurityRealm realm) throws DataAccessException {
         try {
             IADs rootDSE = COM4J.getObject(IADs.class, "LDAP://RootDSE", null);
 
@@ -117,7 +119,7 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
             this.userCache = cache.getUserCache();
             this.groupCache = cache.getGroupCache();
         } catch (ExecutionException e) {
-            throw new IOException("Failed to connect to Active Directory. Does this machine belong to Active Directory?", e);
+            throw new DataAccessResourceFailureException("Failed to connect to Active Directory. Does this machine belong to Active Directory?", e);
         }
     }
 
@@ -212,11 +214,6 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
             LOGGER.log(Level.SEVERE, String.format("There was a problem caching user %s", username), e);
             throw new CacheAuthenticationException("Authentication failed because there was a problem caching user " + username, e);
         }
-    }
-
-    @Override
-    protected boolean canRetrieveUserByName(ActiveDirectoryDomain domain) {
-        return true;
     }
 
     private String getTelephoneNumber(IADsUser usr) {
