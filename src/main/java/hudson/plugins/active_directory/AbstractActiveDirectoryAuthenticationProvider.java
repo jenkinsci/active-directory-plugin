@@ -40,6 +40,7 @@ public abstract class AbstractActiveDirectoryAuthenticationProvider implements U
      */
     protected abstract UserDetails retrieveUser(String username, UsernamePasswordAuthenticationToken authentication) throws AuthenticationException;
 
+    @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException, DataAccessException {
         return retrieveUser(username,null);
     }
