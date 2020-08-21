@@ -2,10 +2,8 @@ package hudson.plugins.active_directory;
 
 import io.jenkins.plugins.casc.misc.RoundTripAbstractTest;
 import jenkins.model.Jenkins;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.contrib.java.lang.system.EnvironmentVariables;
-import org.junit.rules.RuleChain;
 import org.jvnet.hudson.test.RestartableJenkinsRule;
 
 import static org.junit.Assert.assertEquals;
@@ -15,14 +13,9 @@ import static org.junit.Assert.assertTrue;
 public class ActiveDirectoryJCasCCompatibilityTest extends RoundTripAbstractTest {
 
     @Rule
-    public RuleChain chain = RuleChain.outerRule(new EnvironmentVariables()
+    public EnvironmentVariables env = new EnvironmentVariables()
             .set("BIND_PASSWORD_1", "PASSW1")
-            .set("BIND_PASSWORD_2", "PASSW2"));
-
-    @Before
-    public void setUp() {
-        chain.around(r.j);
-    }
+            .set("BIND_PASSWORD_2", "PASSW2");
 
     @Override
     protected void assertConfiguredAsExpected(RestartableJenkinsRule restartableJenkinsRule, String s) {
