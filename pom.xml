@@ -4,7 +4,7 @@
   <parent>
     <groupId>org.jenkins-ci.plugins</groupId>
     <artifactId>plugin</artifactId>
-    <version>4.6</version>
+    <version>4.7</version>
     <relativePath />
   </parent>
 
@@ -16,10 +16,10 @@
   <url>https://wiki.jenkins-ci.org/display/JENKINS/Active+Directory+Plugin</url>
 
   <scm>
-   <connection>scm:git:git://github.com/jenkinsci/active-directory-plugin.git</connection>
-   <developerConnection>scm:git:git@github.com:jenkinsci/active-directory-plugin.git</developerConnection>
-   <url>https://github.com/jenkinsci/active-directory-plugin</url>
-    <tag>${scmTag}</tag>
+   <connection>scm:git:git://github.com/${gitHubRepo}.git</connection>
+   <developerConnection>scm:git:git@github.com:${gitHubRepo}.git</developerConnection>
+   <url>https://github.com/${gitHubRepo}</url>
+   <tag>${scmTag}</tag>
   </scm>
 
   <developers>
@@ -36,6 +36,7 @@
   <properties>
     <revision>2.17</revision>
     <changelist>-SNAPSHOT</changelist>
+    <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
     <jenkins.version>2.235.5</jenkins.version>
     <java.level>8</java.level>
     <configuration-as-code.version>1.35</configuration-as-code.version>
