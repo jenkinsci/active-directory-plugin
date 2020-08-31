@@ -1,4 +1,4 @@
-buildPlugin(useAci: true)
+buildPlugin()
 
 node('docker') {
      stage('checkout') {
