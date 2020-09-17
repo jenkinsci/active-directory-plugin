@@ -13,7 +13,7 @@
   <version>${revision}${changelist}</version>
   <name>Jenkins Active Directory plugin</name>
   <description>Enables authentication through Active Directory</description>
-  <url>https://wiki.jenkins-ci.org/display/JENKINS/Active+Directory+Plugin</url>
+  <url>https://github.com/jenkinsci/active-directory-plugin</url>
 
   <scm>
    <connection>scm:git:git://github.com/${gitHubRepo}.git</connection>
