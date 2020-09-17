@@ -280,10 +280,6 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         }
     }
 
-    @Override
-    protected boolean canRetrieveUserByName(ActiveDirectoryDomain domain) {
-        return domain.getBindName()!=null;
-    }
 
     /**
      *
