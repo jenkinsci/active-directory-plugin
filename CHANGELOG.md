@@ -8,15 +8,15 @@ Be careful if you intend to install version 1.37. It has been known to cause exc
 
 ## Version 2.16 (2019/05/23)
 
--   Reverts 2.15 since it breaks all the installations on Windows Server [JENKINS-55813](https://issues.jenkins-ci.org/browse/JENKINS-55813) - Getting issue details... STATUS
+-   Reverts 2.15 since it breaks all the installations on Windows Server [JENKINS-55813](https://issues.jenkins-ci.org/browse/JENKINS-55813) 
 
 ## Version 2.15 (2019/05/20)
 
--   Improve AD/LDAP attribute analysis for locked accounts [JENKINS-55813](https://issues.jenkins-ci.org/browse/JENKINS-55813) - Getting issue details... STATUS
+-   Improve AD/LDAP attribute analysis for locked accounts [JENKINS-55813](https://issues.jenkins-ci.org/browse/JENKINS-55813) 
 
 ## Version 2.14 (2019/05/06)
 
--   Some Exceptions launched by startTLS might break the log-in [JENKINS-44787](https://issues.jenkins-ci.org/browse/JENKINS-44787) - Getting issue details... STATUS
+-   Some Exceptions launched by startTLS might break the log-in [JENKINS-44787](https://issues.jenkins-ci.org/browse/JENKINS-44787) 
 
 ## Version 2.13 (2019/04/01)
 
@@ -24,7 +24,7 @@ Be careful if you intend to install version 1.37. It has been known to cause exc
 
 ## Version 2.12 (2019/02/08)
 
--   Remove the problematic Administrative Monitor [JENKINS-56047](https://issues.jenkins-ci.org/browse/JENKINS-56047) - Getting issue details... STATUS  [JENKINS-55852](https://issues.jenkins-ci.org/browse/JENKINS-55852) - Getting issue details... STATUS
+-   Remove the problematic Administrative Monitor [JENKINS-56047](https://issues.jenkins-ci.org/browse/JENKINS-56047) [JENKINS-55852](https://issues.jenkins-ci.org/browse/JENKINS-55852) 
 
 ## Version 2.11 (2019/01/28)
 
@@ -32,33 +32,33 @@ Be careful if you intend to install version 1.37. It has been known to cause exc
 
 ## Version 2.10 (2018/11/5)
 
--   TlsConfigurationAdministrativeMonitor is missing its name -  [JENKINS-54267](https://issues.jenkins-ci.org/browse/JENKINS-54267) - Getting issue details... STATUS
+-   TlsConfigurationAdministrativeMonitor is missing its name -  [JENKINS-54267](https://issues.jenkins-ci.org/browse/JENKINS-54267) 
 
 ## Version 2.9 (2018/10/19)
 
--   Configuration-as-Code compatibility -   [JENKINS-53576](https://issues.jenkins-ci.org/browse/JENKINS-53576) - Getting issue details... STATUS
+-   Configuration-as-Code compatibility -   [JENKINS-53576](https://issues.jenkins-ci.org/browse/JENKINS-53576) 
 
 ## Version 2.8 (2017/06/23) FIXING REGRESSION IN 2.7
 
--   Advanced configuration missing on Configure Global Security (The plugin did not work correctly on Windows Servers) [JENKINS-52045](https://issues.jenkins-ci.org/browse/JENKINS-52045) - Getting issue details... STATUS  
+-   Advanced configuration missing on Configure Global Security (The plugin did not work correctly on Windows Servers) [JENKINS-52045](https://issues.jenkins-ci.org/browse/JENKINS-52045) 
 
 ## Version 2.7 (2017/06/18)
 
--   AD recognizes groups by CN and sAMAccount when authorities only works with CN [JENKINS-45576](https://issues.jenkins-ci.org/browse/JENKINS-45576) - Getting issue details... STATUS
--   ActiveDirectorySecurityRealm constructor ignores TlsConfiguration  [JENKINS-45816](https://issues.jenkins-ci.org/browse/JENKINS-45816) - Getting issue details... STATUS
+-   AD recognizes groups by CN and sAMAccount when authorities only works with CN [JENKINS-45576](https://issues.jenkins-ci.org/browse/JENKINS-45576) 
+-   ActiveDirectorySecurityRealm constructor ignores TlsConfiguration  [JENKINS-45816](https://issues.jenkins-ci.org/browse/JENKINS-45816) 
 
--   The help button for Domain does not correctly explain how to add multiple-domains  [JENKINS-46228](https://issues.jenkins-ci.org/browse/JENKINS-46228) - Getting issue details... STATUS
+-   The help button for Domain does not correctly explain how to add multiple-domains  [JENKINS-46228](https://issues.jenkins-ci.org/browse/JENKINS-46228) 
 
   
 
 ## Version 2.6 (2017/06/22)
 
--   If getRecordFromDomain returns null report the problems -  [JENKINS-45009](https://issues.jenkins-ci.org/browse/JENKINS-45009) - Getting issue details... STATUS
+-   If getRecordFromDomain returns null report the problems -  [JENKINS-45009](https://issues.jenkins-ci.org/browse/JENKINS-45009) 
 
 ## Version 2.5 (2017/06/20)
 
--   Fail-over user to fallback when there are authentication issues -  [JENKINS-39065](https://issues.jenkins-ci.org/browse/JENKINS-39065) - Getting issue details... STATUS
--   ManagementLink to improve the supportability of the AD plugin -  [JENKINS-41744](https://issues.jenkins-ci.org/browse/JENKINS-41744) - Getting issue details... STATUS
+-   Fail-over user to fallback when there are authentication issues -  [JENKINS-39065](https://issues.jenkins-ci.org/browse/JENKINS-39065) 
+-   ManagementLink to improve the supportability of the AD plugin -  [JENKINS-41744](https://issues.jenkins-ci.org/browse/JENKINS-41744) 
 
 ## Version 2.4 (2017/03/24)
 
