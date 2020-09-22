@@ -149,6 +149,11 @@ public class TheFlintstonesTest {
         dynamicSetUp();
         JenkinsRule.WebClient wc = j.createWebClient().login("Fred", "ia4uV1EeKait");
         assertThat(wc.goToXml("whoAmI/api/xml").asXml().replaceAll("\\s+", ""), containsString("<name>Fred</name>"));
+        /* For a JENKINS-63737 stress test:
+        while (true) {
+            j.createWebClient().login("Fred", "ia4uV1EeKait");
+        }
+        */
     }
 
     @Test
