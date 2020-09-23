@@ -45,7 +45,6 @@ import org.acegisecurity.userdetails.UserDetails;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
 import org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement;
 import org.kohsuke.accmod.Restricted;
-import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
@@ -77,7 +76,6 @@ import java.util.Hashtable;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -201,10 +199,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
      */
     protected ActiveDirectoryInternalUsersDatabase internalUsersDatabase;
 
-    /**
-     * The threadPool to update the cache on background
-     */
-    protected transient ExecutorService threadPoolExecutor;
+    private transient AbstractActiveDirectoryAuthenticationProvider authenticationProvider;
 
     public ActiveDirectorySecurityRealm(String domain, String site, String bindName, String bindPassword, String server) {
         this(domain, site, bindName, bindPassword, server, GroupLookupStrategy.AUTO, false);
@@ -436,11 +431,6 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
         req.setAttribute("output", out.toString());
         req.getView(this, "test.jelly").forward(req, rsp);
-    }
-
-    @Restricted(DoNotUse.class)
-    public void shutDownthreadPoolExecutors() {
-        threadPoolExecutor.shutdown();
     }
 
     @Extension
@@ -811,7 +801,14 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     /**
      * Interface that actually talks to Active Directory.
      */
-    public AbstractActiveDirectoryAuthenticationProvider getAuthenticationProvider() {
+    private synchronized AbstractActiveDirectoryAuthenticationProvider getAuthenticationProvider() {
+        if (authenticationProvider == null) {
+            authenticationProvider = createAuthenticationProvider();
+        }
+        return authenticationProvider;
+    }
+
+    private AbstractActiveDirectoryAuthenticationProvider createAuthenticationProvider() {
         if (getDomains() == null && getDescriptor().canDoNativeAuth()) {
             // Windows path requires com4j, which is currently only supported on Win32
             return new ActiveDirectoryAuthenticationProvider(this);

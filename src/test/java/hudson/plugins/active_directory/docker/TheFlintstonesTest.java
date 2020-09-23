@@ -53,6 +53,7 @@ import java.util.List;
 import static junit.framework.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertTrue;
 
 import java.util.logging.Formatter;
@@ -141,6 +142,18 @@ public class TheFlintstonesTest {
         dynamicSetUp();
         UserDetails userDetails = j.jenkins.getSecurityRealm().loadUserByUsername("Fred");
         assertThat(userDetails.getUsername(), is("Fred"));
+    }
+
+    @Test
+    public void actualLogin() throws Exception {
+        dynamicSetUp();
+        JenkinsRule.WebClient wc = j.createWebClient().login("Fred", "ia4uV1EeKait");
+        assertThat(wc.goToXml("whoAmI/api/xml").asXml().replaceAll("\\s+", ""), containsString("<name>Fred</name>"));
+        /* For a JENKINS-63737 stress test:
+        while (true) {
+            j.createWebClient().login("Fred", "ia4uV1EeKait");
+        }
+        */
     }
 
     @Test
