@@ -3,6 +3,7 @@ package hudson.plugins.active_directory;
 import com.gargoylesoftware.htmlunit.html.DomElement;
 import hudson.model.AdministrativeMonitor;
 import hudson.plugins.active_directory.docker.TheFlintstonesTest;
+import hudson.security.HudsonPrivateSecurityRealm;
 import hudson.security.SecurityRealm;
 import jenkins.model.Jenkins;
 import org.junit.Rule;
@@ -14,9 +15,11 @@ import org.jvnet.hudson.test.recipes.LocalData;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertFalse;
 
@@ -329,6 +332,24 @@ public class ActiveDirectorySecurityRealmTest {
         assertEquals(activeDirectorySecurityRealm.getCache().getTtl(),1800);
         // Check tlsConfiguration
         assertEquals(activeDirectorySecurityRealm.getDomains().get(0).getTlsConfiguration(), TlsConfiguration.JDK_TRUSTSTORE);
+    }
+
+    @LocalData
+    @Test
+    public void testFallBackUserDomainController() throws Exception {
+        HudsonPrivateSecurityRealm hudsonPrivateSecurityRealm = new HudsonPrivateSecurityRealm(true, true, null);
+        hudsonPrivateSecurityRealm.createAccount("admin", "admin");
+        JenkinsRule.WebClient wc = jenkinsRule.createWebClient().login("admin", "admin");
+        assertThat(wc.goToXml("whoAmI/api/xml").asXml().replaceAll("\\s+", ""), containsString("<name>admin</name>"));
+    }
+
+    @LocalData
+    @Test
+    public void testFallBackUserDomain() throws Exception {
+        HudsonPrivateSecurityRealm hudsonPrivateSecurityRealm = new HudsonPrivateSecurityRealm(true, true, null);
+        hudsonPrivateSecurityRealm.createAccount("admin", "admin");
+        JenkinsRule.WebClient wc = jenkinsRule.createWebClient().login("admin", "admin");
+        assertThat(wc.goToXml("whoAmI/api/xml").asXml().replaceAll("\\s+", ""), containsString("<name>admin</name>"));
     }
 
 }

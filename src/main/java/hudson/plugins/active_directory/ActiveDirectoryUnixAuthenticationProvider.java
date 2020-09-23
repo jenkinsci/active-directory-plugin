@@ -353,6 +353,9 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                             context = descriptor.bind(bindName, bindPassword, ldapServers, props, domain.getTlsConfiguration());
                             anonymousBind = false;
                         } catch (NamingException e) {
+                            if (activeDirectoryInternalUser !=null) {
+                                throw e;
+                            }
                             throw new AuthenticationServiceException("Failed to bind to LDAP server with the bind name/password", e);
                         }
                     } else {
@@ -494,6 +497,9 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                 throw new CacheAuthenticationException("Authentication failed because there was a problem caching user " +  username, e);
             }
         } catch (ExecutionException e) {
+            if (e.getCause() instanceof NamingException) {
+                throw new NamingException();
+            }
             LOGGER.log(Level.SEVERE, "There was a problem caching user "+ username, e);
             throw new CacheAuthenticationException("Authentication failed because there was a problem caching user " +  username, e);
         }
