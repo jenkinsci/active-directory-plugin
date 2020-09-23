@@ -36,6 +36,18 @@ Since the version 2.5 the AD plugin adds a ManagementLink to report a Health Sta
 -   On this way, this admin user can be used to continue administering Jenkins in case of communication issues, where usually you were following the link [Disable security](https://www.jenkins.io/doc/book/system-administration/security/#disabling-security). 
 -   The password of this user is automatically synced with the Jenkins Internal Database by this feature. In order to configure this new feature you should enable \*Use Jenkins Internal Database\* in the AD configuration under Manage Jenkins → Configure Global Security and specify a SINGLE user by its username.
 
+This feature DOES NOT synchronize users in the Active Directory server and the Jenkins Internal Database. It ONLY allows you to have a SINGLE fallback user who must be previously created in Jenkins side. In order to create this user, you can go to Manage Jenkins -> Configure Global Security -> Security Realm -> Jenkins’ own user database [enable Allow users to sign up]. This will allow you to create a new user with the password that you would like. After this, you can change again to use Active Directory as Security Realm and use the fall-back user. 
+
+Another possibility is to execute the Groovy code below under Manage Jenkins -> Script console. This code will create the `admin` user into the Jenkins Internal Database with the password `mypassword`. **Don't forget to customize this user with the username/password that you would like.**
+
+```
+import hudson.security.HudsonPrivateSecurityRealm;
+
+HudsonPrivateSecurityRealm hudsonPrivateSecurityRealm = new HudsonPrivateSecurityRealm(true, true, null);
+hudsonPrivateSecurityRealm.createAccount("admin", "mypassword");
+```
+
+IMPORTANT: This fallback user will ONLY work under a `NamingException`, which includes `CommunicationException`. This means that it does not always fallback into the fallback user. It will only do it when there are problems when contacting the AD server.
   
 ![](docs/images/ad-internalJenkinsUser.png)
 
