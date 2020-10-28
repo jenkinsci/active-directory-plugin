@@ -24,9 +24,11 @@ package hudson.plugins.active_directory;
  * THE SOFTWARE.
  */
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
 import hudson.model.ManagementLink;
+import hudson.security.Permission;
 import hudson.security.SecurityRealm;
 import hudson.util.ListBoxModel;
 import jenkins.model.Jenkins;
@@ -37,6 +39,7 @@ import net.sf.json.JSONObject;
 import org.acegisecurity.userdetails.UserDetails;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
+import org.kohsuke.stapler.StaplerProxy;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -55,7 +58,7 @@ import java.util.List;
  * @since 2.1
  */
 @Extension
-public class ActiveDirectoryStatus extends ManagementLink {
+public class ActiveDirectoryStatus extends ManagementLink implements StaplerProxy {
 
     @Override
     public String getIconFileName() {
@@ -70,6 +73,12 @@ public class ActiveDirectoryStatus extends ManagementLink {
     @Override
     public String getUrlName() {
         return "ad-health";
+    }
+
+    @NonNull
+    @Override
+    public Permission getRequiredPermission() {
+        return Jenkins.ADMINISTER;
     }
 
     /**
@@ -133,6 +142,12 @@ public class ActiveDirectoryStatus extends ManagementLink {
             model.add(domain.getName());
         }
         return model;
+    }
+
+    @Override
+    public Object getTarget() {
+        Jenkins.get().checkPermission(getRequiredPermission());
+        return this;
     }
 
     /**
