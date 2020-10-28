@@ -38,6 +38,7 @@ import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.interceptor.RequirePOST;
 
 import javax.naming.CommunicationException;
 import javax.naming.Context;
@@ -273,9 +274,11 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
             }
             return model;
         }
-        
+
+        @RequirePOST
         public FormValidation doValidateTest(@QueryParameter(fixEmpty = true) String name, @QueryParameter(fixEmpty = true) String servers, @QueryParameter(fixEmpty = true) String site, @QueryParameter(fixEmpty = true) String bindName,
                                              @QueryParameter(fixEmpty = true) String bindPassword, @QueryParameter(fixEmpty = true) TlsConfiguration tlsConfiguration) throws IOException, ServletException, NamingException {
+            Jenkins.get().checkPermission(Jenkins.ADMINISTER);
             ActiveDirectoryDomain domain = new ActiveDirectoryDomain(name, servers, site, bindName, bindPassword, tlsConfiguration);
             List<ActiveDirectoryDomain> domains = new ArrayList<>(1);
             domains.add(domain);
@@ -286,8 +289,6 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
             ClassLoader ccl = Thread.currentThread().getContextClassLoader();
             Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
             try {
-                Functions.checkPermission(Jenkins.ADMINISTER);
-
                 // In case we can do native authentication
                 if (activeDirectorySecurityRealm.getDescriptor().canDoNativeAuth() && name==null) {
                     // this check must be identical to that of ActiveDirectory.groovy
