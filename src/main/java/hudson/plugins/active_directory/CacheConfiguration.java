@@ -17,7 +17,7 @@ public class CacheConfiguration<K,V,E extends Exception> {
     /**
      * The {@link UserDetails} cache.
      */
-    private transient final Cache<String, UserDetails> userCache;
+    private transient final Cache<CacheKey, UserDetails> userCache;
 
     /**
      * The {@link ActiveDirectoryGroupDetails} cache.
@@ -69,7 +69,7 @@ public class CacheConfiguration<K,V,E extends Exception> {
      *
      * @return the cache for users
      */
-    public Cache<String, UserDetails> getUserCache() {
+    public Cache<CacheKey, UserDetails> getUserCache() {
         return userCache;
     }
 

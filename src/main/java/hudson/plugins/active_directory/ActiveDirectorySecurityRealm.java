@@ -411,7 +411,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 	                    for (SocketInfo ldapServer : ldapServers) {
 	                        pw.println("Trying a domain controller at "+ldapServer);
 	                        try {
-	                            UserDetails d = p.retrieveUser(username, password, domain, Collections.singletonList(ldapServer));
+	                            UserDetails d = p.retrieveUser(username, new ActiveDirectoryUnixAuthenticationProvider.UserPassword(password), domain, Collections.singletonList(ldapServer));
 	                            pw.println("Authenticated as "+d);
 	                        } catch (AuthenticationException e) {
 	                            e.printStackTrace(pw);

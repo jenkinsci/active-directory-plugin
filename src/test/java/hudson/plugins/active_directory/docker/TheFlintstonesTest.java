@@ -24,8 +24,11 @@
 
 package hudson.plugins.active_directory.docker;
 
+import com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException;
 import hudson.plugins.active_directory.ActiveDirectoryDomain;
+import hudson.plugins.active_directory.ActiveDirectoryInternalUsersDatabase;
 import hudson.plugins.active_directory.ActiveDirectorySecurityRealm;
+import hudson.plugins.active_directory.CacheConfiguration;
 import hudson.plugins.active_directory.GroupLookupStrategy;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
@@ -51,10 +54,13 @@ import java.util.Collection;
 import java.util.List;
 
 import static junit.framework.Assert.assertEquals;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsStringIgnoringCase;
 import static org.junit.Assert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.util.logging.Formatter;
 import java.util.logging.Level;
@@ -67,6 +73,7 @@ import com.google.common.collect.Collections2;
 
 import hudson.security.GroupDetails;
 import hudson.util.RingBufferLogHandler;
+import org.jvnet.hudson.test.LoggerRule;
 import org.jvnet.hudson.test.recipes.LocalData;
 
 /**
@@ -79,6 +86,9 @@ public class TheFlintstonesTest {
 
     @Rule
     public JenkinsRule j = new JenkinsRule();
+
+    @Rule
+    public LoggerRule l = new LoggerRule();
 
     public final static String AD_DOMAIN = "samdom.example.com";
     public final static String AD_MANAGER_DN = "CN=Administrator,CN=Users,DC=SAMDOM,DC=EXAMPLE,DC=COM";
@@ -154,6 +164,20 @@ public class TheFlintstonesTest {
             j.createWebClient().login("Fred", "ia4uV1EeKait");
         }
         */
+    }
+
+    @Issue("SECURITY-2099")
+    @Test
+    public void shouldNotAllowEmptyPassword() throws Exception {
+        l.record(hudson.plugins.active_directory.ActiveDirectoryUnixAuthenticationProvider.class, Level.FINE).capture(20);
+        dynamicSetUp();
+        try {
+            j.createWebClient().login("Fred", "");
+            fail();
+        } catch (FailingHttpStatusCodeException ex) {
+        }
+        final List<String> messages = l.getMessages();
+        assertTrue(messages.stream().anyMatch(s -> s.contains("Failed to retrieve user Fred")));
     }
 
     @Test
@@ -299,6 +323,34 @@ public class TheFlintstonesTest {
         } catch (CommunicationException e) {
             assertTrue(e.getMessage().contains("simple bind failed"));
         }
+    }
+
+    @Issue("SECURITY-2117")
+    @Test
+    public void testNullBytesInPasswordMustFail() throws Exception {
+        l.record(hudson.plugins.active_directory.ActiveDirectoryUnixAuthenticationProvider.class, Level.FINE).capture(20);
+        dynamicSetUp();
+        try {
+            JenkinsRule.WebClient wc = j.createWebClient().login("Fred", "\u0000\u0000\u0000\u0000\u0000\u0000");
+            fail();
+        } catch (FailingHttpStatusCodeException ex) {
+        }
+        final List<String> messages = l.getMessages();
+        assertTrue(messages.stream().anyMatch(s -> s.contains("Failed to retrieve user Fred")));
+    }
+
+    @Issue("SECURITY-2117")
+    @Test
+    public void testIncorrectPasswordMustFail() throws Exception {
+        l.record(hudson.plugins.active_directory.ActiveDirectoryUnixAuthenticationProvider.class, Level.FINE).capture(20);
+        dynamicSetUp();
+        try {
+            JenkinsRule.WebClient wc = j.createWebClient().login("Fred", "Fred");
+            fail();
+        } catch (FailingHttpStatusCodeException ex) {
+        }
+        final List<String> messages = l.getMessages();
+        assertTrue(messages.stream().anyMatch(s -> s.contains("Failed to retrieve user Fred")));
     }
 
     @DockerFixture(id = "ad-dc", ports= {135, 138, 445, 39, 464, 389, 3268}, udpPorts = {53}, matchHostPorts = true)

@@ -53,15 +53,15 @@ public class ActiveDirectoryUserDetail extends User {
 
     private String toStringValue;
 
+    // TODO Remove 'password' argument from constructor
 	public ActiveDirectoryUserDetail(String username, String password,
 			boolean enabled, boolean accountNonExpired,
 			boolean credentialsNonExpired, boolean accountNonLocked,
 			GrantedAuthority[] authorities,
 			String displayName, String mail, String telephoneNumber)
 			throws IllegalArgumentException {
-		// Acegi doesn't like null password, but during remember-me processing
-		// we don't know the password so we need to set some dummy. See #1229
-		super(username, password != null ? password : "PASSWORD", enabled,
+		// We cannot just set a null password, so we need to set some dummy. See JENKINS-1229
+		super(username, "redacted", enabled,
 				accountNonExpired, credentialsNonExpired, accountNonLocked,
 				authorities);
 

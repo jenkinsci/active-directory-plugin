@@ -39,6 +39,7 @@ import com4j.typelibs.ado20._Command;
 import com4j.typelibs.ado20._Connection;
 import com4j.typelibs.ado20._Recordset;
 import com4j.util.ComObjectCollector;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.security.GroupDetails;
 import hudson.security.SecurityRealm;
 import hudson.security.UserMayOrMayNotExistException;
@@ -58,6 +59,8 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import org.apache.commons.lang.StringUtils;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataAccessResourceFailureException;
 
@@ -67,6 +70,9 @@ import org.springframework.dao.DataAccessResourceFailureException;
  * @author Kohsuke Kawaguchi
  */
 public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirectoryAuthenticationProvider {
+    @SuppressFBWarnings("MS_SHOULD_BE_FINAL")
+    private static /* non-final for Groovy */ boolean ALLOW_EMPTY_PASSWORD = Boolean.getBoolean(ActiveDirectoryAuthenticationProvider.class.getName() + ".ALLOW_EMPTY_PASSWORD");
+
     private final String defaultNamingContext;
     /**
      * ADO connection for searching Active Directory.
@@ -81,7 +87,7 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
     /**
      * The {@link UserDetails} cache.
      */
-    private final Cache<String, UserDetails> userCache;
+    private final Cache<CacheKey, UserDetails> userCache;
 
     /**
      * The {@link ActiveDirectoryGroupDetails} cache.
@@ -141,13 +147,21 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
 
     protected UserDetails retrieveUser(final String username,final  UsernamePasswordAuthenticationToken authentication) throws AuthenticationException {
         try {
-            return  userCache.get(username, new Callable<UserDetails>() {
-                public UserDetails call() {
-                    String password = null;
-                    if(authentication!=null) {
-                        password = (String) authentication.getCredentials();
-                    }
+            Password password;
+            if (authentication == null) {
+                password = NoAuthentication.INSTANCE;
+            } else {
+                final String userPassword = (String) authentication.getCredentials();
+                if (!ALLOW_EMPTY_PASSWORD && StringUtils.isEmpty(userPassword)) {
+                    LOGGER.log(Level.FINE, "Empty password not allowed was tried by user {0}", username);
+                    throw new BadCredentialsException("Empty password not allowed");
+                }
+                password = new UserPassword(userPassword);
+            }
+            final CacheKey cacheKey = CacheUtil.computeCacheKey(username, password, userCache.asMap().keySet());
 
+            final Callable<UserDetails> callable = new Callable<UserDetails>() {
+                public UserDetails call() {
                     String dn = getDnOfUserOrGroup(username);
 
                     ComObjectCollector col = new ComObjectCollector();
@@ -165,7 +179,7 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
                         try {
                             usr = (authentication==null
                                     ? dso.openDSObject(dnToLdapUrl(dn), null, null, ADS_READONLY_SERVER)
-                                    : dso.openDSObject(dnToLdapUrl(dn), dn, password, ADS_READONLY_SERVER))
+                                    : dso.openDSObject(dnToLdapUrl(dn), dn, ((UserPassword)password).getPassword(), ADS_READONLY_SERVER))
                                     .queryInterface(IADsUser.class);
                         } catch (ComException e) {
                             // this is failing
@@ -190,7 +204,7 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
                         LOGGER.log(Level.FINE, "Login successful: {0} dn={1}", new Object[] {username, dn});
 
                         return new ActiveDirectoryUserDetail(
-                                username, password,
+                                username, "redacted",
                                 !isAccountDisabled(usr),
                                 true, true, true,
                                 groups.toArray(new GrantedAuthority[0]),
@@ -201,7 +215,8 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
                         COM4J.removeListener(col);
                     }
                 }
-            });
+            };
+            return cacheKey == null ? callable.call() : userCache.get(cacheKey, callable);
         } catch (UncheckedExecutionException e) {
             Throwable t = e.getCause();
             if (t instanceof AuthenticationException) {
@@ -210,7 +225,10 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
             } else {
                 throw new CacheAuthenticationException("Authentication failed because there was a problem caching user " + username, e);
             }
-        } catch (java.util.concurrent.ExecutionException e) {
+        } catch (Exception e) {
+            if (e instanceof AuthenticationException) {
+                throw (AuthenticationException)e;
+            }
             LOGGER.log(Level.SEVERE, String.format("There was a problem caching user %s", username), e);
             throw new CacheAuthenticationException("Authentication failed because there was a problem caching user " + username, e);
         }

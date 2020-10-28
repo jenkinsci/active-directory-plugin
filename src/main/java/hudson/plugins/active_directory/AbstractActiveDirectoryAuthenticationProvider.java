@@ -28,6 +28,8 @@ import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
 import org.acegisecurity.userdetails.UserDetails;
 import org.acegisecurity.userdetails.UserDetailsService;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.springframework.dao.DataAccessException;
 
 /**
@@ -50,4 +52,26 @@ public abstract class AbstractActiveDirectoryAuthenticationProvider implements U
         // so there's nothing to do here.
     }
 
+    @Restricted(NoExternalUse.class)
+    interface Password {
+
+    }
+
+    @Restricted(NoExternalUse.class)
+    final static class UserPassword implements Password {
+
+        private final String password;
+
+        public UserPassword(String password) {
+            this.password = password;
+        }
+        public String getPassword() {
+            return password;
+        }
+    }
+
+    @Restricted(NoExternalUse.class)
+    public enum NoAuthentication implements Password {
+        INSTANCE
+    }
 }
