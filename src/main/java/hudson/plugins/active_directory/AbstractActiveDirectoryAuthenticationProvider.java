@@ -30,6 +30,8 @@ import org.acegisecurity.providers.dao.AbstractUserDetailsAuthenticationProvider
 import org.acegisecurity.userdetails.UserDetails;
 import org.acegisecurity.userdetails.UserDetailsService;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.springframework.dao.DataAccessException;
 
 /**
@@ -65,4 +67,27 @@ public abstract class AbstractActiveDirectoryAuthenticationProvider extends Abst
      */
     @SuppressFBWarnings(value = "MS_SHOULD_BE_FINAL", justification = "Diagnostic fields are left mutable so that groovy console can be used to dynamically turn/off probes.")
     public static boolean SHOW_USER_NOT_FOUND_EXCEPTION = Boolean.getBoolean(AbstractActiveDirectoryAuthenticationProvider.class.getName()+".showUserNotFoundException");
+
+    @Restricted(NoExternalUse.class)
+    interface Password {
+
+    }
+
+    @Restricted(NoExternalUse.class)
+    final static class UserPassword implements Password {
+
+        private final String password;
+
+        public UserPassword(String password) {
+            this.password = password;
+        }
+        public String getPassword() {
+            return password;
+        }
+    }
+
+    @Restricted(NoExternalUse.class)
+    public enum NoAuthentication implements Password {
+        INSTANCE
+    }
 }

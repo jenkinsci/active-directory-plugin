@@ -278,7 +278,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
         @RequirePOST
         public FormValidation doValidateTest(@QueryParameter(fixEmpty = true) String name, @QueryParameter(fixEmpty = true) String servers, @QueryParameter(fixEmpty = true) String site, @QueryParameter(fixEmpty = true) String bindName,
                                              @QueryParameter(fixEmpty = true) String bindPassword, @QueryParameter(fixEmpty = true) TlsConfiguration tlsConfiguration) throws IOException, ServletException, NamingException {
-            Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+            Jenkins.getActiveInstance().checkPermission(Jenkins.ADMINISTER);
             ActiveDirectoryDomain domain = new ActiveDirectoryDomain(name, servers, site, bindName, bindPassword, tlsConfiguration);
             List<ActiveDirectoryDomain> domains = new ArrayList<>(1);
             domains.add(domain);

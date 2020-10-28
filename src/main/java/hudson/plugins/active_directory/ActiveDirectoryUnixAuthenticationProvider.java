@@ -47,7 +47,6 @@ import org.acegisecurity.providers.AuthenticationProvider;
 import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
 import org.acegisecurity.userdetails.UserDetails;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
-import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang.StringUtils;
 
 import javax.naming.NamingEnumeration;
@@ -65,6 +64,7 @@ import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.Stack;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -107,7 +107,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     /**
      * The {@link UserDetails} cache.
      */
-    private final Cache<String, UserDetails> userCache;
+    private final Cache<CacheKey, UserDetails> userCache;
 
     /**
      * The {@link ActiveDirectoryGroupDetails} cache.
@@ -224,7 +224,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                 try {
                     return retrieveUser(username, authentication, domain);
                 } catch (NamingException ne) {
-                    if (activeDirectoryInternalUser != null && activeDirectoryInternalUser.getJenkinsInternalUser() != null && username.equals(activeDirectoryInternalUser.getJenkinsInternalUser())) {
+                    if (userMatchesInternalDatabaseUser(username)) {
                         LOGGER.log(Level.WARNING, String.format("Looking into Jenkins Internal Users Database for user %s", username));
                         User internalUser = hudson.model.User.get(username);
                         HudsonPrivateSecurityRealm.Details hudsonPrivateSecurityRealm = internalUser.getProperty(HudsonPrivateSecurityRealm.Details.class);
@@ -234,7 +234,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                         }
                         if (hudsonPrivateSecurityRealm.isPasswordCorrect(password)) {
                             LOGGER.log(Level.INFO, String.format("Falling back into the internal user %s", username));
-                            return new ActiveDirectoryUserDetail(username, password, true, true, true, true, hudsonPrivateSecurityRealm.getAuthorities(), internalUser.getDisplayName(), "", "");
+                            return new ActiveDirectoryUserDetail(username, "redacted", true, true, true, true, hudsonPrivateSecurityRealm.getAuthorities(), internalUser.getDisplayName(), "", "");
                         } else {
                             LOGGER.log(Level.WARNING, String.format("Credential exception trying to authenticate against %s domain", domain.getName()), ne);
                             errors.add(new MultiCauseUserMayOrMayNotExistException("We can't tell if the user exists or not: " + username, notFound));
@@ -296,9 +296,9 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         ClassLoader ccl = Thread.currentThread().getContextClassLoader();
         Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
         try {
-            String password = NO_AUTHENTICATION;
+            Password password = NoAuthentication.INSTANCE;
             if (authentication!=null)
-                password = (String) authentication.getCredentials();
+                password = new UserPassword((String) authentication.getCredentials());
 
             return retrieveUser(username, password, domain, obtainLDAPServers(domain));
         } finally {
@@ -323,27 +323,30 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
      * Authenticates and retrieves the user by using the given list of available AD LDAP servers.
      * 
      * @param password
-     *      If this is {@link #NO_AUTHENTICATION}, the authentication is not performed, and just the retrieval
+     *      If this is {@link AbstractActiveDirectoryAuthenticationProvider.NoAuthentication}, the authentication is not performed, and just the retrieval
      *      would happen.
      * @throws UsernameNotFoundException
      *      The user didn't exist.
      * @return never null
      */
     @SuppressFBWarnings(value = "ES_COMPARING_PARAMETER_STRING_WITH_EQ", justification = "Intentional instance check.")
-    public UserDetails retrieveUser(final String username, final String password, final ActiveDirectoryDomain domain, final List<SocketInfo> ldapServers) throws NamingException {
+    public UserDetails retrieveUser(final String username, final Password password, final ActiveDirectoryDomain domain, final List<SocketInfo> ldapServers) throws NamingException {
+        Objects.requireNonNull(password);
         UserDetails userDetails;
-        String hashKey = username + "@@" + DigestUtils.sha1Hex(password);
+        final CacheKey cacheKey = CacheUtil.computeCacheKey(username, password, userCache.asMap().keySet());
+
         final String bindName = domain.getBindName();
         final String bindPassword = Secret.toString(domain.getBindPassword());
+
         try {
             final ActiveDirectoryUserDetail[] cacheMiss = new ActiveDirectoryUserDetail[1];
-            userDetails = userCache.get(hashKey, new Callable<UserDetails>() {
+            final Callable<UserDetails> callable = new Callable<UserDetails>() {
                 public UserDetails call() throws AuthenticationException, NamingException {
                     DirContext context;
                     boolean anonymousBind = false;    // did we bind anonymously?
 
                     // LDAP treats empty password as anonymous bind, so we need to reject it
-                    if (StringUtils.isEmpty(password)) {
+                    if (password instanceof UserPassword && StringUtils.isEmpty(((UserPassword) password).getPassword())) {
                         throw new BadCredentialsException("Empty password");
                     }
 
@@ -357,17 +360,18 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                             context = descriptor.bind(bindName, bindPassword, ldapServers, props, domain.getTlsConfiguration());
                             anonymousBind = false;
                         } catch (NamingException e) {
+                            if (activeDirectoryInternalUser !=null) {
+                                throw e;
+                            }
                             throw new AuthenticationServiceException("Failed to bind to LDAP server with the bind name/password", e);
                         }
                     } else {
-                        if (password.equals(NO_AUTHENTICATION)) {
-                            anonymousBind = true;
-                        }
+                        anonymousBind = password instanceof NoAuthentication;
 
                         try {
                             // if we are just retrieving the user, try using anonymous bind by empty password (see RFC 2829 5.1)
                             // but if that fails, that's not BadCredentialException but UserMayOrMayNotExistException
-                            context = descriptor.bind(userPrincipalName, anonymousBind ? "" : password, ldapServers, props, domain.getTlsConfiguration());
+                            context = descriptor.bind(userPrincipalName, anonymousBind ? "" : ((UserPassword) password).getPassword(), ldapServers, props, domain.getTlsConfiguration());
                         } catch (BadCredentialsException e) {
                             if (anonymousBind)
                                 // in my observation, if we attempt an anonymous bind and AD doesn't allow it, it still passes the bind method
@@ -403,11 +407,11 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                         LdapName ldapName = new LdapName(dn);
                         String dnFormatted = ldapName.toString();
 
-                        if (bindName != null && !password.equals(NO_AUTHENTICATION)) {
+                        if (bindName != null && password instanceof UserPassword) {
                             // if we've used the credential specifically for the bind, we
                             // need to verify the provided password to do authentication
                             LOGGER.log(Level.FINE, "Attempting to validate password for DN={0}", dn);
-                            DirContext test = descriptor.bind(dnFormatted, password, ldapServers, props, domain.getTlsConfiguration());
+                            DirContext test = descriptor.bind(dnFormatted, ((UserPassword) password).getPassword(), ldapServers, props, domain.getTlsConfiguration());
                             // Binding alone is not enough to test the credential. Need to actually perform some query operation.
                             // but if the authentication fails this throws an exception
                             try {
@@ -420,7 +424,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                         Set<GrantedAuthority> groups = resolveGroups(domainDN, dnFormatted, context);
                         groups.add(SecurityRealm.AUTHENTICATED_AUTHORITY);
 
-                        cacheMiss[0] = new ActiveDirectoryUserDetail(username, password, true, true, true, true, groups.toArray(new GrantedAuthority[0]),
+                        cacheMiss[0] = new ActiveDirectoryUserDetail(username, "redacted", true, true, true, true, groups.toArray(new GrantedAuthority[0]),
                                 getStringAttribute(user, "displayName"),
                                 getStringAttribute(user, "mail"),
                                 getStringAttribute(user, "telephoneNumber")
@@ -449,8 +453,9 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                         closeQuietly(context);
                     }
                 }
-            });
-            if (cacheMiss[0] != null) {
+            };
+            userDetails = cacheKey == null ? callable.call() : userCache.get(cacheKey, callable);
+            if (cacheMiss[0] != null || cacheKey == null) { // If a lookup was performed
                 threadPoolExecutor.execute(new Runnable() {
                     @Override
                     public void run() {
@@ -468,7 +473,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                         }
                     }
                 });
-                if (activeDirectoryInternalUser != null && activeDirectoryInternalUser.getJenkinsInternalUser() != null&& username.equals(activeDirectoryInternalUser.getJenkinsInternalUser())) {
+                if (userMatchesInternalDatabaseUser(username) && password instanceof UserPassword) {
                     threadPoolExecutor.execute(new Runnable() {
                         @Override
                         public void run() {
@@ -477,7 +482,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                             LOGGER.log(Level.FINEST, "Starting the Jenkins Internal Database update {0}", new Date());
                             try {
                                 long t0 = System.currentTimeMillis();
-                                cacheMiss[0].updatePasswordInJenkinsInternalDatabase(username, password);
+                                cacheMiss[0].updatePasswordInJenkinsInternalDatabase(username, ((UserPassword)password).getPassword());
                                 LOGGER.log(Level.FINEST, "Finished the password update {0}", new Date());
                                 long t1 = System.currentTimeMillis();
                                 LOGGER.log(Level.FINE, "The password update for user {0} took {1} msec", new Object[]{cacheMiss[0].getUsername(), String.valueOf(t1-t0)});
@@ -492,21 +497,22 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         } catch (UncheckedExecutionException e) {
            Throwable t = e.getCause();
             if (t instanceof AuthenticationException) {
-                AuthenticationException authenticationException= (AuthenticationException)t;
-                throw authenticationException;
+                throw (AuthenticationException)t;
             } else {
                 throw new CacheAuthenticationException("Authentication failed because there was a problem caching user " +  username, e);
             }
-        } catch (ExecutionException e) {
+        } catch (Exception e) {
+            if (e instanceof NamingException) {
+                throw (NamingException)e;
+            }
             LOGGER.log(Level.SEVERE, "There was a problem caching user "+ username, e);
             throw new CacheAuthenticationException("Authentication failed because there was a problem caching user " +  username, e);
         }
-        // We need to check the password when the user is cached so it doesn't get automatically authenticated
-        // without verifying the credentials
-        if (password != null && !password.equals(NO_AUTHENTICATION) && userDetails != null && !password.equals(userDetails.getPassword())) {
-            throw new BadCredentialsException("Failed to retrieve user information from the cache for "+ username);
-        }
         return userDetails;
+    }
+
+    private boolean userMatchesInternalDatabaseUser(String username) {
+        return activeDirectoryInternalUser != null && activeDirectoryInternalUser.getJenkinsInternalUser() != null && username.equals(activeDirectoryInternalUser.getJenkinsInternalUser());
     }
 
     public GroupDetails loadGroupByGroupname(final String groupname) {
@@ -827,10 +833,4 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     }
 
     private static final Logger LOGGER = Logger.getLogger(ActiveDirectoryUnixAuthenticationProvider.class.getName());
-
-    /**
-     * We use this as the password value if we are calling retrieveUser to retrieve the user information
-     * without authentication.
-     */
-    private static final String NO_AUTHENTICATION = "\u0000\u0000\u0000\u0000\u0000\u0000";
 }

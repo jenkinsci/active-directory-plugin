@@ -439,7 +439,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     @RequirePOST
     public void doAuthTest(StaplerRequest req, StaplerResponse rsp, @QueryParameter String username, @QueryParameter String password) throws IOException, ServletException {
         // require the administrator permission since this is full of debug info.
-        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+        Jenkins.getActiveInstance().checkPermission(Jenkins.ADMINISTER);
 
         StringWriter out = new StringWriter();
         PrintWriter pw = new PrintWriter(out);
@@ -461,7 +461,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 	                    for (SocketInfo ldapServer : ldapServers) {
 	                        pw.println("Trying a domain controller at "+ldapServer);
 	                        try {
-	                            UserDetails d = p.retrieveUser(username, password, domain, Collections.singletonList(ldapServer));
+	                            UserDetails d = p.retrieveUser(username, new ActiveDirectoryUnixAuthenticationProvider.UserPassword(password), domain, Collections.singletonList(ldapServer));
 	                            pw.println("Authenticated as "+d);
 	                        } catch (AuthenticationException e) {
 	                            e.printStackTrace(pw);

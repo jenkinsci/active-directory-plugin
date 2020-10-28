@@ -146,7 +146,7 @@ public class ActiveDirectoryStatus extends ManagementLink implements StaplerProx
 
     @Override
     public Object getTarget() {
-        Jenkins.get().checkPermission(getRequiredPermission());
+        Jenkins.getActiveInstance().checkPermission(getRequiredPermission());
         return this;
     }
 

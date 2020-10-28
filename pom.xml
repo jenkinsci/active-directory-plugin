@@ -71,6 +71,11 @@
       <version>1.5</version>
     </dependency>
     <dependency>
+      <groupId>com.github.spotbugs</groupId>
+      <artifactId>spotbugs-annotations</artifactId>
+      <version>4.1.4</version>
+    </dependency>
+    <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
       <version>2.25.1</version>
@@ -121,8 +126,8 @@
          <groupId>org.apache.maven.plugins</groupId>
          <artifactId>maven-surefire-plugin</artifactId>
          <configuration>
-           <forkCount>2C</forkCount>
-           <reuseForks>true</reuseForks>
+           <!--<forkCount>2C</forkCount>-->
+           <!--<reuseForks>false</reuseForks>-->
            <argLine>-Xms2048m -Xmx2048m</argLine>
          </configuration>
        </plugin>
@@ -142,6 +147,10 @@
             <configuration>
               <excludes>
                 <exclude>**/TheFlintstonesTest.java</exclude>
+                <exclude>**/EntoEndUserCacheLookupEnabledTest.java</exclude>
+                <exclude>**/EntoEndUserCacheLookupDisabledTest.java</exclude>
+                <exclude>**/WindowsAdsiModeUserCacheDisabledTest.java</exclude>
+                <exclude>**/WindowsAdsiModeUserCacheEnabledTest.java</exclude>
               </excludes>
             </configuration>
           </plugin>
