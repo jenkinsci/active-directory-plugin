@@ -5,6 +5,14 @@
 
 Be careful if you intend to install version 1.37. It has been known to cause excessive load on Active Directory authentication servers. If you install this version you should carefully monitor traffic on relevant ports, e.g.: `tcpdump port 389 or 3268`.
 
+## Version 2.20 (2020/11/04)
+
+* [Important security fixes](https://www.jenkins.io/security/advisory/2020-11-04/)
+* User passwords are no longer stored in memory as part of the authentication cache.
+  Instead, BCrypt is used.
+  The Java system property `hudson.plugins.active_directory.CacheUtil.bcryptLogRounds` can be used to configure the cost parameter; the default is 10 (for 1024 rounds).
+  Additionally, the caching of successful authentications can be disabled by setting the system property `hudson.plugins.active_directory.CacheUtil.noCacheAuth` to `true`.
+* When a local fallback security realm is configured, the plugin would sometimes reset the password of the specified user to a fixed value.
 
 ## Version 2.16 (2019/05/23)
 
