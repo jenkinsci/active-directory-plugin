@@ -23,34 +23,26 @@
  */
 package hudson.plugins.active_directory;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.acegisecurity.AuthenticationException;
 import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
-import org.acegisecurity.providers.dao.AbstractUserDetailsAuthenticationProvider;
 import org.acegisecurity.userdetails.UserDetails;
 import org.acegisecurity.userdetails.UserDetailsService;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.springframework.dao.DataAccessException;
 
 /**
  * @author Kohsuke Kawaguchi
  */
-public abstract class AbstractActiveDirectoryAuthenticationProvider extends AbstractUserDetailsAuthenticationProvider implements UserDetailsService, GroupDetailsService {
-    protected AbstractActiveDirectoryAuthenticationProvider() {
-        setHideUserNotFoundExceptions(SHOW_USER_NOT_FOUND_EXCEPTION);
-    }
+public abstract class AbstractActiveDirectoryAuthenticationProvider implements UserDetailsService, GroupDetailsService {
 
     /**
      * Authenticates the user (if {@code authentication!=null}), or retrieve the user name information (otherwise.)
      */
     protected abstract UserDetails retrieveUser(String username, UsernamePasswordAuthenticationToken authentication) throws AuthenticationException;
 
-    /**
-     * Returns true if we can retrieve user just from the name without supplying any credential.
-     */
-    @Deprecated
-    protected abstract boolean canRetrieveUserByName(ActiveDirectoryDomain domain);
-
+    @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException, DataAccessException {
         return retrieveUser(username,null);
     }
@@ -60,9 +52,26 @@ public abstract class AbstractActiveDirectoryAuthenticationProvider extends Abst
         // so there's nothing to do here.
     }
 
-    /**
-     * Setting this to true might help with diagnosing login problem.
-     */
-    @SuppressFBWarnings(value = "MS_SHOULD_BE_FINAL", justification = "Diagnostic fields are left mutable so that groovy console can be used to dynamically turn/off probes.")
-    public static boolean SHOW_USER_NOT_FOUND_EXCEPTION = Boolean.getBoolean(AbstractActiveDirectoryAuthenticationProvider.class.getName()+".showUserNotFoundException");
+    @Restricted(NoExternalUse.class)
+    interface Password {
+
+    }
+
+    @Restricted(NoExternalUse.class)
+    final static class UserPassword implements Password {
+
+        private final String password;
+
+        public UserPassword(String password) {
+            this.password = password;
+        }
+        public String getPassword() {
+            return password;
+        }
+    }
+
+    @Restricted(NoExternalUse.class)
+    public enum NoAuthentication implements Password {
+        INSTANCE
+    }
 }

@@ -4,21 +4,22 @@
   <parent>
     <groupId>org.jenkins-ci.plugins</groupId>
     <artifactId>plugin</artifactId>
-    <version>3.40</version>
+    <version>4.7</version>
+    <relativePath />
   </parent>
 
   <artifactId>active-directory</artifactId>
   <packaging>hpi</packaging>
-  <version>2.16-SNAPSHOT</version>
+  <version>${revision}${changelist}</version>
   <name>Jenkins Active Directory plugin</name>
   <description>Enables authentication through Active Directory</description>
-  <url>https://wiki.jenkins-ci.org/display/JENKINS/Active+Directory+Plugin</url>
+  <url>https://github.com/jenkinsci/active-directory-plugin</url>
 
   <scm>
-   <connection>scm:git:git://github.com/jenkinsci/active-directory-plugin.git</connection>
-   <developerConnection>scm:git:git@github.com:jenkinsci/active-directory-plugin.git</developerConnection>
-   <url>https://github.com/jenkinsci/active-directory-plugin</url>
-    <tag>HEAD</tag>
+   <connection>scm:git:git://github.com/${gitHubRepo}.git</connection>
+   <developerConnection>scm:git:git@github.com:${gitHubRepo}.git</developerConnection>
+   <url>https://github.com/${gitHubRepo}</url>
+   <tag>${scmTag}</tag>
   </scm>
 
   <developers>
@@ -33,8 +34,12 @@
   </developers>
 
   <properties>
-    <jenkins.version>2.60.3</jenkins.version>
+    <revision>2.21</revision>
+    <changelist>-SNAPSHOT</changelist>
+    <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
+    <jenkins.version>2.235.5</jenkins.version>
     <java.level>8</java.level>
+    <configuration-as-code.version>1.35</configuration-as-code.version>
   </properties>
 
   <dependencies>
@@ -71,15 +76,25 @@
       <version>1.5</version>
     </dependency>
     <dependency>
+      <groupId>com.github.spotbugs</groupId>
+      <artifactId>spotbugs-annotations</artifactId>
+      <version>4.1.4</version>
+    </dependency>
+    <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
-      <version>2.25.1</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.powermock</groupId>
       <artifactId>powermock-module-junit4</artifactId>
       <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.hamcrest</groupId>
+          <artifactId>hamcrest-core</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.powermock</groupId>
@@ -90,7 +105,7 @@
     <dependency>
       <groupId>org.jenkins-ci.test</groupId>
       <artifactId>docker-fixtures</artifactId>
-      <version>1.8</version>
+      <version>1.10</version>
       <scope>test</scope>
       <exclusions>
         <exclusion>
@@ -101,7 +116,30 @@
           <groupId>commons-io</groupId>
           <artifactId>commons-io</artifactId>
         </exclusion>
+        <exclusion>
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>jackson-databind</artifactId>
+        </exclusion>
       </exclusions>
+    </dependency>
+    <!-- JCasC compatibility -->
+    <dependency>
+      <groupId>io.jenkins</groupId>
+      <artifactId>configuration-as-code</artifactId>
+      <version>${configuration-as-code.version}</version>
+      <optional>true</optional>
+    </dependency>
+    <dependency>
+      <groupId>io.jenkins.configuration-as-code</groupId>
+      <artifactId>test-harness</artifactId>
+      <version>${configuration-as-code.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.github.stefanbirkner</groupId>
+      <artifactId>system-rules</artifactId>
+      <version>1.19.0</version>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 
@@ -121,8 +159,8 @@
          <groupId>org.apache.maven.plugins</groupId>
          <artifactId>maven-surefire-plugin</artifactId>
          <configuration>
-           <forkCount>2C</forkCount>
-           <reuseForks>true</reuseForks>
+           <!--<forkCount>2C</forkCount>-->
+           <!--<reuseForks>false</reuseForks>-->
            <argLine>-Xms2048m -Xmx2048m</argLine>
          </configuration>
        </plugin>
@@ -142,6 +180,10 @@
             <configuration>
               <excludes>
                 <exclude>**/TheFlintstonesTest.java</exclude>
+                <exclude>**/EntoEndUserCacheLookupEnabledTest.java</exclude>
+                <exclude>**/EntoEndUserCacheLookupDisabledTest.java</exclude>
+                <exclude>**/WindowsAdsiModeUserCacheDisabledTest.java</exclude>
+                <exclude>**/WindowsAdsiModeUserCacheEnabledTest.java</exclude>
               </excludes>
             </configuration>
           </plugin>

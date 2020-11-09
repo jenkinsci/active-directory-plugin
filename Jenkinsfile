@@ -1,4 +1,4 @@
-buildPlugin(configurations: buildPlugin.recommendedConfigurations())
+buildPlugin()
 
 node('docker') {
      stage('checkout') {
