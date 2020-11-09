@@ -56,11 +56,9 @@ import java.util.List;
 import static junit.framework.Assert.assertEquals;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsStringIgnoringCase;
-import static org.junit.Assert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.containsString;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 import java.util.logging.Formatter;
 import java.util.logging.Level;
@@ -152,6 +150,11 @@ public class TheFlintstonesTest {
         dynamicSetUp();
         UserDetails userDetails = j.jenkins.getSecurityRealm().loadUserByUsername("Fred");
         assertThat(userDetails.getUsername(), is("Fred"));
+        // JENKINS-55813
+        assertTrue(userDetails.isEnabled());
+        assertTrue(userDetails.isAccountNonExpired());
+        assertTrue(userDetails.isAccountNonLocked());
+        assertTrue(userDetails.isCredentialsNonExpired());
     }
 
     @Test
@@ -188,6 +191,14 @@ public class TheFlintstonesTest {
         } catch (UsernameNotFoundException e) {
             assertTrue(e.getMessage().contains("Authentication was successful but cannot locate the user information for Homer"));
         }
+    }
+
+    @Issue("JENKINS-55813")
+    @Test
+    public void disabledUser() throws Exception {
+        dynamicSetUp();
+        assertFalse(j.jenkins.getSecurityRealm().loadUserByUsername("Bam Bam").isEnabled());
+        assertThrows(FailingHttpStatusCodeException.class, () -> j.createWebClient().login("Bam Bam", AD_MANAGER_DN_PASSWORD));
     }
 
     @Issue("JENKINS-36148")

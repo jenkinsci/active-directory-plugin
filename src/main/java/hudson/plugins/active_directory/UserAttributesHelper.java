@@ -38,18 +38,28 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Ease all the computations required to determine the user account optional attributes for creating
- * the UserDetails that will be used by the SecurityRealm
+ * the UserDetails that will be used by the SecurityRealm. These attribute checks can be disabled by setting the
+ * system property {@code hudson.plugins.active_directory.ActiveDirectorySecurityRealm.disableUserPolicyEnforcement} to
+ * {@code true} (or setting the value of {@link ActiveDirectorySecurityRealm#DISABLE_USER_POLICY_ENFORCEMENT} in the
+ * script console).
+ *
+ * @see <a href="https://issues.jenkins.io/browse/JENKINS-55813">JENKINS-55813</a>
  */
 @Restricted(NoExternalUse.class)
 public class UserAttributesHelper {
     // https://support.microsoft.com/en-us/help/305144/how-to-use-the-useraccountcontrol-flags-to-manipulate-user-account-pro
+    // https://docs.microsoft.com/en-us/windows/win32/adschema/a-useraccountcontrol
     private static final String ATTR_USER_ACCOUNT_CONTROL = "userAccountControl";
+    // https://docs.microsoft.com/en-us/windows/win32/adschema/a-accountexpires
     private static final String ATTR_ACCOUNT_EXPIRES = "accountExpires";
     // for Windows Server 2003-based domain
+    // https://docs.microsoft.com/en-us/windows/win32/adschema/a-msds-user-account-control-computed
     private static final String ATTR_USER_ACCOUNT_CONTROL_COMPUTED = "msDS-User-Account-Control-Computed";
     // for ADAM (Active Directory Application Mode), replace the ADS_UF_DISABLED
+    // https://docs.microsoft.com/en-us/windows/win32/adschema/a-msds-useraccountdisabled
     private static final String ATTR_USER_ACCOUNT_DISABLED = "msDS-UserAccountDisabled";
     // for ADAM, replace the ADS_UF_PASSWORD_EXPIRED
+    // https://docs.microsoft.com/en-us/windows/win32/adschema/a-msds-userpasswordexpired
     private static final String ATTR_USER_PASSWORD_EXPIRED = "msDS-UserPasswordExpired";
 
     // https://docs.microsoft.com/en-us/windows/desktop/adschema/a-accountexpires
@@ -57,51 +67,41 @@ public class UserAttributesHelper {
     private static final long ACCOUNT_NO_EXPIRATION = 0x7FFF_FFFF_FFFF_FFFFL;
     private static final int ADS_UF_DISABLED = 0x0002;
     private static final int ADS_UF_LOCK_OUT = 0x0010;
+    private static final int ADS_DONT_EXPIRE_PASSWORD = 0x1_0000;
     private static final int ADS_UF_PASSWORD_EXPIRED = 0x80_0000;
 
     public static boolean checkIfUserIsEnabled(@Nonnull Attributes user) {
-        try {
-            String userAccountControl = getStringAttribute(user, ATTR_USER_ACCOUNT_CONTROL);
-            if (userAccountControl != null) {
-                int uacAsInt = Integer.parseInt(userAccountControl);
-                if ((uacAsInt & ADS_UF_DISABLED) == ADS_UF_DISABLED) {
-                    return false;
-                }
-            }
-
-            String adamUserAccountDisabled = getStringAttribute(user, ATTR_USER_ACCOUNT_DISABLED);
-            if (adamUserAccountDisabled != null) {
-                if (adamUserAccountDisabled.equals("true")) {
-                    return false;
-                } else {
-                    return true;
-                }
-            }
-
-            return true;
-        } catch (NamingException e) {
+        if (ActiveDirectorySecurityRealm.DISABLE_USER_POLICY_ENFORCEMENT) {
             return true;
         }
+
+        Integer uac = getUserAccountControl(user);
+        if (uac != null && (uac & ADS_UF_DISABLED) == ADS_UF_DISABLED) {
+            return false;
+        }
+
+        String disabled = getStringAttribute(user, ATTR_USER_ACCOUNT_DISABLED);
+        return !"true".equalsIgnoreCase(disabled);
     }
 
     public static boolean checkIfAccountNonExpired(@Nonnull Attributes user) {
-        try {
-            String accountExpirationDate = getStringAttribute(user, ATTR_ACCOUNT_EXPIRES);
-            if (accountExpirationDate != null) {
-                long expirationAsLong = Long.parseLong(accountExpirationDate);
-                if (expirationAsLong == 0L || expirationAsLong == ACCOUNT_NO_EXPIRATION) {
-                    return true;
-                }
-
-                long nowIn100NsFromJan1601 = getWin32EpochHundredNanos();
-                boolean expired = expirationAsLong < nowIn100NsFromJan1601;
-                return !expired;
-            }
-
-            return true;
-        } catch (NamingException e) {
+        if (ActiveDirectorySecurityRealm.DISABLE_USER_POLICY_ENFORCEMENT) {
             return true;
         }
+
+        String accountExpirationDate = getStringAttribute(user, ATTR_ACCOUNT_EXPIRES);
+        if (accountExpirationDate != null) {
+            long expirationAsLong = Long.parseLong(accountExpirationDate);
+            if (expirationAsLong == 0L || expirationAsLong == ACCOUNT_NO_EXPIRATION) {
+                return true;
+            }
+
+            long nowIn100NsFromJan1601 = getWin32EpochHundredNanos();
+            boolean expired = expirationAsLong < nowIn100NsFromJan1601;
+            return !expired;
+        }
+
+        return true;
     }
 
     // documentation: https://docs.microsoft.com/en-us/windows/desktop/adschema/a-accountexpires
@@ -120,71 +120,59 @@ public class UserAttributesHelper {
     }
 
     public static boolean checkIfCredentialsAreNonExpired(@Nonnull Attributes user) {
-        try {
-            String userAccountControl = getStringAttribute(user, ATTR_USER_ACCOUNT_CONTROL);
-            if (userAccountControl != null) {
-                int uacAsInt = Integer.parseInt(userAccountControl);
-                if ((uacAsInt & ADS_UF_PASSWORD_EXPIRED) == ADS_UF_PASSWORD_EXPIRED) {
-                    return false;
-                }
-            }
-
-            String userAccountControlComputed = getStringAttribute(user, ATTR_USER_ACCOUNT_CONTROL_COMPUTED);
-            if (userAccountControlComputed != null) {
-                int uacAsInt = Integer.parseInt(userAccountControlComputed);
-                if ((uacAsInt & ADS_UF_PASSWORD_EXPIRED) == ADS_UF_PASSWORD_EXPIRED) {
-                    return false;
-                }
-            }
-
-            String adamUserPasswordExpired = getStringAttribute(user, ATTR_USER_PASSWORD_EXPIRED);
-            if (adamUserPasswordExpired != null) {
-                if (adamUserPasswordExpired.equals("true")) {
-                    return false;
-                } else {
-                    return true;
-                }
-            }
-
-            return true;
-        } catch (NamingException e) {
+        if (ActiveDirectorySecurityRealm.DISABLE_USER_POLICY_ENFORCEMENT) {
             return true;
         }
+
+        Integer uac = getUserAccountControl(user);
+        if (uac != null) {
+            if ((uac & ADS_DONT_EXPIRE_PASSWORD) == ADS_DONT_EXPIRE_PASSWORD) {
+                return true;
+            }
+            if ((uac & ADS_UF_PASSWORD_EXPIRED) == ADS_UF_PASSWORD_EXPIRED) {
+                return false;
+            }
+        }
+
+        String expired = getStringAttribute(user, ATTR_USER_PASSWORD_EXPIRED);
+        return !"true".equalsIgnoreCase(expired);
     }
 
     public static boolean checkIfAccountNonLocked(@Nonnull Attributes user) {
-        try {
-            String userAccountControl = getStringAttribute(user, ATTR_USER_ACCOUNT_CONTROL);
-            if (userAccountControl != null) {
-                int uacAsInt = Integer.parseInt(userAccountControl);
-                if ((uacAsInt & ADS_UF_LOCK_OUT) == ADS_UF_LOCK_OUT) {
-                    return false;
-                }
-            }
-
-            String userAccountControlComputed = getStringAttribute(user, ATTR_USER_ACCOUNT_CONTROL_COMPUTED);
-            if (userAccountControlComputed != null) {
-                int uacAsInt = Integer.parseInt(userAccountControlComputed);
-                if ((uacAsInt & ADS_UF_LOCK_OUT) == ADS_UF_LOCK_OUT) {
-                    return false;
-                }
-            }
-
+        if (ActiveDirectorySecurityRealm.DISABLE_USER_POLICY_ENFORCEMENT) {
             return true;
-        } catch (NamingException e) {
-            return true;
+        }
+
+        Integer uac = getUserAccountControl(user);
+        if (uac != null) {
+            return (uac & ADS_UF_LOCK_OUT) != ADS_UF_LOCK_OUT;
+        }
+
+        return true;
+    }
+
+    private static @CheckForNull Integer getUserAccountControl(@Nonnull Attributes user) {
+        String uac = getStringAttribute(user, ATTR_USER_ACCOUNT_CONTROL);
+        String computedUac = getStringAttribute(user, ATTR_USER_ACCOUNT_CONTROL_COMPUTED);
+        if (uac == null) {
+            return computedUac == null ? null : Integer.parseInt(computedUac);
+        } else if (computedUac == null) {
+            return Integer.parseInt(uac);
+        } else {
+            return Integer.parseInt(uac) | Integer.parseInt(computedUac);
         }
     }
 
-    private static @CheckForNull String getStringAttribute(@Nonnull Attributes user, @Nonnull String name) throws NamingException {
+    static @CheckForNull String getStringAttribute(@Nonnull Attributes user, @Nonnull String name) {
         Attribute a = user.get(name);
-        if (a == null) {
+        if (a == null || a.size() == 0) {
             return null;
         }
-        Object v = a.get();
-        if (v == null) {
+        try {
+            Object v = a.get();
+            return v == null ? null : v.toString();
+        } catch (NamingException e) {
             return null;
         }
-        return v.toString();
     }
 }

@@ -279,6 +279,10 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
     }
 
     private boolean isAccountDisabled(IADsUser usr) {
+        if (ActiveDirectorySecurityRealm.DISABLE_USER_POLICY_ENFORCEMENT) {
+            return false;
+        }
+
         try {
             return usr.accountDisabled();
         } catch (ComException e) {
@@ -290,6 +294,10 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
     }
 
     private boolean isAccountExpired(IADsUser usr) {
+        if (ActiveDirectorySecurityRealm.DISABLE_USER_POLICY_ENFORCEMENT) {
+            return false;
+        }
+
         try {
             Date expirationDate = usr.accountExpirationDate();
             if (expirationDate != null) {
@@ -305,6 +313,10 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
     }
 
     private boolean isPasswordExpired(IADsUser usr) {
+        if (ActiveDirectorySecurityRealm.DISABLE_USER_POLICY_ENFORCEMENT) {
+            return false;
+        }
+
         try {
             Date expirationDate = usr.passwordExpirationDate();
             if (expirationDate != null) {
@@ -320,6 +332,10 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
     }
 
     private boolean isAccountLocked(IADsUser usr) {
+        if (ActiveDirectorySecurityRealm.DISABLE_USER_POLICY_ENFORCEMENT) {
+            return false;
+        }
+
         try {
             return usr.isAccountLocked();
         } catch (ComException e) {

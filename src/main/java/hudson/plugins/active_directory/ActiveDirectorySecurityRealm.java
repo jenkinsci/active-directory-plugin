@@ -854,6 +854,8 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     @SuppressFBWarnings(value = "MS_SHOULD_BE_FINAL", justification = "Diagnostic fields are left mutable so that groovy console can be used to dynamically turn/off probes.")
     public static boolean FORCE_LDAPS = Boolean.getBoolean(ActiveDirectorySecurityRealm.class.getName()+".forceLdaps");
 
+    static boolean DISABLE_USER_POLICY_ENFORCEMENT = Boolean.getBoolean(ActiveDirectorySecurityRealm.class.getName() + ".disableUserPolicyEnforcement");
+
     /**
      * Store all the extra environment variable to be used on the LDAP Context
      */

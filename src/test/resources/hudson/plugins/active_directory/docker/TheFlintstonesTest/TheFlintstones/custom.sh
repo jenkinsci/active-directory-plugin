@@ -13,11 +13,13 @@ samba-tool user add Fred ia4uV1EeKait
 samba-tool user add Wilma ia4uV1EeKait
 samba-tool user add Barney ia4uV1EeKait
 samba-tool user add Betty ia4uV1EeKait
+samba-tool user add "Bam Bam" ia4uV1EeKait
 
 # add users to groups
 samba-tool group addmembers The-Flintstones Fred
 samba-tool group addmembers The-Flintstones Wilma
 samba-tool group addmembers "The Rubbles" Barney
+samba-tool group addmembers "The Rubbles" "Bam Bam"
 
 # add alias for the "The Rubbles"
 { cat > file.ldif <<-EOF
@@ -30,3 +32,6 @@ EOF
 
 # add Betty to Rubbles alias
 samba-tool group addmembers Rubbles Betty
+
+# disable Bam Bam as he's too young to log in (JENKINS-55813)
+samba-tool user disable "Bam Bam"
