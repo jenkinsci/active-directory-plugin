@@ -52,18 +52,19 @@ import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
 import org.acegisecurity.userdetails.UserDetails;
 import org.acegisecurity.userdetails.UserDetailsService;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
+import org.apache.commons.lang.StringUtils;
+import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DataAccessResourceFailureException;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
+import java.util.GregorianCalendar;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import org.apache.commons.lang.StringUtils;
-import org.springframework.dao.DataAccessException;
-import org.springframework.dao.DataAccessResourceFailureException;
 
 /**
  * {@link AuthenticationProvider} with Active Directory, plus {@link UserDetailsService}
@@ -77,6 +78,10 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
      * And https://issues.jenkins-ci.org/browse/JENKINS-10086
      */
     private static final int E_ADS_PROPERTY_NOT_FOUND = 0x8000_500D;
+
+    // https://docs.microsoft.com/en-us/windows/win32/adschema/a-accountexpires
+    private static final GregorianCalendar ACCOUNT_DOES_NOT_EXPIRE =
+            new GregorianCalendar(1601, Calendar.JANUARY, 1);
 
     @SuppressFBWarnings("MS_SHOULD_BE_FINAL")
     private static /* non-final for Groovy */ boolean ALLOW_EMPTY_PASSWORD = Boolean.getBoolean(ActiveDirectoryAuthenticationProvider.class.getName() + ".ALLOW_EMPTY_PASSWORD");
@@ -215,7 +220,7 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
                                 username, "redacted",
                                 !isAccountDisabled(usr),
                                 !isAccountExpired(usr),
-                                !isPasswordExpired(usr),
+                                true, // automatically checked during openDSObject() when authenticating
                                 !isAccountLocked(usr),
                                 groups.toArray(new GrantedAuthority[0]),
                                 getFullName(usr), getEmailAddress(usr), getTelephoneNumber(usr)
@@ -300,29 +305,13 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
 
         try {
             Date expirationDate = usr.accountExpirationDate();
-            if (expirationDate != null) {
-                return new Date().after(expirationDate);
-            }
-            return false;
-        } catch (ComException e) {
-            if (e.getHRESULT() == E_ADS_PROPERTY_NOT_FOUND) {
+            if (expirationDate.equals(ACCOUNT_DOES_NOT_EXPIRE.getTime())) {
                 return false;
             }
-            throw e;
-        }
-    }
-
-    private boolean isPasswordExpired(IADsUser usr) {
-        if (ActiveDirectorySecurityRealm.DISABLE_USER_POLICY_ENFORCEMENT) {
-            return false;
-        }
-
-        try {
-            Date expirationDate = usr.passwordExpirationDate();
-            if (expirationDate != null) {
-                return new Date().after(expirationDate);
-            }
-            return false;
+            Date now = new Date();
+            boolean expired = now.after(expirationDate);
+            LOGGER.fine(() -> "Checking " + usr.name() + " account expiration value " + expirationDate + " and expiration status: " + expired);
+            return expired;
         } catch (ComException e) {
             if (e.getHRESULT() == E_ADS_PROPERTY_NOT_FOUND) {
                 return false;
