@@ -23,9 +23,6 @@
  */
 package hudson.plugins.active_directory;
 
-import org.kohsuke.accmod.Restricted;
-import org.kohsuke.accmod.restrictions.NoExternalUse;
-
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.naming.NamingException;
@@ -45,8 +42,7 @@ import java.util.concurrent.TimeUnit;
  *
  * @see <a href="https://issues.jenkins.io/browse/JENKINS-55813">JENKINS-55813</a>
  */
-@Restricted(NoExternalUse.class)
-public class UserAttributesHelper {
+class UserAttributesHelper {
     // https://support.microsoft.com/en-us/help/305144/how-to-use-the-useraccountcontrol-flags-to-manipulate-user-account-pro
     // https://docs.microsoft.com/en-us/windows/win32/adschema/a-useraccountcontrol
     private static final String ATTR_USER_ACCOUNT_CONTROL = "userAccountControl";
