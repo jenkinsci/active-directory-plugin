@@ -35,10 +35,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Ease all the computations required to determine the user account optional attributes for creating
- * the UserDetails that will be used by the SecurityRealm. These attribute checks can be disabled by setting the
- * system property {@code hudson.plugins.active_directory.ActiveDirectorySecurityRealm.disableUserPolicyEnforcement} to
- * {@code true} (or setting the value of {@link ActiveDirectorySecurityRealm#DISABLE_USER_POLICY_ENFORCEMENT} in the
- * script console).
+ * the UserDetails that will be used by the SecurityRealm.
  *
  * @see <a href="https://issues.jenkins.io/browse/JENKINS-55813">JENKINS-55813</a>
  */
@@ -67,10 +64,6 @@ class UserAttributesHelper {
     private static final int ADS_UF_PASSWORD_EXPIRED = 0x80_0000;
 
     public static boolean checkIfUserIsEnabled(@Nonnull Attributes user) {
-        if (ActiveDirectorySecurityRealm.DISABLE_USER_POLICY_ENFORCEMENT) {
-            return true;
-        }
-
         Integer uac = getUserAccountControl(user);
         if (uac != null && (uac & ADS_UF_DISABLED) == ADS_UF_DISABLED) {
             return false;
@@ -81,10 +74,6 @@ class UserAttributesHelper {
     }
 
     public static boolean checkIfAccountNonExpired(@Nonnull Attributes user) {
-        if (ActiveDirectorySecurityRealm.DISABLE_USER_POLICY_ENFORCEMENT) {
-            return true;
-        }
-
         String accountExpirationDate = getStringAttribute(user, ATTR_ACCOUNT_EXPIRES);
         if (accountExpirationDate != null) {
             long expirationAsLong = Long.parseLong(accountExpirationDate);
@@ -116,10 +105,6 @@ class UserAttributesHelper {
     }
 
     public static boolean checkIfCredentialsAreNonExpired(@Nonnull Attributes user) {
-        if (ActiveDirectorySecurityRealm.DISABLE_USER_POLICY_ENFORCEMENT) {
-            return true;
-        }
-
         Integer uac = getUserAccountControl(user);
         if (uac != null) {
             if ((uac & ADS_DONT_EXPIRE_PASSWORD) == ADS_DONT_EXPIRE_PASSWORD) {
@@ -135,10 +120,6 @@ class UserAttributesHelper {
     }
 
     public static boolean checkIfAccountNonLocked(@Nonnull Attributes user) {
-        if (ActiveDirectorySecurityRealm.DISABLE_USER_POLICY_ENFORCEMENT) {
-            return true;
-        }
-
         Integer uac = getUserAccountControl(user);
         if (uac != null) {
             return (uac & ADS_UF_LOCK_OUT) != ADS_UF_LOCK_OUT;
