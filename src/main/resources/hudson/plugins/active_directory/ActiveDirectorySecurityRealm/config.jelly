@@ -4,7 +4,7 @@
     <j:when test="${descriptor.canDoNativeAuth()}">
       <!-- code path for ActiveDirectoryAuthenticationProvider: running on Windows -->
       <f:entry><!-- get some indentation -->
-        <div style="width:100%">
+        <a:blockWrapper>
           <f:optionalBlock title="${%Specify custom Active Directory domain name}"
                            inline="true" name="customDomain" checked="${instance.domains!=null}"
                            help="/plugin/active-directory/help/domain-name-windows.html">
@@ -35,7 +35,7 @@
             </f:entry>
             <st:include page="configAdvanced.jelly" class="${descriptor.clazz}"/>
           </f:optionalBlock>
-        </div>
+        </a:blockWrapper>
         <st:include page="configCache.jelly" class="${descriptor.clazz}"/>
       </f:entry>
     </j:when>
@@ -43,7 +43,7 @@
       <!-- code path for ActiveDirectoryUnixAuthenticationProvider: running on Unix -->
       <f:entry field="domains" title="${%Domains}">
         <f:repeatable field="domains" add="${%Add Domain}">
-          <div width="100%">
+          <a:blockWrapper>
             <br/>
             <f:entry title="${%Domain Name}" field="name" help="/plugin/active-directory/help/domain-name-unix.html">
               <f:textbox />
@@ -66,7 +66,7 @@
             <f:nested>
               <f:validateButton with="name,servers,site,bindName,bindPassword,tlsConfiguration" title="${%Test Domain}" method="validateTest"/>
             </f:nested>
-          </div>
+          </a:blockWrapper>
           <div align="right">
             <input type="button" value="Delete Domain" class="repeatable-delete" style="margin-left: 1em;" />
           </div>
