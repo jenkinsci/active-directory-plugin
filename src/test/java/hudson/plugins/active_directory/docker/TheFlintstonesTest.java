@@ -25,25 +25,29 @@
 package hudson.plugins.active_directory.docker;
 
 import com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException;
+import com.google.common.base.Predicates;
+import com.google.common.collect.Collections2;
 import hudson.plugins.active_directory.ActiveDirectoryDomain;
-import hudson.plugins.active_directory.ActiveDirectoryInternalUsersDatabase;
 import hudson.plugins.active_directory.ActiveDirectorySecurityRealm;
-import hudson.plugins.active_directory.CacheConfiguration;
 import hudson.plugins.active_directory.GroupLookupStrategy;
+import hudson.security.GroupDetails;
+import hudson.util.RingBufferLogHandler;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
 import org.acegisecurity.AuthenticationServiceException;
+import org.acegisecurity.DisabledException;
 import org.acegisecurity.userdetails.UserDetails;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
 import org.apache.commons.io.FileUtils;
 import org.jenkinsci.test.acceptance.docker.DockerContainer;
 import org.jenkinsci.test.acceptance.docker.DockerFixture;
 import org.jenkinsci.test.acceptance.docker.DockerRule;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.LoggerRule;
+import org.jvnet.hudson.test.recipes.LocalData;
 
 import javax.naming.CommunicationException;
 import javax.naming.NamingException;
@@ -52,27 +56,19 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-
-import static junit.framework.Assert.assertEquals;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsStringIgnoringCase;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.containsString;
-import static org.junit.Assert.*;
-
 import java.util.logging.Formatter;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 
-import com.google.common.base.Predicates;
-import com.google.common.collect.Collections2;
-
-import hudson.security.GroupDetails;
-import hudson.util.RingBufferLogHandler;
-import org.jvnet.hudson.test.LoggerRule;
-import org.jvnet.hudson.test.recipes.LocalData;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Integration tests with Docker
@@ -99,12 +95,12 @@ public class TheFlintstonesTest {
         TheFlintstones d = docker.get();
         dockerIp = d.ipBound(3268);
         dockerPort = d.port(3268);
-        ActiveDirectoryDomain activeDirectoryDomain = new ActiveDirectoryDomain(AD_DOMAIN, dockerIp + ":" +  dockerPort , null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD);
+        ActiveDirectoryDomain activeDirectoryDomain = new ActiveDirectoryDomain(AD_DOMAIN, dockerIp + ":" + dockerPort, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD);
         List<ActiveDirectoryDomain> domains = new ArrayList<>(1);
         domains.add(activeDirectoryDomain);
         ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, null, null, null, null, GroupLookupStrategy.RECURSIVE, false, true, null, false, null, null);
         j.getInstance().setSecurityRealm(activeDirectorySecurityRealm);
-        while(!FileUtils.readFileToString(d.getLogfile()).contains("custom (exit status 0; expected)")) {
+        while (!FileUtils.readFileToString(d.getLogfile()).contains("custom (exit status 0; expected)")) {
             Thread.sleep(1000);
         }
         UserDetails userDetails = null;
@@ -115,7 +111,7 @@ public class TheFlintstonesTest {
             } catch (AuthenticationServiceException e) {
                 Thread.sleep(1000);
             }
-            i ++;
+            i++;
         }
     }
 
@@ -127,10 +123,10 @@ public class TheFlintstonesTest {
         ActiveDirectorySecurityRealm activeDirectorySecurityRealm = (ActiveDirectorySecurityRealm) j.jenkins.getSecurityRealm();
         for (ActiveDirectoryDomain activeDirectoryDomain : activeDirectorySecurityRealm.getDomains()) {
             activeDirectoryDomain.bindPassword = Secret.fromString(AD_MANAGER_DN_PASSWORD);
-            activeDirectoryDomain.servers = dockerIp + ":" +  dockerPort;
+            activeDirectoryDomain.servers = dockerIp + ":" + dockerPort;
         }
 
-        while(!FileUtils.readFileToString(d.getLogfile()).contains("custom (exit status 0; expected)")) {
+        while (!FileUtils.readFileToString(d.getLogfile()).contains("custom (exit status 0; expected)")) {
             Thread.sleep(1000);
         }
         UserDetails userDetails = null;
@@ -141,7 +137,7 @@ public class TheFlintstonesTest {
             } catch (AuthenticationServiceException e) {
                 Thread.sleep(1000);
             }
-            i ++;
+            i++;
         }
     }
 
@@ -197,7 +193,7 @@ public class TheFlintstonesTest {
     @Test
     public void disabledUser() throws Exception {
         dynamicSetUp();
-        assertFalse(j.jenkins.getSecurityRealm().loadUserByUsername("Bam Bam").isEnabled());
+        assertThrows(DisabledException.class, () -> j.jenkins.getSecurityRealm().loadUserByUsername("Bam Bam"));
         assertThrows(FailingHttpStatusCodeException.class, () -> j.createWebClient().login("Bam Bam", AD_MANAGER_DN_PASSWORD));
     }
 
@@ -264,6 +260,7 @@ public class TheFlintstonesTest {
         RingBufferLogHandler ringHandler = new RingBufferLogHandler(size) {
 
             final Formatter f = new SimpleFormatter(); // placeholder instance for what should have been a static method perhaps
+
             @Override
             public synchronized void publish(LogRecord record) {
                 super.publish(record);
@@ -364,7 +361,7 @@ public class TheFlintstonesTest {
         assertTrue(messages.stream().anyMatch(s -> s.contains("Failed to retrieve user Fred")));
     }
 
-    @DockerFixture(id = "ad-dc", ports= {135, 138, 445, 39, 464, 389, 3268}, udpPorts = {53}, matchHostPorts = true)
+    @DockerFixture(id = "ad-dc", ports = {135, 138, 445, 39, 464, 389, 3268}, udpPorts = {53}, matchHostPorts = true)
     public static class TheFlintstones extends DockerContainer {
 
     }

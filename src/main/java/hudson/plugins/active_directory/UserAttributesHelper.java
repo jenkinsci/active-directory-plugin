@@ -23,6 +23,11 @@
  */
 package hudson.plugins.active_directory;
 
+import org.acegisecurity.AccountExpiredException;
+import org.acegisecurity.CredentialsExpiredException;
+import org.acegisecurity.DisabledException;
+import org.acegisecurity.LockedException;
+
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.naming.NamingException;
@@ -63,30 +68,32 @@ class UserAttributesHelper {
     private static final int ADS_DONT_EXPIRE_PASSWORD = 0x1_0000;
     private static final int ADS_UF_PASSWORD_EXPIRED = 0x80_0000;
 
-    public static boolean checkIfUserIsEnabled(@Nonnull Attributes user) {
+    public static void checkIfUserIsEnabled(@Nonnull Attributes user) {
         Integer uac = getUserAccountControl(user);
         if (uac != null && (uac & ADS_UF_DISABLED) == ADS_UF_DISABLED) {
-            return false;
+            throw new DisabledException(Messages.UserDetails_Disabled(user.get("dn")));
         }
 
         String disabled = getStringAttribute(user, ATTR_USER_ACCOUNT_DISABLED);
-        return !"true".equalsIgnoreCase(disabled);
+        if ("true".equalsIgnoreCase(disabled)) {
+            throw new DisabledException(Messages.UserDetails_Disabled(user.get("dn")));
+        }
     }
 
-    public static boolean checkIfAccountNonExpired(@Nonnull Attributes user) {
+    public static void checkIfAccountNonExpired(@Nonnull Attributes user) {
         String accountExpirationDate = getStringAttribute(user, ATTR_ACCOUNT_EXPIRES);
         if (accountExpirationDate != null) {
             long expirationAsLong = Long.parseLong(accountExpirationDate);
             if (expirationAsLong == 0L || expirationAsLong == ACCOUNT_NO_EXPIRATION) {
-                return true;
+                return;
             }
 
             long nowIn100NsFromJan1601 = getWin32EpochHundredNanos();
             boolean expired = expirationAsLong < nowIn100NsFromJan1601;
-            return !expired;
+            if (expired) {
+                throw new AccountExpiredException(Messages.UserDetails_Expired(user.get("dn"), accountExpirationDate));
+            }
         }
-
-        return true;
     }
 
     // documentation: https://docs.microsoft.com/en-us/windows/desktop/adschema/a-accountexpires
@@ -104,28 +111,28 @@ class UserAttributesHelper {
         return timeSinceWin32EpochInNs * 100;
     }
 
-    public static boolean checkIfCredentialsAreNonExpired(@Nonnull Attributes user) {
+    public static void checkIfCredentialsAreNonExpired(@Nonnull Attributes user) {
         Integer uac = getUserAccountControl(user);
         if (uac != null) {
             if ((uac & ADS_DONT_EXPIRE_PASSWORD) == ADS_DONT_EXPIRE_PASSWORD) {
-                return true;
+                return;
             }
             if ((uac & ADS_UF_PASSWORD_EXPIRED) == ADS_UF_PASSWORD_EXPIRED) {
-                return false;
+                throw new CredentialsExpiredException(Messages.UserDetails_CredentialsExpired(user.get("dn")));
             }
         }
 
         String expired = getStringAttribute(user, ATTR_USER_PASSWORD_EXPIRED);
-        return !"true".equalsIgnoreCase(expired);
+        if ("true".equalsIgnoreCase(expired)) {
+            throw new CredentialsExpiredException(Messages.UserDetails_CredentialsExpired(user.get("dn")));
+        }
     }
 
-    public static boolean checkIfAccountNonLocked(@Nonnull Attributes user) {
+    public static void checkIfAccountNonLocked(@Nonnull Attributes user) {
         Integer uac = getUserAccountControl(user);
-        if (uac != null) {
-            return (uac & ADS_UF_LOCK_OUT) != ADS_UF_LOCK_OUT;
+        if (uac != null && (uac & ADS_UF_LOCK_OUT) == ADS_UF_LOCK_OUT) {
+            throw new LockedException(Messages.UserDetails_Locked(user.get("dn")));
         }
-
-        return true;
     }
 
     private static @CheckForNull Integer getUserAccountControl(@Nonnull Attributes user) {

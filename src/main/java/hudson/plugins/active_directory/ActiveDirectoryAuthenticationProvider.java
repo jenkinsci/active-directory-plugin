@@ -43,10 +43,13 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.security.GroupDetails;
 import hudson.security.SecurityRealm;
 import hudson.security.UserMayOrMayNotExistException;
+import org.acegisecurity.AccountExpiredException;
 import org.acegisecurity.AuthenticationException;
 import org.acegisecurity.BadCredentialsException;
+import org.acegisecurity.DisabledException;
 import org.acegisecurity.GrantedAuthority;
 import org.acegisecurity.GrantedAuthorityImpl;
+import org.acegisecurity.LockedException;
 import org.acegisecurity.providers.AuthenticationProvider;
 import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
 import org.acegisecurity.userdetails.UserDetails;
@@ -214,14 +217,15 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
                         }
                         groups.add(SecurityRealm.AUTHENTICATED_AUTHORITY);
 
+                        checkIfAccountDisabled(usr);
+                        checkIfAccountExpired(usr);
+                        checkIfAccountLocked(usr);
+
                         LOGGER.log(Level.FINE, "Login successful: {0} dn={1}", new Object[] {username, dn});
 
                         return new ActiveDirectoryUserDetail(
                                 username, "redacted",
-                                !isAccountDisabled(usr),
-                                !isAccountExpired(usr),
-                                true, // automatically checked during openDSObject() when authenticating
-                                !isAccountLocked(usr),
+                                true, true, true, true,
                                 groups.toArray(new GrantedAuthority[0]),
                                 getFullName(usr), getEmailAddress(usr), getTelephoneNumber(usr)
                         ).updateUserInfo();
@@ -283,43 +287,44 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
         }
     }
 
-    private boolean isAccountDisabled(IADsUser usr) {
+    private void checkIfAccountDisabled(IADsUser usr) {
         try {
-            return usr.accountDisabled();
-        } catch (ComException e) {
-            if (e.getHRESULT() == E_ADS_PROPERTY_NOT_FOUND) {
-                return false;
+            if (usr.accountDisabled()) {
+                throw new DisabledException(Messages.UserDetails_Disabled(usr.name()));
             }
-            throw e;
+        } catch (ComException e) {
+            if (e.getHRESULT() != E_ADS_PROPERTY_NOT_FOUND) {
+                throw e;
+            }
         }
     }
 
-    private boolean isAccountExpired(IADsUser usr) {
+    private void checkIfAccountExpired(IADsUser usr) {
         try {
             Date expirationDate = usr.accountExpirationDate();
             if (expirationDate.equals(ACCOUNT_DOES_NOT_EXPIRE.getTime())) {
-                return false;
+                return;
             }
             Date now = new Date();
-            boolean expired = now.after(expirationDate);
-            LOGGER.fine(() -> "Checking " + usr.name() + " account expiration value " + expirationDate + " and expiration status: " + expired);
-            return expired;
-        } catch (ComException e) {
-            if (e.getHRESULT() == E_ADS_PROPERTY_NOT_FOUND) {
-                return false;
+            if (now.after(expirationDate)) {
+                throw new AccountExpiredException(Messages.UserDetails_Expired(usr.name(), expirationDate));
             }
-            throw e;
+        } catch (ComException e) {
+            if (e.getHRESULT() != E_ADS_PROPERTY_NOT_FOUND) {
+                throw e;
+            }
         }
     }
 
-    private boolean isAccountLocked(IADsUser usr) {
+    private void checkIfAccountLocked(IADsUser usr) {
         try {
-            return usr.isAccountLocked();
-        } catch (ComException e) {
-            if (e.getHRESULT() == E_ADS_PROPERTY_NOT_FOUND) {
-                return false;
+            if (usr.isAccountLocked()) {
+                throw new LockedException(Messages.UserDetails_Locked(usr.name()));
             }
-            throw e;
+        } catch (ComException e) {
+            if (e.getHRESULT() != E_ADS_PROPERTY_NOT_FOUND) {
+                throw e;
+            }
         }
     }
 

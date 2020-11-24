@@ -424,13 +424,13 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                         Set<GrantedAuthority> groups = resolveGroups(domainDN, dnFormatted, context);
                         groups.add(SecurityRealm.AUTHENTICATED_AUTHORITY);
 
-                        boolean isEnabled = UserAttributesHelper.checkIfUserIsEnabled(user);
-                        boolean isAccountNonExpired = UserAttributesHelper.checkIfAccountNonExpired(user);
-                        boolean areCredentialsNotExpired = UserAttributesHelper.checkIfCredentialsAreNonExpired(user);
-                        boolean isAccountNonLocked = UserAttributesHelper.checkIfAccountNonLocked(user);
+                        UserAttributesHelper.checkIfUserIsEnabled(user);
+                        UserAttributesHelper.checkIfAccountNonExpired(user);
+                        UserAttributesHelper.checkIfCredentialsAreNonExpired(user);
+                        UserAttributesHelper.checkIfAccountNonLocked(user);
 
                         cacheMiss[0] = new ActiveDirectoryUserDetail(username, "redacted",
-                                isEnabled, isAccountNonExpired, areCredentialsNotExpired, isAccountNonLocked,
+                                true, true, true, true,
                                 groups.toArray(new GrantedAuthority[0]),
                                 UserAttributesHelper.getStringAttribute(user, "displayName"),
                                 UserAttributesHelper.getStringAttribute(user, "mail"),
