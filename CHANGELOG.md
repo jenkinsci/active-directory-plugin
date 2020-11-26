@@ -1,10 +1,5 @@
 # Changelog
 
-
-## Warning for 1.37
-
-Be careful if you intend to install version 1.37. It has been known to cause excessive load on Active Directory authentication servers. If you install this version you should carefully monitor traffic on relevant ports, e.g.: `tcpdump port 389 or 3268`.
-
 ## Version 2.22 (2020/11/26)
 * [JENKINS-64130](https://issues.jenkins-ci.org/browse/JENKINS-64130)
 Tables to divs compatibility  (Cf. [Table to div layout migration documentation](https://www.jenkins.io/doc/developer/views/table-to-div-migration/) for more explanations)
@@ -206,6 +201,10 @@ Tables to divs compatibility  (Cf. [Table to div layout migration documentation]
 ## Version 1.37 (2014/04/15)
 
 -   Drastically speed up the recursive group membership search through the use of a Microsoft extension in the LDAP filter expression.
+
+### Warning for 1.37
+
+Be careful if you intend to install version 1.37. It has been known to cause excessive load on Active Directory authentication servers. If you install this version you should carefully monitor traffic on relevant ports, e.g.: `tcpdump port 389 or 3268`.
 
 ## Version 1.36 (2014/03/27)
 
