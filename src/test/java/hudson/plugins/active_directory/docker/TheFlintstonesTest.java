@@ -237,7 +237,7 @@ public class TheFlintstonesTest {
     public void loadGroupFromAlias() throws Exception {
         dynamicSetUp();
         // required to monitor the log messages, removing this line the test will fail
-        List<String> logMessages = captureLogMessages(20);
+        List<String> logMessages = captureLogMessages(200);
 
         String aliasname = "Rubbles";
         boolean isAlias = false;
