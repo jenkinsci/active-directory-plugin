@@ -1,0 +1,10 @@
+#!/usr/bin/expect
+
+spawn /usr/sbin/kdb5_util create -s
+expect "Enter KDC database master key: "
+send -- "$env(KERBEROS_PASSWORD)\r"
+expect "Re-enter KDC database master key to verify: "
+send -- "$env(KERBEROS_PASSWORD)\r"
+expect "\r"
+send -- "exit\r"
+expect eof
