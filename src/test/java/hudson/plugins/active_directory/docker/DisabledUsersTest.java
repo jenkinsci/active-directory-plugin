@@ -1,5 +1,6 @@
 package hudson.plugins.active_directory.docker;
 
+import hudson.Functions;
 import hudson.plugins.active_directory.ActiveDirectoryDomain;
 import hudson.plugins.active_directory.ActiveDirectorySecurityRealm;
 import hudson.plugins.active_directory.GroupLookupStrategy;
@@ -24,6 +25,7 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeFalse;
 
 @Issue("JENKINS-55813")
 public class DisabledUsersTest {
@@ -40,6 +42,7 @@ public class DisabledUsersTest {
     private final static int MAX_RETRIES = 30;
 
     private void setup() throws IOException, InterruptedException {
+        assumeFalse("no matching manifest for windows/amd64 10.0.17763 in the manifest list entries", Functions.isWindows());
         Image image = docker.get();
         String dockerIp = image.ipBound(3268);
         int dockerPort = image.port(3268);
