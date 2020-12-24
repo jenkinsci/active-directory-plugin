@@ -150,6 +150,12 @@ public class ActiveDirectoryStatus extends ManagementLink implements StaplerProx
         return this;
     }
 
+    @NonNull
+    @Override
+    public Category getCategory() {
+        return Category.STATUS; // AD would be SECURITY, but here it's more a "health status" indeed.
+    }
+
     /**
      * ServerHealth of a SocketInfo
      */
