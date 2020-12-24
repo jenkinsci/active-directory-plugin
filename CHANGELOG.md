@@ -1,5 +1,8 @@
 # Changelog
 
+## Version 2.23 (2020/12/24)
+* Categorization of the plugin under the Status section of the `/manage` page of the User Interface. ([PR-107](https://github.com/jenkinsci/active-directory-plugin/pull/107))
+
 ## Version 2.22 (2020/11/26)
 * [JENKINS-64130](https://issues.jenkins-ci.org/browse/JENKINS-64130)
 Tables to divs compatibility  (Cf. [Table to div layout migration documentation](https://www.jenkins.io/doc/developer/views/table-to-div-migration/) for more explanations)
