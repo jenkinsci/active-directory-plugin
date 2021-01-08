@@ -6,6 +6,9 @@ import hudson.plugins.active_directory.ActiveDirectoryInternalUsersDatabase;
 import hudson.plugins.active_directory.ActiveDirectorySecurityRealm;
 import hudson.plugins.active_directory.CacheConfiguration;
 import hudson.plugins.active_directory.GroupLookupStrategy;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.logging.Level;
 import org.acegisecurity.AuthenticationServiceException;
 import org.acegisecurity.userdetails.UserDetails;
 import org.apache.commons.io.FileUtils;
@@ -16,10 +19,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.LoggerRule;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.logging.Level;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertThat;
@@ -55,7 +54,9 @@ public class EntoEndUserCacheLookupDisabledTest {
         List<ActiveDirectoryDomain> domains = new ArrayList<>(1);
         domains.add(activeDirectoryDomain);
 
-        ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, site, bindName, bindPassword, null, groupLookupStrategy, removeIrrelevantGroups, customDomain, cache, startTls, internalUsersDatabase);
+        ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains,
+                site, bindName, bindPassword, null, groupLookupStrategy, removeIrrelevantGroups, customDomain, cache,
+                startTls, internalUsersDatabase, null);
         j.getInstance().setSecurityRealm(activeDirectorySecurityRealm);
         while(!FileUtils.readFileToString(d.getLogfile()).contains("custom (exit status 0; expected)")) {
             Thread.sleep(1000);

@@ -25,12 +25,18 @@ package hudson.plugins.active_directory;
  */
 
 import hudson.Extension;
-import hudson.Functions;
 import hudson.model.AbstractDescribableImpl;
 import hudson.model.Descriptor;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import hudson.util.Secret;
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Hashtable;
+import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import jenkins.model.Jenkins;
 import org.acegisecurity.BadCredentialsException;
 import org.apache.commons.lang.StringUtils;
@@ -39,7 +45,6 @@ import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.interceptor.RequirePOST;
-
 import javax.naming.CommunicationException;
 import javax.naming.Context;
 import javax.naming.NamingException;
@@ -49,13 +54,6 @@ import javax.naming.directory.Attributes;
 import javax.naming.directory.DirContext;
 import javax.naming.directory.InitialDirContext;
 import javax.servlet.ServletException;
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Hashtable;
-import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import static hudson.plugins.active_directory.ActiveDirectoryUnixAuthenticationProvider.toDC;
 
@@ -276,15 +274,21 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
         }
 
         @RequirePOST
-        public FormValidation doValidateTest(@QueryParameter(fixEmpty = true) String name, @QueryParameter(fixEmpty = true) String servers, @QueryParameter(fixEmpty = true) String site, @QueryParameter(fixEmpty = true) String bindName,
-                                             @QueryParameter(fixEmpty = true) String bindPassword, @QueryParameter(fixEmpty = true) TlsConfiguration tlsConfiguration) throws IOException, ServletException, NamingException {
+        public FormValidation doValidateTest(@QueryParameter(fixEmpty = true) String name,
+                                             @QueryParameter(fixEmpty = true) String servers,
+                                             @QueryParameter(fixEmpty = true) String site,
+                                             @QueryParameter(fixEmpty = true) String bindName,
+                                             @QueryParameter(fixEmpty = true) String bindPassword,
+                                             @QueryParameter(fixEmpty = true) TlsConfiguration tlsConfiguration)
+                throws IOException, ServletException, NamingException {
             Jenkins.get().checkPermission(Jenkins.ADMINISTER);
             ActiveDirectoryDomain domain = new ActiveDirectoryDomain(name, servers, site, bindName, bindPassword, tlsConfiguration);
             List<ActiveDirectoryDomain> domains = new ArrayList<>(1);
             domains.add(domain);
 
             ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, site, bindName,
-                    bindPassword, null, GroupLookupStrategy.AUTO, false, true, null, false, (ActiveDirectoryInternalUsersDatabase) null);
+                    bindPassword, null, GroupLookupStrategy.AUTO, false, true,
+                    null, false, (ActiveDirectoryInternalUsersDatabase) null, null);
 
             ClassLoader ccl = Thread.currentThread().getContextClassLoader();
             Thread.currentThread().setContextClassLoader(getClass().getClassLoader());

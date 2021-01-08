@@ -25,12 +25,22 @@
 package hudson.plugins.active_directory.docker;
 
 import com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException;
+import com.google.common.base.Predicates;
+import com.google.common.collect.Collections2;
 import hudson.plugins.active_directory.ActiveDirectoryDomain;
-import hudson.plugins.active_directory.ActiveDirectoryInternalUsersDatabase;
 import hudson.plugins.active_directory.ActiveDirectorySecurityRealm;
-import hudson.plugins.active_directory.CacheConfiguration;
 import hudson.plugins.active_directory.GroupLookupStrategy;
+import hudson.security.GroupDetails;
+import hudson.util.RingBufferLogHandler;
 import hudson.util.Secret;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.logging.Formatter;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 import jenkins.model.Jenkins;
 import org.acegisecurity.AuthenticationServiceException;
 import org.acegisecurity.userdetails.UserDetails;
@@ -39,42 +49,20 @@ import org.apache.commons.io.FileUtils;
 import org.jenkinsci.test.acceptance.docker.DockerContainer;
 import org.jenkinsci.test.acceptance.docker.DockerFixture;
 import org.jenkinsci.test.acceptance.docker.DockerRule;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
-
-import javax.naming.CommunicationException;
-import javax.naming.NamingException;
-import javax.servlet.ServletException;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-
-import static junit.framework.Assert.assertEquals;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsStringIgnoringCase;
-import static org.junit.Assert.assertThat;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.containsString;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
-import java.util.logging.Formatter;
-import java.util.logging.Level;
-import java.util.logging.LogRecord;
-import java.util.logging.Logger;
-import java.util.logging.SimpleFormatter;
-
-import com.google.common.base.Predicates;
-import com.google.common.collect.Collections2;
-
-import hudson.security.GroupDetails;
-import hudson.util.RingBufferLogHandler;
 import org.jvnet.hudson.test.LoggerRule;
 import org.jvnet.hudson.test.recipes.LocalData;
+import javax.naming.CommunicationException;
+
+import static junit.framework.Assert.assertEquals;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Integration tests with Docker
@@ -104,7 +92,10 @@ public class TheFlintstonesTest {
         ActiveDirectoryDomain activeDirectoryDomain = new ActiveDirectoryDomain(AD_DOMAIN, dockerIp + ":" +  dockerPort , null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD);
         List<ActiveDirectoryDomain> domains = new ArrayList<>(1);
         domains.add(activeDirectoryDomain);
-        ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, null, null, null, null, GroupLookupStrategy.RECURSIVE, false, true, null, false, null, null);
+        ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains,
+                null, null, null, null, GroupLookupStrategy.RECURSIVE,
+                false, true, null, false, null,
+                (String) null);
         j.getInstance().setSecurityRealm(activeDirectorySecurityRealm);
         while(!FileUtils.readFileToString(d.getLogfile()).contains("custom (exit status 0; expected)")) {
             Thread.sleep(1000);
@@ -201,7 +192,7 @@ public class TheFlintstonesTest {
 
     @Issue("JENKINS-36148")
     @Test
-    public void validateCustomDomainController() throws ServletException, NamingException, IOException, Exception {
+    public void validateCustomDomainController() throws Exception {
         dynamicSetUp();
         ActiveDirectoryDomain.DescriptorImpl adDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
         assertEquals("OK: Success", adDescriptor.doValidateTest(AD_DOMAIN, dockerIp + ":" + dockerPort, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD, null).toString().trim());
@@ -209,7 +200,7 @@ public class TheFlintstonesTest {
 
     @Issue("JENKINS-36148")
     @Test
-    public void validateDomain() throws ServletException, NamingException, IOException, Exception {
+    public void validateDomain() throws Exception {
         dynamicSetUp();
         ActiveDirectoryDomain.DescriptorImpl adDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
         assertEquals("OK: Success", adDescriptor.doValidateTest(AD_DOMAIN, null, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD, null).toString().trim());
