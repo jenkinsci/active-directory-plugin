@@ -33,39 +33,11 @@ import hudson.model.AbstractDescribableImpl;
 import hudson.model.Descriptor;
 import hudson.security.AbstractPasswordBasedSecurityRealm;
 import hudson.security.AuthorizationStrategy;
+import hudson.security.ChainedServletFilter;
 import hudson.security.GroupDetails;
 import hudson.security.SecurityRealm;
 import hudson.util.ListBoxModel;
 import hudson.util.Secret;
-import jenkins.model.Jenkins;
-import org.acegisecurity.AuthenticationException;
-import org.acegisecurity.BadCredentialsException;
-import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
-import org.acegisecurity.userdetails.UserDetails;
-import org.acegisecurity.userdetails.UsernameNotFoundException;
-import org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement;
-import org.kohsuke.accmod.Restricted;
-import org.kohsuke.accmod.restrictions.NoExternalUse;
-import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.DataBoundSetter;
-import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.StaplerRequest;
-import org.kohsuke.stapler.StaplerResponse;
-import org.kohsuke.stapler.interceptor.RequirePOST;
-import org.springframework.dao.DataAccessException;
-
-import javax.naming.Context;
-import javax.naming.NamingEnumeration;
-import javax.naming.NamingException;
-import javax.naming.directory.Attribute;
-import javax.naming.directory.Attributes;
-import javax.naming.directory.DirContext;
-import javax.naming.directory.InitialDirContext;
-import javax.naming.ldap.LdapContext;
-import javax.naming.ldap.StartTlsRequest;
-import javax.naming.ldap.StartTlsResponse;
-import javax.net.ssl.SSLSocketFactory;
-import javax.servlet.ServletException;
 import java.io.IOException;
 import java.io.ObjectStreamException;
 import java.io.PrintWriter;
@@ -79,6 +51,39 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
+import jenkins.model.Jenkins;
+import org.acegisecurity.AuthenticationException;
+import org.acegisecurity.BadCredentialsException;
+import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
+import org.acegisecurity.userdetails.UserDetails;
+import org.acegisecurity.userdetails.UsernameNotFoundException;
+import org.apache.commons.beanutils.Converter;
+import org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
+import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
+import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.Stapler;
+import org.kohsuke.stapler.StaplerRequest;
+import org.kohsuke.stapler.StaplerResponse;
+import org.kohsuke.stapler.interceptor.RequirePOST;
+import org.springframework.dao.DataAccessException;
+import javax.naming.Context;
+import javax.naming.NamingEnumeration;
+import javax.naming.NamingException;
+import javax.naming.directory.Attribute;
+import javax.naming.directory.Attributes;
+import javax.naming.directory.DirContext;
+import javax.naming.directory.InitialDirContext;
+import javax.naming.ldap.LdapContext;
+import javax.naming.ldap.StartTlsRequest;
+import javax.naming.ldap.StartTlsResponse;
+import javax.net.ssl.SSLSocketFactory;
+import javax.servlet.Filter;
+import javax.servlet.FilterConfig;
+import javax.servlet.ServletException;
 
 import static hudson.Util.fixEmpty;
 
@@ -257,7 +262,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                                         Boolean startTls, TlsConfiguration tlsConfiguration,
                                         ActiveDirectoryInternalUsersDatabase internalUsersDatabase) {
         this(domain, domains, site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups,
-                customDomain, cache, startTls, (ActiveDirectoryInternalUsersDatabase) null);
+                customDomain, cache, startTls, (ActiveDirectoryInternalUsersDatabase) null, null);
     }
 
 
@@ -265,8 +270,9 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     // as Java signature, this binding doesn't make sense, so please don't use this constructor
     public ActiveDirectorySecurityRealm(String domain, List<ActiveDirectoryDomain> domains, String site, String bindName,
                                         String bindPassword, String server, GroupLookupStrategy groupLookupStrategy,
-                                        boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache,
-                                        Boolean startTls, ActiveDirectoryInternalUsersDatabase internalUsersDatabase) {
+                                        Boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache,
+                                        Boolean startTls, ActiveDirectoryInternalUsersDatabase internalUsersDatabase,
+                                        String userFromHttpHeader) {
         if (customDomain!=null && !customDomain)
             domains = null;
         this.domain = fixEmpty(domain);
@@ -280,6 +286,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         this.cache = cache;
         this.startTls = startTls;
         this.internalUsersDatabase = internalUsersDatabase;
+        this.userFromHttpHeader = userFromHttpHeader;
     }
 
     @DataBoundSetter
@@ -844,10 +851,16 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         this.usernameExtractionExpression = usernameExtractionExpression;
     }
 
+    @Override
+    public Filter createFilter(FilterConfig filterConfig) {
+        return new ChainedServletFilter(super.createFilter(filterConfig),
+                new HttpHeaderFilter(this));
+    }
+
     /**
      * Interface that actually talks to Active Directory.
      */
-    private synchronized AbstractActiveDirectoryAuthenticationProvider getAuthenticationProvider() {
+    synchronized AbstractActiveDirectoryAuthenticationProvider getAuthenticationProvider() {
         if (authenticationProvider == null) {
             authenticationProvider = createAuthenticationProvider();
         }
@@ -938,5 +951,20 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                 return "Active Directory";
             }
         }
+    }
+
+    static {
+        Stapler.CONVERT_UTILS.register(new Converter() {
+
+            @Override
+            public <T> T convert(Class<T> aClass, Object o) {
+                if (o instanceof String) {
+                    //noinspection unchecked
+                    return (T) Pattern.compile((String) o);
+                }
+                else
+                    return null;
+            }
+        }, Pattern.class);
     }
 }

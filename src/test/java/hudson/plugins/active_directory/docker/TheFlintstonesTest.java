@@ -28,13 +28,19 @@ import com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Collections2;
 import hudson.plugins.active_directory.ActiveDirectoryDomain;
-import hudson.plugins.active_directory.ActiveDirectoryInternalUsersDatabase;
 import hudson.plugins.active_directory.ActiveDirectorySecurityRealm;
-import hudson.plugins.active_directory.CacheConfiguration;
 import hudson.plugins.active_directory.GroupLookupStrategy;
 import hudson.security.GroupDetails;
 import hudson.util.RingBufferLogHandler;
 import hudson.util.Secret;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.logging.Formatter;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 import jenkins.model.Jenkins;
 import org.acegisecurity.AuthenticationServiceException;
 import org.acegisecurity.userdetails.UserDetails;
@@ -47,40 +53,16 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
-import org.jvnet.hudson.test.recipes.LocalData;
-
-import javax.naming.CommunicationException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.logging.Formatter;
-import java.util.logging.Level;
-import java.util.logging.LogRecord;
-import java.util.logging.Logger;
-import java.util.logging.SimpleFormatter;
-
-import static junit.framework.Assert.assertEquals;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsStringIgnoringCase;
-import static org.junit.Assert.assertThat;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.containsString;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
-import java.util.logging.Formatter;
-import java.util.logging.Level;
-import java.util.logging.LogRecord;
-import java.util.logging.Logger;
-import java.util.logging.SimpleFormatter;
-
-import com.google.common.base.Predicates;
-import com.google.common.collect.Collections2;
-
-import hudson.security.GroupDetails;
-import hudson.util.RingBufferLogHandler;
 import org.jvnet.hudson.test.LoggerRule;
 import org.jvnet.hudson.test.recipes.LocalData;
+import javax.naming.CommunicationException;
+
+import static junit.framework.Assert.assertEquals;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Integration tests with Docker
@@ -110,7 +92,10 @@ public class TheFlintstonesTest {
         ActiveDirectoryDomain activeDirectoryDomain = new ActiveDirectoryDomain(AD_DOMAIN, dockerIp + ":" +  dockerPort , null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD);
         List<ActiveDirectoryDomain> domains = new ArrayList<>(1);
         domains.add(activeDirectoryDomain);
-        ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, null, null, null, null, GroupLookupStrategy.RECURSIVE, false, true, null, false, null, null);
+        ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains,
+                null, null, null, null, GroupLookupStrategy.RECURSIVE,
+                false, true, null, false, null,
+                (String) null);
         j.getInstance().setSecurityRealm(activeDirectorySecurityRealm);
         while(!FileUtils.readFileToString(d.getLogfile()).contains("custom (exit status 0; expected)")) {
             Thread.sleep(1000);

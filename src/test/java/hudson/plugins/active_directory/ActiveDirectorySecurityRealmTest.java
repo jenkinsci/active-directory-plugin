@@ -4,15 +4,14 @@ import com.gargoylesoftware.htmlunit.html.DomElement;
 import hudson.plugins.active_directory.docker.TheFlintstonesTest;
 import hudson.security.HudsonPrivateSecurityRealm;
 import hudson.security.SecurityRealm;
+import java.util.ArrayList;
+import java.util.List;
 import jenkins.model.Jenkins;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.recipes.LocalData;
-
-import java.util.ArrayList;
-import java.util.List;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
@@ -287,10 +286,14 @@ public class ActiveDirectorySecurityRealmTest {
     @Issue("JENKINS-46884")
     @Test
     public void testAdvancedOptionsVisibleWithNonNativeAuthentication() throws Exception {
-        ActiveDirectoryDomain activeDirectoryDomain = new ActiveDirectoryDomain(TheFlintstonesTest.AD_DOMAIN, null, null, TheFlintstonesTest.AD_MANAGER_DN, TheFlintstonesTest.AD_MANAGER_DN_PASSWORD);
+        ActiveDirectoryDomain activeDirectoryDomain = new ActiveDirectoryDomain(TheFlintstonesTest.AD_DOMAIN,
+                null, null, TheFlintstonesTest.AD_MANAGER_DN, TheFlintstonesTest.AD_MANAGER_DN_PASSWORD);
         List<ActiveDirectoryDomain> domains = new ArrayList<>(1);
         domains.add(activeDirectoryDomain);
-        ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, null, null, null, null, GroupLookupStrategy.RECURSIVE, false, true, null, false, null, null);
+        ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains,
+                null, null, null, null, GroupLookupStrategy.RECURSIVE,
+                false, true, null, false, (ActiveDirectoryInternalUsersDatabase) null,
+                null);
         Jenkins.getInstance().setSecurityRealm(activeDirectorySecurityRealm);
         DomElement domElement = jenkinsRule.createWebClient().goTo("configureSecurity").getElementByName("startTls");
         assertTrue(domElement != null);
@@ -299,10 +302,14 @@ public class ActiveDirectorySecurityRealmTest {
     @Issue("JENKINS-46884")
     @Test
     public void testCacheOptionAlwaysVisible() throws Exception {
-        ActiveDirectoryDomain activeDirectoryDomain = new ActiveDirectoryDomain(TheFlintstonesTest.AD_DOMAIN, null, null, TheFlintstonesTest.AD_MANAGER_DN, TheFlintstonesTest.AD_MANAGER_DN_PASSWORD);
+        ActiveDirectoryDomain activeDirectoryDomain = new ActiveDirectoryDomain(TheFlintstonesTest.AD_DOMAIN,
+                null, null, TheFlintstonesTest.AD_MANAGER_DN, TheFlintstonesTest.AD_MANAGER_DN_PASSWORD);
         List<ActiveDirectoryDomain> domains = new ArrayList<>(1);
         domains.add(activeDirectoryDomain);
-        ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, null, null, null, null, GroupLookupStrategy.RECURSIVE, false, true, null, false, null, null);
+        ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains,
+                null, null, null, null, GroupLookupStrategy.RECURSIVE,
+                false, true, null, false, (ActiveDirectoryInternalUsersDatabase) null,
+                null);
         Jenkins.getInstance().setSecurityRealm(activeDirectorySecurityRealm);
         DomElement domElement = jenkinsRule.createWebClient().goTo("configureSecurity").getElementByName("cache");
         assertTrue(domElement != null);
