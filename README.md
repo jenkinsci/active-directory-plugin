@@ -15,6 +15,16 @@ Jenkins then uses DNS SRV records and LDAP service of Active Directory to authen
 
 Jenkins recognizes all the groups in Active Directory that the user belongs to, so you can use those to make authorization decisions (for example you can choose the matrix-based security as the authorization strategy and perhaps allow "Domain Admins" to administer Jenkins).
 
+#### Setup
+
+Install Certs in Store
+
+Update config.xml
+
+Update jenkins.xml
+
+
+
 #### Active Directory Health Status
 
 Since the version 2.5 the AD plugin adds a ManagementLink to report a Health Status about the Domain and Domain controllers. In order to correctly use this feature, you should be logged-in into the instance and the cache should be disabled. Then, you will get:
