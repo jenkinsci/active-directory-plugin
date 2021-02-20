@@ -107,7 +107,7 @@ For Windows:
 
 5\. Follow section Securing access to Active Directory servers to enable LDAPS
 
-Disaster recovery: In case that after all of this you cannot login anymore, you should enable the logging on the plugin to understand why it is failing. In case that after you enable the secured option you cannot login on the instance anymore, you might want to quickly fallback to the previous status specially on production environments. You can easily do this by going to $JENKINS\_HOME/config.xml and under the section \<securityRealm class="hudson.plugins.active\_directory ActiveDirectorySecurityRealm" revert the tlsConfiguration to the previous status. A restart is needed.
+Disaster recovery: In case that after all of this you cannot login anymore, you should enable the logging on the plugin to understand why it is failing. In case that after you enable the secured option you cannot login on the instance anymore, you might want to quickly fallback to the previous status specially on production environments. You can easily do this by going to $JENKINS\_HOME/config.xml and under the section \<securityRealm class="hudson.plugins.active.directory.ActiveDirectorySecurityRealm" revert the tlsConfiguration to the previous status. A restart is needed.
 
     <tlsConfiguration>TRUST_ALL_CERTIFICATES</tlsConfiguration>
 
@@ -157,12 +157,12 @@ To verify if the connection is upgraded or not, see [Logging](https://www.jenkin
 
 On the other hand, if you wish on using LDAPS, you should set:
 
--   System property `-Dhudson.plugins.active\_directory.ActiveDirectorySecurityRealm.forceLdaps=true` as a startup parameter to force Jenkins to start a connection with LDAPS. 
+-   System property `-Dhudson.plugins.active_directory.ActiveDirectorySecurityRealm.forceLdaps=true` as a startup parameter to force Jenkins to start a connection with LDAPS. 
 -   Use secured port is defined 636 or 3269
     (`your.hostname.com\[\|:636\|:3269\]`)
 
  Note that
-`-Dhudson.plugins.active\_directory.ActiveDirectorySecurityRealm.forceLdaps=true` skips the default LDAP + TLS upgrade.
+`-Dhudson.plugins.active_directory.ActiveDirectorySecurityRealm.forceLdaps=true` skips the default LDAP + TLS upgrade.
 
 #### Override domain controllers
 
