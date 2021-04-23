@@ -23,8 +23,7 @@
  */
 package hudson.plugins.active_directory;
 
-import com.google.common.cache.Cache;
-import com.google.common.util.concurrent.UncheckedExecutionException;
+import com.github.benmanes.caffeine.cache.Cache;
 import com4j.COM4J;
 import com4j.Com4jObject;
 import com4j.ComException;
@@ -56,7 +55,7 @@ import org.acegisecurity.userdetails.UsernameNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.Callable;
+import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -160,8 +159,8 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
             }
             final CacheKey cacheKey = CacheUtil.computeCacheKey(username, password, userCache.asMap().keySet());
 
-            final Callable<UserDetails> callable = new Callable<UserDetails>() {
-                public UserDetails call() {
+            final Function<CacheKey, UserDetails> userDetailsFunction = cacheKey1 ->
+                {
                     String dn = getDnOfUserOrGroup(username);
 
                     ComObjectCollector col = new ComObjectCollector();
@@ -214,20 +213,15 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
                         col.disposeAll();
                         COM4J.removeListener(col);
                     }
-                }
-            };
-            return cacheKey == null ? callable.call() : userCache.get(cacheKey, callable);
-        } catch (UncheckedExecutionException e) {
-            Throwable t = e.getCause();
-            if (t instanceof AuthenticationException) {
-                AuthenticationException authenticationException = (AuthenticationException)t;
-                throw authenticationException;
-            } else {
-                throw new CacheAuthenticationException("Authentication failed because there was a problem caching user " + username, e);
-            }
+                };
+            return cacheKey == null ? userDetailsFunction.apply(null): userCache.get(cacheKey, userDetailsFunction);
         } catch (Exception e) {
             if (e instanceof AuthenticationException) {
                 throw (AuthenticationException)e;
+            }
+            Throwable t = e.getCause();
+            if (t instanceof AuthenticationException) {
+                throw (AuthenticationException)t;
             }
             LOGGER.log(Level.SEVERE, String.format("There was a problem caching user %s", username), e);
             throw new CacheAuthenticationException("Authentication failed because there was a problem caching user " + username, e);
@@ -295,44 +289,41 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
 
 	public GroupDetails loadGroupByGroupname(final String groupname) {
         try {
-            return groupCache.get(groupname, new Callable<ActiveDirectoryGroupDetails>() {
-                public ActiveDirectoryGroupDetails call() throws Exception {
-                    ComObjectCollector col = new ComObjectCollector();
-                    COM4J.addListener(col);
-                    try {
-                        // First get the distinguishedName
-                        String dn = getDnOfUserOrGroup(groupname);
-                        IADsOpenDSObject dso = COM4J.getObject(IADsOpenDSObject.class, "LDAP:", null);
-                        IADsGroup group = dso.openDSObject(dnToLdapUrl(dn), null, null, ADS_READONLY_SERVER)
-                                .queryInterface(IADsGroup.class);
+            return groupCache.get(groupname, s ->   {
+                ComObjectCollector col = new ComObjectCollector();
+                COM4J.addListener(col);
+                try {
+                    // First get the distinguishedName
+                    String dn = getDnOfUserOrGroup(groupname);
+                    IADsOpenDSObject dso = COM4J.getObject(IADsOpenDSObject.class, "LDAP:", null);
+                    IADsGroup group = dso.openDSObject(dnToLdapUrl(dn), null, null, ADS_READONLY_SERVER)
+                            .queryInterface(IADsGroup.class);
 
-                        // If not a group will throw UserMayOrMayNotExistException
-                        if (group == null) {
-                            throw new UserMayOrMayNotExistException(groupname);
-                        }
-                        return new ActiveDirectoryGroupDetails(groupname);
-                    } catch (UsernameNotFoundException e) {
-                        // failed to convert group name to DN
-                        throw new UsernameNotFoundException("Failed to get the DN of the group " + groupname);
-                    } catch (ComException e) {
-                        // recover gracefully since AD might behave in a way we haven't anticipated
-                        LOGGER.log(Level.WARNING, String.format("Failed to figure out details of AD group: %s", groupname), e);
+                    // If not a group will throw UserMayOrMayNotExistException
+                    if (group == null) {
                         throw new UserMayOrMayNotExistException(groupname);
-                    } finally {
-                        col.disposeAll();
-                        COM4J.removeListener(col);
                     }
+                    return new ActiveDirectoryGroupDetails(groupname);
+                } catch (UsernameNotFoundException e) {
+                    // failed to convert group name to DN
+                    throw new UsernameNotFoundException("Failed to get the DN of the group " + groupname);
+                } catch (ComException e) {
+                    // recover gracefully since AD might behave in a way we haven't anticipated
+                    LOGGER.log(Level.WARNING, String.format("Failed to figure out details of AD group: %s", groupname), e);
+                    throw new UserMayOrMayNotExistException(groupname);
+                } finally {
+                    col.disposeAll();
+                    COM4J.removeListener(col);
                 }
             });
-        } catch (UncheckedExecutionException e) {
+        } catch (Exception e) {
+            if (e instanceof AuthenticationException) {
+                throw (AuthenticationException)e;
+            }
             Throwable t = e.getCause();
             if (t instanceof AuthenticationException) {
-                AuthenticationException authenticationException = (AuthenticationException)t;
-                throw authenticationException;
-            } else {
-                throw new CacheAuthenticationException("Authentication failed because there was a problem caching group " +  groupname, e);
+                throw (AuthenticationException)t;
             }
-        } catch (java.util.concurrent.ExecutionException e) {
             LOGGER.log(Level.SEVERE, String.format("There was a problem caching group %s", groupname), e);
 
             throw new CacheAuthenticationException("Authentication failed because there was a problem caching group " +  groupname, e);

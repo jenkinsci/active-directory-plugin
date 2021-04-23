@@ -23,14 +23,15 @@
  */
 package hudson.plugins.active_directory;
 
-import com.google.common.collect.ImmutableList;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.util.FlushProofOutputStream;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
 
 import java.io.PrintStream;
 import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -43,7 +44,7 @@ public class MultiCauseUserNotFoundException extends UsernameNotFoundException {
 
     public MultiCauseUserNotFoundException(String msg, Collection<? extends Throwable> causes) {
         super(msg);
-        this.causes = ImmutableList.copyOf(causes);
+        this.causes = Collections.unmodifiableList(new ArrayList<>(causes));
     }
 
     @Override

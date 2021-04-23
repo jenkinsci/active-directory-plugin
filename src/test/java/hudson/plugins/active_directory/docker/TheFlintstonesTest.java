@@ -26,9 +26,7 @@ package hudson.plugins.active_directory.docker;
 
 import com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException;
 import hudson.plugins.active_directory.ActiveDirectoryDomain;
-import hudson.plugins.active_directory.ActiveDirectoryInternalUsersDatabase;
 import hudson.plugins.active_directory.ActiveDirectorySecurityRealm;
-import hudson.plugins.active_directory.CacheConfiguration;
 import hudson.plugins.active_directory.GroupLookupStrategy;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
@@ -54,8 +52,6 @@ import java.util.Collection;
 import java.util.List;
 
 import static junit.framework.Assert.assertEquals;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsStringIgnoringCase;
 import static org.junit.Assert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.containsString;
@@ -67,9 +63,7 @@ import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
-
-import com.google.common.base.Predicates;
-import com.google.common.collect.Collections2;
+import java.util.stream.Collectors;
 
 import hudson.security.GroupDetails;
 import hudson.util.RingBufferLogHandler;
@@ -238,7 +232,9 @@ public class TheFlintstonesTest {
             j.jenkins.getSecurityRealm().loadGroupByGroupname(aliasname);
         } catch (Exception e) {
         } finally {
-            Collection<String> filter = Collections2.filter(logMessages, Predicates.containsPattern("JENKINS-45576"));
+            Collection<String> filter = logMessages.stream().
+                filter(s -> s.contains( "JENKINS-45576")).
+                collect(Collectors.toList());
             isAlias = !filter.isEmpty();
         }
 
