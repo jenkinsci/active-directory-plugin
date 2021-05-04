@@ -3,7 +3,7 @@ Active Directory plugin for Jenkins
 
 [![Build Status](https://ci.jenkins.io/job/Plugins/job/active-directory-plugin/job/master/badge/icon)](https://ci.jenkins.io/job/Plugins/job/active-directory-plugin/job/master/)
 [![Jenkins Plugin](https://img.shields.io/jenkins/plugin/v/active-directory.svg)](https://plugins.jenkins.io/active-directory/)
-[![GitHub release](https://img.shields.io/github/release/jenkinsci/active-directory.svg?label=changelog)](https://github.com/jenkinsci/active-directory-plugin/releases/latest/)
+[![GitHub release](https://img.shields.io/github/release/jenkinsci/active-directory-plugin.svg?label=changelog)](https://github.com/jenkinsci/active-directory-plugin/releases/latest/)
 [![Jenkins Plugin Installs](https://img.shields.io/jenkins/plugin/i/active-directory.svg?color=blue)](https://plugins.jenkins.io/active-directory/)
 
 
