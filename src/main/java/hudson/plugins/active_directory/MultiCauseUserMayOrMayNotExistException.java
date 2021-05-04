@@ -23,14 +23,15 @@
  */
 package hudson.plugins.active_directory;
 
-import com.google.common.collect.ImmutableList;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.security.UserMayOrMayNotExistException;
 import hudson.util.FlushProofOutputStream;
 
 import java.io.PrintStream;
 import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -41,7 +42,7 @@ public class MultiCauseUserMayOrMayNotExistException extends UserMayOrMayNotExis
 
     public MultiCauseUserMayOrMayNotExistException(String msg, Collection<? extends Throwable> causes) {
         super(msg);
-        this.causes = ImmutableList.copyOf(causes);
+        this.causes = Collections.unmodifiableList(new ArrayList<>(causes));
     }
 
     @Override

@@ -1,7 +1,8 @@
 package hudson.plugins.active_directory;
 
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.LoadingCache;
 import org.acegisecurity.userdetails.UserDetails;
 import org.kohsuke.stapler.DataBoundConstructor;
 
@@ -35,12 +36,12 @@ public class CacheConfiguration<K,V,E extends Exception> {
         this.size = Math.max(0, Math.min(size, 1000));
         this.ttl = Math.max(0, Math.min(ttl, 3600));
 
-        this.userCache = CacheBuilder.newBuilder()
+        this.userCache = Caffeine.newBuilder()
                 .maximumSize(getSize())
                 .expireAfterWrite(getTtl(), TimeUnit.SECONDS)
                 .build();
 
-        this.groupCache = CacheBuilder.newBuilder()
+        this.groupCache = Caffeine.newBuilder()
                 .maximumSize(getSize())
                 .expireAfterWrite(getTtl(), TimeUnit.SECONDS)
                 .build();

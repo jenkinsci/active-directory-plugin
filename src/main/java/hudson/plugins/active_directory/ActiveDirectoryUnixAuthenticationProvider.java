@@ -23,8 +23,7 @@
  */
 package hudson.plugins.active_directory;
 
-import com.google.common.cache.Cache;
-import com.google.common.util.concurrent.UncheckedExecutionException;
+import com.github.benmanes.caffeine.cache.Cache;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Util;
 import hudson.model.User;
@@ -68,11 +67,10 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.Stack;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -336,8 +334,8 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
 
         try {
             final ActiveDirectoryUserDetail[] cacheMiss = new ActiveDirectoryUserDetail[1];
-            final Callable<UserDetails> callable = new Callable<UserDetails>() {
-                public UserDetails call() throws AuthenticationException, NamingException {
+            final Function<CacheKey, UserDetails> cacheKeyUserDetailsFunction = cacheKey1 ->
+                {
                     DirContext context;
                     boolean anonymousBind = false;    // did we bind anonymously?
 
@@ -357,7 +355,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                             anonymousBind = false;
                         } catch (NamingException e) {
                             if (activeDirectoryInternalUser != null) {
-                                throw e;
+                                throw new RuntimeException(e);
                             }
                             throw new AuthenticationServiceException("Failed to bind to LDAP server with the bind name/password", e);
                         }
@@ -367,7 +365,11 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                         try {
                             // if we are just retrieving the user, try using anonymous bind by empty password (see RFC 2829 5.1)
                             // but if that fails, that's not BadCredentialException but UserMayOrMayNotExistException
-                            context = descriptor.bind(userPrincipalName, anonymousBind ? "" : ((UserPassword) password).getPassword(), ldapServers, props, domain.getTlsConfiguration());
+                            context = descriptor.bind( userPrincipalName,
+                                                       anonymousBind ? "" : ((UserPassword) password).getPassword(),
+                                                       ldapServers, props, domain.getTlsConfiguration() );
+                        } catch (NamingException e) {
+                            throw new RuntimeException(e);
                         } catch (BadCredentialsException e) {
                             if (anonymousBind)
                                 // in my observation, if we attempt an anonymous bind and AD doesn't allow it, it still passes the bind method
@@ -428,7 +430,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                         return cacheMiss[0];
                     } catch (NamingException e) {
                         if (activeDirectoryInternalUser != null) {
-                            throw e;
+                            throw new RuntimeException(e);
                         }
                         if (anonymousBind && e.getMessage().contains("successful bind must be completed") && e.getMessage().contains("000004DC")) {
                             // sometimes (or always?) anonymous bind itself will succeed but the actual query will fail.
@@ -448,58 +450,51 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                     } finally {
                         closeQuietly(context);
                     }
-                }
             };
-            userDetails = cacheKey == null ? callable.call() : userCache.get(cacheKey, callable);
+            userDetails = cacheKey == null ? cacheKeyUserDetailsFunction.apply(null) : userCache.get(cacheKey, cacheKeyUserDetailsFunction);
             if (cacheMiss[0] != null || cacheKey == null) { // If a lookup was performed
-                threadPoolExecutor.execute(new Runnable() {
-                    @Override
-                    public void run() {
-                        final String threadName = Thread.currentThread().getName();
-                        Thread.currentThread().setName(threadName + " updating-cache-for-user-" + cacheMiss[0].getUsername());
-                        LOGGER.log(Level.FINEST, "Starting the cache update {0}", new Date());
-                        try {
-                            long t0 = System.currentTimeMillis();
-                            cacheMiss[0].updateUserInfo();
-                            LOGGER.log(Level.FINEST, "Finished the cache update {0}", new Date());
-                            long t1 = System.currentTimeMillis();
-                            LOGGER.log(Level.FINE, "The cache for user {0} took {1} msec", new Object[]{cacheMiss[0].getUsername(), String.valueOf(t1-t0)});
-                        } finally {
-                            Thread.currentThread().setName(threadName);
-                        }
+                threadPoolExecutor.execute(() -> {
+                    final String threadName = Thread.currentThread().getName();
+                    Thread.currentThread().setName(threadName + " updating-cache-for-user-" + cacheMiss[0].getUsername());
+                    LOGGER.log(Level.FINEST, "Starting the cache update {0}", new Date());
+                    try {
+                        long t0 = System.currentTimeMillis();
+                        cacheMiss[0].updateUserInfo();
+                        LOGGER.log(Level.FINEST, "Finished the cache update {0}", new Date());
+                        long t1 = System.currentTimeMillis();
+                        LOGGER.log(Level.FINE, "The cache for user {0} took {1} msec", new Object[]{cacheMiss[0].getUsername(), String.valueOf(t1-t0)});
+                    } finally {
+                        Thread.currentThread().setName(threadName);
                     }
                 });
                 if (userMatchesInternalDatabaseUser(username) && password instanceof UserPassword) {
-                    threadPoolExecutor.execute(new Runnable() {
-                        @Override
-                        public void run() {
-                            final String threadName = Thread.currentThread().getName();
-                            Thread.currentThread().setName(threadName + " updating-internal-jenkins-database-for-user" + cacheMiss[0].getUsername());
-                            LOGGER.log(Level.FINEST, "Starting the Jenkins Internal Database update {0}", new Date());
-                            try {
-                                long t0 = System.currentTimeMillis();
-                                cacheMiss[0].updatePasswordInJenkinsInternalDatabase(username, ((UserPassword)password).getPassword());
-                                LOGGER.log(Level.FINEST, "Finished the password update {0}", new Date());
-                                long t1 = System.currentTimeMillis();
-                                LOGGER.log(Level.FINE, "The password update for user {0} took {1} msec", new Object[]{cacheMiss[0].getUsername(), String.valueOf(t1-t0)});
-                            } finally {
-                                Thread.currentThread().setName(threadName);
-                            }
+                    threadPoolExecutor.execute(() -> {
+                        final String threadName = Thread.currentThread().getName();
+                        Thread.currentThread().setName(threadName + " updating-internal-jenkins-database-for-user" + cacheMiss[0].getUsername());
+                        LOGGER.log(Level.FINEST, "Starting the Jenkins Internal Database update {0}", new Date());
+                        try {
+                            long t0 = System.currentTimeMillis();
+                            cacheMiss[0].updatePasswordInJenkinsInternalDatabase(username, ((UserPassword)password).getPassword());
+                            LOGGER.log(Level.FINEST, "Finished the password update {0}", new Date());
+                            long t1 = System.currentTimeMillis();
+                            LOGGER.log(Level.FINE, "The password update for user {0} took {1} msec", new Object[]{cacheMiss[0].getUsername(), String.valueOf(t1-t0)});
+                        } finally {
+                            Thread.currentThread().setName(threadName);
                         }
                     });
                 }
 
             }
-        } catch (UncheckedExecutionException e) {
-           Throwable t = e.getCause();
-            if (t instanceof AuthenticationException) {
-                throw (AuthenticationException)t;
-            } else {
-                throw new CacheAuthenticationException("Authentication failed because there was a problem caching user " +  username, e);
-            }
         } catch (Exception e) {
+            if (e instanceof AuthenticationException) {
+                throw (AuthenticationException)e;
+            }
             if (e instanceof NamingException) {
                 throw (NamingException)e;
+            }
+            Throwable t = e.getCause();
+            if (t instanceof AuthenticationException) {
+                throw (AuthenticationException)t;
             }
             if (e.getCause() instanceof NamingException) {
                 throw new NamingException(); // TODO why not re-throw e.getCause() ?
@@ -516,8 +511,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
 
     public GroupDetails loadGroupByGroupname(final String groupname) {
         try {
-            return groupCache.get(groupname, new Callable<ActiveDirectoryGroupDetails>() {
-                        public ActiveDirectoryGroupDetails call() throws NamingException {
+            return groupCache.get(groupname, s ->  {
                             for (ActiveDirectoryDomain domain : domains) {
                                 if (domain==null) {
                                     throw new UserMayOrMayNotExistException("Unable to retrieve group information without bind DN/password configured");
@@ -527,7 +521,8 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                                 ClassLoader ccl = Thread.currentThread().getContextClassLoader();
                                 Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
                                 try {
-                                    DirContext context = descriptor.bind(domain.getBindName(), domain.getBindPassword().getPlainText(), obtainLDAPServers(domain), props, domain.getTlsConfiguration());
+                                    DirContext context = descriptor.bind(domain.getBindName(), domain.getBindPassword().getPlainText(),
+                                                                         obtainLDAPServers(domain), props, domain.getTlsConfiguration());
 
                                     try {
                                         final String domainDN = toDC(domain.getName());
@@ -562,9 +557,8 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                                     } finally {
                                         closeQuietly(context);
                                     }
-                                } catch (UsernameNotFoundException e) {
-                                    // everything worked OK but we just didn't find it. This could be just a typo in group name.
-                                    LOGGER.log(Level.WARNING, String.format("Failed to find the group %s in %s domain", groupname, domain.getName()), e);
+                                } catch (NamingException e) {
+                                    throw new RuntimeException(e);
                                 } catch (AuthenticationException e) {
                                     // something went wrong talking to the server. This should be reported
                                     LOGGER.log(Level.WARNING, String.format("Failed to find the group %s in %s domain", groupname, domain.getName()), e);
@@ -574,17 +568,13 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                             }
                             LOGGER.log(Level.WARNING, "Exhausted all configured domains and could not authenticate against any");
                             throw new UserMayOrMayNotExistException(groupname);
-                        }
                     });
-        } catch (UncheckedExecutionException e) {
+        } catch (Exception e) {
             Throwable t = e.getCause();
             if (t instanceof AuthenticationException) {
                 AuthenticationException authenticationException= (AuthenticationException)t;
                 throw authenticationException;
-            } else {
-                throw new CacheAuthenticationException("Authentication failed because there was a problem caching group " +  groupname, e);
             }
-        } catch (ExecutionException e) {
             LOGGER.log(Level.SEVERE, String.format("There was a problem caching group %s", groupname), e);
             throw new CacheAuthenticationException("Authentication failed because there was a problem caching group " +  groupname, e);
         }
