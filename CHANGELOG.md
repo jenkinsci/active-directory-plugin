@@ -1,4 +1,6 @@
-# Changelog
+# Old Changelog
+
+As of version 2.17 please refer to the [GitHub Releases page](https://github.com/jenkinsci/active-directory-plugin/releases)
 
 ## Version 2.23 (2020/12/24)
 * Categorization of the plugin under the Status section of the `/manage` page of the User Interface. ([PR-107](https://github.com/jenkinsci/active-directory-plugin/pull/107))
