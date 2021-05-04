@@ -15,6 +15,16 @@ Jenkins then uses DNS SRV records and LDAP service of Active Directory to authen
 
 Jenkins recognizes all the groups in Active Directory that the user belongs to, so you can use those to make authorization decisions (for example you can choose the matrix-based security as the authorization strategy and perhaps allow "Domain Admins" to administer Jenkins).
 
+#### Setup
+
+Install Certs in Store
+
+Update config.xml
+
+Update jenkins.xml
+
+
+
 #### Active Directory Health Status
 
 Since the version 2.5 the AD plugin adds a ManagementLink to report a Health Status about the Domain and Domain controllers. In order to correctly use this feature, you should be logged-in into the instance and the cache should be disabled. Then, you will get:
@@ -107,7 +117,7 @@ For Windows:
 
 5\. Follow section Securing access to Active Directory servers to enable LDAPS
 
-Disaster recovery: In case that after all of this you cannot login anymore, you should enable the logging on the plugin to understand why it is failing. In case that after you enable the secured option you cannot login on the instance anymore, you might want to quickly fallback to the previous status specially on production environments. You can easily do this by going to $JENKINS\_HOME/config.xml and under the section \<securityRealm class="hudson.plugins.active\_directory ActiveDirectorySecurityRealm" revert the tlsConfiguration to the previous status. A restart is needed.
+Disaster recovery: In case that after all of this you cannot login anymore, you should enable the logging on the plugin to understand why it is failing. In case that after you enable the secured option you cannot login on the instance anymore, you might want to quickly fallback to the previous status specially on production environments. You can easily do this by going to $JENKINS\_HOME/config.xml and under the section \<securityRealm class="hudson.plugins.active_directory.ActiveDirectorySecurityRealm" revert the tlsConfiguration to the previous status. A restart is needed.
 
     <tlsConfiguration>TRUST_ALL_CERTIFICATES</tlsConfiguration>
 
@@ -157,12 +167,12 @@ To verify if the connection is upgraded or not, see [Logging](https://www.jenkin
 
 On the other hand, if you wish on using LDAPS, you should set:
 
--   System property `-Dhudson.plugins.active\_directory.ActiveDirectorySecurityRealm.forceLdaps=true` as a startup parameter to force Jenkins to start a connection with LDAPS. 
+-   System property `-Dhudson.plugins.active_directory.ActiveDirectorySecurityRealm.forceLdaps=true` as a startup parameter to force Jenkins to start a connection with LDAPS. 
 -   Use secured port is defined 636 or 3269
     (`your.hostname.com\[\|:636\|:3269\]`)
 
  Note that
-`-Dhudson.plugins.active\_directory.ActiveDirectorySecurityRealm.forceLdaps=true` skips the default LDAP + TLS upgrade.
+`-Dhudson.plugins.active_directory.ActiveDirectorySecurityRealm.forceLdaps=true` skips the default LDAP + TLS upgrade.
 
 #### Override domain controllers
 
@@ -188,7 +198,7 @@ If you are not sure what the notation for a group name is, try the following pro
 
 #### Create/Update a dedicated Logs Recorder
 
-If you think you've configured everything correctly but still not being able to login (or any other problems), please enable [Logging](https://www.jenkins.io/doc/book/system-administration/viewing-logs/) and configure logging level for "hudson.plugins.active\_directory" to ALL. Attempt a login and then file a ticket with the log output.
+If you think you've configured everything correctly but still not being able to login (or any other problems), please enable [Logging](https://www.jenkins.io/doc/book/system-administration/viewing-logs/) and configure logging level for "hudson.plugins.active_directory" to ALL. Attempt a login and then file a ticket with the log output.
 
 Also, it might be useful to enable:
 
