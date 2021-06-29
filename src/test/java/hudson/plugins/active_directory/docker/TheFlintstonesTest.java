@@ -88,14 +88,14 @@ public class TheFlintstonesTest {
     public final static String AD_MANAGER_DN = "CN=Administrator,CN=Users,DC=SAMDOM,DC=EXAMPLE,DC=COM";
     public final static String AD_MANAGER_DN_PASSWORD = "ia4uV1EeKait";
     public final static int MAX_RETRIES = 30;
-    public String dockerIp;
-    public int dockerPort;
+    //public String dockerIp;
+    //public int dockerPort;
 
     public void dynamicSetUp() throws Exception {
         TheFlintstones d = docker.get();
-        dockerIp = d.ipBound(3268);
-        dockerPort = d.port(3268);
-        ActiveDirectoryDomain activeDirectoryDomain = new ActiveDirectoryDomain(AD_DOMAIN, dockerIp + ":" +  dockerPort , null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD);
+        //dockerIp = d.ipBound(3268);
+        //dockerPort = d.port(3268);
+        ActiveDirectoryDomain activeDirectoryDomain = new ActiveDirectoryDomain(AD_DOMAIN, null /*dockerIp + ":" +  dockerPort*/ , null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD);
         List<ActiveDirectoryDomain> domains = new ArrayList<>(1);
         domains.add(activeDirectoryDomain);
         ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, null, null, null, null, GroupLookupStrategy.RECURSIVE, false, true, null, false, null, null);
@@ -117,13 +117,13 @@ public class TheFlintstonesTest {
 
     public void manualSetUp() throws Exception {
         TheFlintstones d = docker.get();
-        dockerIp = d.ipBound(3268);
-        dockerPort = d.port(3268);
+        //dockerIp = d.ipBound(3268);
+        //dockerPort = d.port(3268);
 
         ActiveDirectorySecurityRealm activeDirectorySecurityRealm = (ActiveDirectorySecurityRealm) j.jenkins.getSecurityRealm();
         for (ActiveDirectoryDomain activeDirectoryDomain : activeDirectorySecurityRealm.getDomains()) {
             activeDirectoryDomain.bindPassword = Secret.fromString(AD_MANAGER_DN_PASSWORD);
-            activeDirectoryDomain.servers = dockerIp + ":" +  dockerPort;
+            //activeDirectoryDomain.servers = dockerIp + ":" +  dockerPort;
         }
 
         while(!FileUtils.readFileToString(d.getLogfile()).contains("custom (exit status 0; expected)")) {
