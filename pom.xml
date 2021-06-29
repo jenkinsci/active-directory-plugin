@@ -176,7 +176,7 @@
     <profile>
       <id>noIT</id>
       <activation>
-        <activeByDefault>false</activeByDefault>
+        <activeByDefault>true</activeByDefault>
       </activation>
       <build>
         <plugins>
@@ -189,27 +189,6 @@
                 <exclude>**/EntoEndUserCacheLookupDisabledTest.java</exclude>
                 <exclude>**/WindowsAdsiModeUserCacheDisabledTest.java</exclude>
                 <exclude>**/WindowsAdsiModeUserCacheEnabledTest.java</exclude>
-              </excludes>
-            </configuration>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-    <profile>
-      <id>noWindows</id>
-      <activation>
-        <activeByDefault>true</activeByDefault>
-      </activation>
-      <build>
-        <plugins>
-          <plugin>
-            <artifactId>maven-surefire-plugin</artifactId>
-            <configuration>
-              <excludes>
-                <exclude>**/WindowsAdsiModeUserCacheDisabledTest.java</exclude>
-                <exclude>**/WindowsAdsiModeUserCacheEnabledTest.java</exclude>
-                <exclude>**/EntoEndUserCacheLookupEnabledTest.java</exclude>
-                <exclude>**/EntoEndUserCacheLookupDisabledTest.java</exclude>
               </excludes>
             </configuration>
           </plugin>
