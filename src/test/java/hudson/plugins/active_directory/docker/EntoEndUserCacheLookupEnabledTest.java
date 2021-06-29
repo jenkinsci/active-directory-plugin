@@ -44,8 +44,6 @@ public class EntoEndUserCacheLookupEnabledTest {
     private final static String AD_MANAGER_DN = "CN=Administrator,CN=Users,DC=SAMDOM,DC=EXAMPLE,DC=COM";
     private final static String AD_MANAGER_DN_PASSWORD = "ia4uV1EeKait";
     private final static int MAX_RETRIES = 30;
-    private String dockerIp;
-    private int dockerPort;
 
     private static String CACHE_AUTH;
 
@@ -69,10 +67,7 @@ public class EntoEndUserCacheLookupEnabledTest {
                                     GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain,
                                     CacheConfiguration cache, Boolean startTls, ActiveDirectoryInternalUsersDatabase internalUsersDatabase) throws Exception {
         TheFlintstonesTest.TheFlintstones d = docker.get();
-        dockerIp = d.ipBound(3268);
-        dockerPort = d.port(3268);
 
-        activeDirectoryDomain.servers = dockerIp + ":" + dockerPort;
         List<ActiveDirectoryDomain> domains = new ArrayList<>(1);
         domains.add(activeDirectoryDomain);
 
