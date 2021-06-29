@@ -1,4 +1,4 @@
-buildPlugin()
+buildPlugin(platforms: ['linux'])
 
 node('docker') {
      stage('checkout') {
