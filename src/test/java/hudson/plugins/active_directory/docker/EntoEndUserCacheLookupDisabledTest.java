@@ -50,7 +50,7 @@ public class EntoEndUserCacheLookupDisabledTest {
         List<ActiveDirectoryDomain> domains = new ArrayList<>(1);
         domains.add(activeDirectoryDomain);
 
-        ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, site, bindName, bindPassword, null, groupLookupStrategy, removeIrrelevantGroups, customDomain, cache, startTls, internalUsersDatabase, true);
+        ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, site, bindName, bindPassword, null, groupLookupStrategy, removeIrrelevantGroups, customDomain, cache, startTls, internalUsersDatabase);
         j.getInstance().setSecurityRealm(activeDirectorySecurityRealm);
         while(!FileUtils.readFileToString(d.getLogfile()).contains("custom (exit status 0; expected)")) {
             Thread.sleep(1000);
