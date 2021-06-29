@@ -1,4 +1,4 @@
-buildPlugin(platforms: ['linux'])
+buildPlugin(platforms: ['linux'], timeout: "600")
 
 node('docker') {
      stage('checkout') {
