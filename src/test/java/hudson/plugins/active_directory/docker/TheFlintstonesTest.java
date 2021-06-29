@@ -198,7 +198,7 @@ public class TheFlintstonesTest {
     public void validateCustomDomainController() throws ServletException, NamingException, IOException, Exception {
         dynamicSetUp();
         ActiveDirectoryDomain.DescriptorImpl adDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
-        assertEquals("OK: Success", adDescriptor.doValidateTest(AD_DOMAIN, dockerIp + ":" + dockerPort, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD, null).toString().trim());
+        assertEquals("OK: Success", adDescriptor.doValidateTest(AD_DOMAIN, /*dockerIp + ":" + dockerPort*/ null, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD, null).toString().trim());
     }
 
     @Issue("JENKINS-36148")
