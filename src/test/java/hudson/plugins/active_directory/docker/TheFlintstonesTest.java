@@ -349,7 +349,7 @@ public class TheFlintstonesTest {
         assertTrue(messages.stream().anyMatch(s -> s.contains("Failed to retrieve user Fred")));
     }
 
-    @DockerFixture(id = "ad-dc", ports= {135, 138, 445, 39, 464, 389, 3268}, udpPorts = {53}, matchHostPorts = true)
+    @DockerFixture(id = "ad-dc", ports= {135, 138, 445, 39, 53, 464, 389, 3268}, udpPorts = {53}, matchHostPorts = true)
     public static class TheFlintstones extends DockerContainer {
 
     }
