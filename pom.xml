@@ -208,6 +208,8 @@
               <excludes>
                 <exclude>**/WindowsAdsiModeUserCacheDisabledTest.java</exclude>
                 <exclude>**/WindowsAdsiModeUserCacheEnabledTest.java</exclude>
+                <exclude>**/EntoEndUserCacheLookupEnabledTest.java</exclude>
+                <exclude>**/EntoEndUserCacheLookupDisabledTest.java</exclude>
               </excludes>
             </configuration>
           </plugin>
