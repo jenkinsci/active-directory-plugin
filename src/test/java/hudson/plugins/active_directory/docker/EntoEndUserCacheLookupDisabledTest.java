@@ -16,6 +16,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.LoggerRule;
+import org.jvnet.hudson.test.recipes.WithTimeout;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -73,6 +74,7 @@ public class EntoEndUserCacheLookupDisabledTest {
     }
 
     @Test
+    @WithTimeout(6000)
     public void testEndtoEndManagerDnCacheEnabled() throws Exception {
         List<String> messages;
         l.record(hudson.plugins.active_directory.ActiveDirectoryUnixAuthenticationProvider.class, Level.FINE).capture(20);
@@ -109,6 +111,7 @@ public class EntoEndUserCacheLookupDisabledTest {
     }
 
     @Test
+    @WithTimeout(6000)
     public void testEndtoEndManagerDnCacheDisabled() throws Exception {
         List<String> messages;
         l.record(hudson.plugins.active_directory.ActiveDirectoryUnixAuthenticationProvider.class, Level.FINE).capture(20);

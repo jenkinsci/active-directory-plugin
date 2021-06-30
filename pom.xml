@@ -184,7 +184,7 @@
             <artifactId>maven-surefire-plugin</artifactId>
             <configuration>
               <excludes>
-                <!--<exclude>**/TheFlintstonesTest.java</exclude>-->
+                <exclude>**/TheFlintstonesTest.java</exclude>
                 <exclude>**/EntoEndUserCacheLookupEnabledTest.java</exclude>
                 <!-- <exclude>**/EntoEndUserCacheLookupDisabledTest.java</exclude>-->
                 <exclude>**/WindowsAdsiModeUserCacheDisabledTest.java</exclude>
