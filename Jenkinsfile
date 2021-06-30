@@ -9,7 +9,7 @@ node('docker') {
      }
      stage('maven') {
         sh '''
-        docker run --add-host=samdom.example.com:127.0.0.1 -v /var/lib/docker --privileged --dns=127.0.0.1 --dns=8.8.8.8 -v $WORKSPACE:/project  fbelzunc/ad-build-container-with-docker-fixtures clean install -Djenkins.test.timeout=3600
+        docker run --add-host=samdom.example.com:127.0.0.1 -v /var/lib/docker --privileged --dns=127.0.0.1 --dns=8.8.8.8 -v $WORKSPACE:/project  fbelzunc/ad-build-container-with-docker-fixtures install -Djenkins.test.timeout=3600
         '''
      }
      stage('surefire-report') {
