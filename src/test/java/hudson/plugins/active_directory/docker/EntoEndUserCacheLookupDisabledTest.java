@@ -140,7 +140,6 @@ public class EntoEndUserCacheLookupDisabledTest {
         // Try to login as Fred with correct password
         wc.login("Fred", "ia4uV1EeKait");
         assertThat(wc.goToXml("whoAmI/api/xml").asXml().replaceAll("\\s+", ""), containsString("<name>Fred</name>"));
-
     }
 
     @DockerFixture(id = "ad-dc", ports= {135, 138, 445, 39, 464, 389, 3268}, udpPorts = {53}, matchHostPorts = true, dockerfileFolder="docker/TheFlintstonesTest/TheFlintstones")
