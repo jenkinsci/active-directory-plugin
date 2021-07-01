@@ -96,7 +96,7 @@ public class TheFlintstonesTest {
         TheFlintstones d = docker.get();
         dockerIp = d.ipBound(3268);
         dockerPort = d.port(3268);
-        ActiveDirectoryDomain activeDirectoryDomain = new ActiveDirectoryDomain(AD_DOMAIN, null /*dockerIp + ":" +  dockerPort*/ , null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD);
+        ActiveDirectoryDomain activeDirectoryDomain = new ActiveDirectoryDomain(AD_DOMAIN, null, dockerIp + ":" +  dockerPort , null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD);
         List<ActiveDirectoryDomain> domains = new ArrayList<>(1);
         domains.add(activeDirectoryDomain);
         ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, null, null, null, null, GroupLookupStrategy.RECURSIVE, false, true, null, false, null, null);
