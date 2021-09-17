@@ -570,10 +570,8 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                             throw new UserMayOrMayNotExistException(groupname);
                     });
         } catch (Exception e) {
-            Throwable t = e.getCause();
-            if (t instanceof AuthenticationException) {
-                AuthenticationException authenticationException= (AuthenticationException)t;
-                throw authenticationException;
+            if (e instanceof AuthenticationException) {
+                throw e;
             }
             LOGGER.log(Level.SEVERE, String.format("There was a problem caching group %s", groupname), e);
             throw new CacheAuthenticationException("Authentication failed because there was a problem caching group " +  groupname, e);
