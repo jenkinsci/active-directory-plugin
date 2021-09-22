@@ -19,6 +19,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.LoggerRule;
+import org.jvnet.hudson.test.recipes.WithTimeout;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -78,9 +79,12 @@ public class EntoEndUserCacheLookupEnabledTest {
 
         ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, site, bindName, bindPassword, null, groupLookupStrategy, removeIrrelevantGroups, customDomain, cache, startTls, internalUsersDatabase);
         j.getInstance().setSecurityRealm(activeDirectorySecurityRealm);
+
         while(!FileUtils.readFileToString(d.getLogfile()).contains("custom (exit status 0; expected)")) {
             Thread.sleep(1000);
         }
+
+
         UserDetails userDetails = null;
         int i = 0;
         while (i < MAX_RETRIES && userDetails == null) {
@@ -94,6 +98,7 @@ public class EntoEndUserCacheLookupEnabledTest {
     }
 
     @Test
+    @WithTimeout(6000)
     public void testEndtoEndManagerDnCacheEnabled() throws Exception {
         List<String> messages;
         l.record(hudson.plugins.active_directory.ActiveDirectoryUnixAuthenticationProvider.class, Level.FINE).capture(20);
@@ -130,6 +135,7 @@ public class EntoEndUserCacheLookupEnabledTest {
     }
 
     @Test
+    @WithTimeout(6000)
     public void testEndtoEndManagerDnCacheDisabled() throws Exception {
         List<String> messages;
         l.record(hudson.plugins.active_directory.ActiveDirectoryUnixAuthenticationProvider.class, Level.FINE).capture(20);

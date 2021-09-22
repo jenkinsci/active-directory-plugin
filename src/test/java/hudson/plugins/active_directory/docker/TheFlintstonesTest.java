@@ -69,6 +69,7 @@ import hudson.security.GroupDetails;
 import hudson.util.RingBufferLogHandler;
 import org.jvnet.hudson.test.LoggerRule;
 import org.jvnet.hudson.test.recipes.LocalData;
+import org.jvnet.hudson.test.recipes.WithTimeout;
 
 /**
  * Integration tests with Docker
@@ -95,8 +96,7 @@ public class TheFlintstonesTest {
         TheFlintstones d = docker.get();
         dockerIp = d.ipBound(3268);
         dockerPort = d.port(3268);
-        ActiveDirectoryDomain activeDirectoryDomain = new ActiveDirectoryDomain(AD_DOMAIN, dockerIp + ":" +  dockerPort , null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD);
-        List<ActiveDirectoryDomain> domains = new ArrayList<>(1);
+        ActiveDirectoryDomain activeDirectoryDomain = new ActiveDirectoryDomain(AD_DOMAIN, dockerIp + ":" + dockerPort , null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD);        List<ActiveDirectoryDomain> domains = new ArrayList<>(1);
         domains.add(activeDirectoryDomain);
         ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, null, null, null, null, GroupLookupStrategy.RECURSIVE, false, true, null, false, null, null);
         j.getInstance().setSecurityRealm(activeDirectorySecurityRealm);
@@ -142,6 +142,7 @@ public class TheFlintstonesTest {
     }
 
     @Test
+    @WithTimeout(6000)
     public void simpleLoginSuccessful() throws Exception {
         dynamicSetUp();
         UserDetails userDetails = j.jenkins.getSecurityRealm().loadUserByUsername("Fred");
@@ -149,6 +150,7 @@ public class TheFlintstonesTest {
     }
 
     @Test
+    @WithTimeout(6000)
     public void actualLogin() throws Exception {
         dynamicSetUp();
         JenkinsRule.WebClient wc = j.createWebClient().login("Fred", "ia4uV1EeKait");
@@ -162,6 +164,7 @@ public class TheFlintstonesTest {
 
     @Issue("SECURITY-2099")
     @Test
+    @WithTimeout(6000)
     public void shouldNotAllowEmptyPassword() throws Exception {
         l.record(hudson.plugins.active_directory.ActiveDirectoryUnixAuthenticationProvider.class, Level.FINE).capture(20);
         dynamicSetUp();
@@ -175,6 +178,7 @@ public class TheFlintstonesTest {
     }
 
     @Test
+    @WithTimeout(6000)
     public void simpleLoginFails() throws Exception {
         dynamicSetUp();
         try {
@@ -186,6 +190,7 @@ public class TheFlintstonesTest {
 
     @Issue("JENKINS-36148")
     @Test
+    @WithTimeout(6000)
     public void checkDomainHealth() throws Exception {
         dynamicSetUp();
         ActiveDirectorySecurityRealm securityRealm = (ActiveDirectorySecurityRealm) Jenkins.getInstance().getSecurityRealm();
@@ -195,6 +200,7 @@ public class TheFlintstonesTest {
 
     @Issue("JENKINS-36148")
     @Test
+    @WithTimeout(6000)
     public void validateCustomDomainController() throws ServletException, NamingException, IOException, Exception {
         dynamicSetUp();
         ActiveDirectoryDomain.DescriptorImpl adDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
@@ -203,6 +209,7 @@ public class TheFlintstonesTest {
 
     @Issue("JENKINS-36148")
     @Test
+    @WithTimeout(6000)
     public void validateDomain() throws ServletException, NamingException, IOException, Exception {
         dynamicSetUp();
         ActiveDirectoryDomain.DescriptorImpl adDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
@@ -212,6 +219,7 @@ public class TheFlintstonesTest {
 
     @Issue("JENKINS-45576")
     @Test
+    @WithTimeout(6000)
     public void loadGroupFromGroupname() throws Exception {
         dynamicSetUp();
         String groupname = "The Rubbles";
@@ -221,6 +229,7 @@ public class TheFlintstonesTest {
 
     @Issue("JENKINS-45576")
     @Test
+    @WithTimeout(6000)
     public void loadGroupFromAlias() throws Exception {
         dynamicSetUp();
         // required to monitor the log messages, removing this line the test will fail
@@ -266,6 +275,7 @@ public class TheFlintstonesTest {
 
     @LocalData
     @Test
+    @WithTimeout(6000)
     public void testSimpleLoginSuccessfulAfterReadResolveTlsConfigurationSingleDomain() throws Exception {
         manualSetUp();
         UserDetails userDetails = j.jenkins.getSecurityRealm().loadUserByUsername("Fred");
@@ -274,6 +284,7 @@ public class TheFlintstonesTest {
 
     @LocalData
     @Test
+    @WithTimeout(6000)
     public void testSimpleLoginFailsAfterReadResolveTlsConfigurationSingleDomain() throws Exception {
         manualSetUp();
         try {
@@ -285,6 +296,7 @@ public class TheFlintstonesTest {
 
     @LocalData
     @Test
+    @WithTimeout(6000)
     public void testSimpleLoginSuccessAfterReadResolveTlsConfigurationMultipleDomainsOneDomain() throws Exception {
         manualSetUp();
         UserDetails userDetails = j.jenkins.getSecurityRealm().loadUserByUsername("Fred");
@@ -293,6 +305,7 @@ public class TheFlintstonesTest {
 
     @LocalData
     @Test
+    @WithTimeout(6000)
     public void testSimpleLoginFailsAfterReadResolveTlsConfigurationMultipleDomainsOneDomain() throws Exception {
         manualSetUp();
         try {
@@ -305,6 +318,7 @@ public class TheFlintstonesTest {
     // TlsConfiguration tests
     @LocalData
     @Test
+    @WithTimeout(6000)
     public void testSimpleLoginSuccessfulTrustingAllCertificates() throws Exception {
         manualSetUp();
         UserDetails userDetails = j.jenkins.getSecurityRealm().loadUserByUsername("Fred");
@@ -313,6 +327,7 @@ public class TheFlintstonesTest {
 
     @LocalData
     @Test
+    @WithTimeout(6000)
     public void testSimpleLoginFailsTrustingJDKTrustStore() throws Exception {
         try {
             manualSetUp();
@@ -323,6 +338,7 @@ public class TheFlintstonesTest {
 
     @Issue("SECURITY-2117")
     @Test
+    @WithTimeout(6000)
     public void testNullBytesInPasswordMustFail() throws Exception {
         l.record(hudson.plugins.active_directory.ActiveDirectoryUnixAuthenticationProvider.class, Level.FINE).capture(20);
         dynamicSetUp();
@@ -337,6 +353,7 @@ public class TheFlintstonesTest {
 
     @Issue("SECURITY-2117")
     @Test
+    @WithTimeout(6000)
     public void testIncorrectPasswordMustFail() throws Exception {
         l.record(hudson.plugins.active_directory.ActiveDirectoryUnixAuthenticationProvider.class, Level.FINE).capture(20);
         dynamicSetUp();
@@ -349,7 +366,7 @@ public class TheFlintstonesTest {
         assertTrue(messages.stream().anyMatch(s -> s.contains("Failed to retrieve user Fred")));
     }
 
-    @DockerFixture(id = "ad-dc", ports= {135, 138, 445, 39, 464, 389, 3268}, udpPorts = {53}, matchHostPorts = true)
+    @DockerFixture(id = "ad-dc", ports= {135, 138, 445, 39, 53, 464, 389, 3268}, udpPorts = {53}, matchHostPorts = true)
     public static class TheFlintstones extends DockerContainer {
 
     }

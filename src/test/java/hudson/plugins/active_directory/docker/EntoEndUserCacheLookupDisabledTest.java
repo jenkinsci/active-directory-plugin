@@ -16,6 +16,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.LoggerRule;
+import org.jvnet.hudson.test.recipes.WithTimeout;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -73,6 +74,7 @@ public class EntoEndUserCacheLookupDisabledTest {
     }
 
     @Test
+    @WithTimeout(6000)
     public void testEndtoEndManagerDnCacheEnabled() throws Exception {
         List<String> messages;
         l.record(hudson.plugins.active_directory.ActiveDirectoryUnixAuthenticationProvider.class, Level.FINE).capture(20);
@@ -109,6 +111,7 @@ public class EntoEndUserCacheLookupDisabledTest {
     }
 
     @Test
+    @WithTimeout(6000)
     public void testEndtoEndManagerDnCacheDisabled() throws Exception {
         List<String> messages;
         l.record(hudson.plugins.active_directory.ActiveDirectoryUnixAuthenticationProvider.class, Level.FINE).capture(20);
@@ -140,7 +143,6 @@ public class EntoEndUserCacheLookupDisabledTest {
         // Try to login as Fred with correct password
         wc.login("Fred", "ia4uV1EeKait");
         assertThat(wc.goToXml("whoAmI/api/xml").asXml().replaceAll("\\s+", ""), containsString("<name>Fred</name>"));
-
     }
 
     @DockerFixture(id = "ad-dc", ports= {135, 138, 445, 39, 464, 389, 3268}, udpPorts = {53}, matchHostPorts = true, dockerfileFolder="docker/TheFlintstonesTest/TheFlintstones")
