@@ -615,10 +615,9 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                 LdapContext context = (LdapContext)LdapCtxFactory.getLdapCtxInstance(ldapUrl, props);
 
                 boolean isStartTls = true;
-                SecurityRealm securityRealm = Jenkins.getActiveInstance().getSecurityRealm();
+                SecurityRealm securityRealm = Jenkins.get().getSecurityRealm();
                 if (securityRealm instanceof ActiveDirectorySecurityRealm) {
-                    ActiveDirectorySecurityRealm activeDirectorySecurityRealm = (ActiveDirectorySecurityRealm) securityRealm;
-                     isStartTls= activeDirectorySecurityRealm.isStartTls();
+                    isStartTls = Boolean.TRUE.equals(((ActiveDirectorySecurityRealm) securityRealm).isStartTls());
                 }
 
                 if (!FORCE_LDAPS && isStartTls) {

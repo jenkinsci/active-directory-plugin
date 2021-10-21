@@ -58,7 +58,9 @@ import javax.naming.directory.DirContext;
 import javax.naming.directory.SearchResult;
 import javax.naming.ldap.LdapName;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
+import java.util.GregorianCalendar;
 import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.List;
@@ -384,12 +386,14 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                         // locate this user's record
                         final String domainDN = toDC(domain.getName());
 
-                        Attributes user = new LDAPSearchBuilder(context, domainDN).subTreeScope().searchOne("(& (userPrincipalName={0})(objectCategory=user))", userPrincipalName);
+                        Attributes user = new LDAPSearchBuilder(context, domainDN).subTreeScope().returns("*", "+")
+                                .searchOne("(& (userPrincipalName={0})(objectCategory=user))", userPrincipalName);
                         if (user == null) {
                             // failed to find it. Fall back to sAMAccountName.
                             // see http://www.nabble.com/Re%3A-Hudson-AD-plug-in-td21428668.html
                             LOGGER.log(Level.FINE, "Failed to find {0} in userPrincipalName. Trying sAMAccountName", userPrincipalName);
-                            user = new LDAPSearchBuilder(context, domainDN).subTreeScope().searchOne("(& (sAMAccountName={0})(objectCategory=user))", samAccountName);
+                            user = new LDAPSearchBuilder(context, domainDN).subTreeScope().returns("*", "+")
+                                    .searchOne("(& (sAMAccountName={0})(objectCategory=user))", samAccountName);
                             if (user == null) {
                                 throw new UsernameNotFoundException("Authentication was successful but cannot locate the user information for " + username);
                             }
@@ -422,10 +426,17 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                         Set<GrantedAuthority> groups = resolveGroups(domainDN, dnFormatted, context);
                         groups.add(SecurityRealm.AUTHENTICATED_AUTHORITY);
 
-                        cacheMiss[0] = new ActiveDirectoryUserDetail(username, "redacted", true, true, true, true, groups.toArray(new GrantedAuthority[0]),
-                                getStringAttribute(user, "displayName"),
-                                getStringAttribute(user, "mail"),
-                                getStringAttribute(user, "telephoneNumber")
+                        UserAttributesHelper.checkIfUserIsEnabled(user);
+                        UserAttributesHelper.checkIfAccountNonExpired(user);
+                        UserAttributesHelper.checkIfCredentialsAreNonExpired(user);
+                        UserAttributesHelper.checkIfAccountNonLocked(user);
+
+                        cacheMiss[0] = new ActiveDirectoryUserDetail(username, "redacted",
+                                true, true, true, true,
+                                groups.toArray(new GrantedAuthority[0]),
+                                UserAttributesHelper.getStringAttribute(user, "displayName"),
+                                UserAttributesHelper.getStringAttribute(user, "mail"),
+                                UserAttributesHelper.getStringAttribute(user, "telephoneNumber")
                         );
                         return cacheMiss[0];
                     } catch (NamingException e) {
@@ -585,15 +596,6 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
         } catch (NamingException e) {
             LOGGER.log(Level.INFO,"Failed to close DirContext: "+context,e);
         }
-    }
-
-
-    private String getStringAttribute(Attributes user, String name) throws NamingException {
-        Attribute a = user.get(name);
-        if (a==null)    return null;
-        Object v = a.get();
-        if (v==null)    return null;
-        return v.toString();
     }
 
     /**

@@ -194,6 +194,12 @@ If you are not sure what the notation for a group name is, try the following pro
 4.  Add the relevant groups found to the security matrix with appropriate permissions
 5.  Do not forget to withdraw permissions from the anonymous user, taking into consideration the Overall:Read permission (hover over the column header for detail)
 
+#### Account Validity Attributes
+
+When a user account is disabled, expired, or locked, it is usually the responsibility of the Active Directory server to enforce such states when logging in as the affected user.
+After a user has logged in to Jenkins successfully, these user states may change.
+In order to ensure a user account is still valid when being used in other contexts where their password is not known (such as API tokens), additional checks are performed on user accounts to ensure the account is still allowed to be used.
+
 ## Troubleshooting
 
 #### Create/Update a dedicated Logs Recorder

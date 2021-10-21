@@ -42,26 +42,31 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.security.GroupDetails;
 import hudson.security.SecurityRealm;
 import hudson.security.UserMayOrMayNotExistException;
+import org.acegisecurity.AccountExpiredException;
 import org.acegisecurity.AuthenticationException;
 import org.acegisecurity.BadCredentialsException;
+import org.acegisecurity.DisabledException;
 import org.acegisecurity.GrantedAuthority;
 import org.acegisecurity.GrantedAuthorityImpl;
+import org.acegisecurity.LockedException;
 import org.acegisecurity.providers.AuthenticationProvider;
 import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
 import org.acegisecurity.userdetails.UserDetails;
 import org.acegisecurity.userdetails.UserDetailsService;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
+import org.apache.commons.lang.StringUtils;
+import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DataAccessResourceFailureException;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.GregorianCalendar;
 import java.util.List;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import org.apache.commons.lang.StringUtils;
-import org.springframework.dao.DataAccessException;
-import org.springframework.dao.DataAccessResourceFailureException;
 
 /**
  * {@link AuthenticationProvider} with Active Directory, plus {@link UserDetailsService}
@@ -69,6 +74,17 @@ import org.springframework.dao.DataAccessResourceFailureException;
  * @author Kohsuke Kawaguchi
  */
 public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirectoryAuthenticationProvider {
+
+    /**
+     * See https://docs.microsoft.com/en-us/windows/desktop/adsi/example-code-for-reading-a-constructed-attribute
+     * And https://issues.jenkins-ci.org/browse/JENKINS-10086
+     */
+    private static final int E_ADS_PROPERTY_NOT_FOUND = 0x8000_500D;
+
+    // https://docs.microsoft.com/en-us/windows/win32/adschema/a-accountexpires
+    private static final GregorianCalendar ACCOUNT_DOES_NOT_EXPIRE =
+            new GregorianCalendar(1601, Calendar.JANUARY, 1);
+
     @SuppressFBWarnings("MS_SHOULD_BE_FINAL")
     private static /* non-final for Groovy */ boolean ALLOW_EMPTY_PASSWORD = Boolean.getBoolean(ActiveDirectoryAuthenticationProvider.class.getName() + ".ALLOW_EMPTY_PASSWORD");
 
@@ -200,12 +216,15 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
                         }
                         groups.add(SecurityRealm.AUTHENTICATED_AUTHORITY);
 
+                        checkIfAccountDisabled(usr);
+                        checkIfAccountExpired(usr);
+                        checkIfAccountLocked(usr);
+
                         LOGGER.log(Level.FINE, "Login successful: {0} dn={1}", new Object[] {username, dn});
 
                         return new ActiveDirectoryUserDetail(
                                 username, "redacted",
-                                !isAccountDisabled(usr),
-                                true, true, true,
+                                true, true, true, true,
                                 groups.toArray(new GrantedAuthority[0]),
                                 getFullName(usr), getEmailAddress(usr), getTelephoneNumber(usr)
                         ).updateUserInfo();
@@ -233,8 +252,9 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
             Object t = usr.telephoneNumber();
             return t==null ? null : t.toString();
         } catch (ComException e) {
-            if (e.getHRESULT()==0x8000500D) // see http://support.microsoft.com/kb/243440
+            if (e.getHRESULT() == E_ADS_PROPERTY_NOT_FOUND) {
                 return null;
+            }
             throw e;
         }
     }
@@ -243,8 +263,9 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
         try {
             return usr.emailAddress();
         } catch (ComException e) {
-            if (e.getHRESULT()==0x8000500D) // see http://support.microsoft.com/kb/243440
+            if (e.getHRESULT() == E_ADS_PROPERTY_NOT_FOUND){
                 return null;
+            }
             throw e;
         }
     }
@@ -253,24 +274,51 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
         try {
             return usr.fullName();
         } catch (ComException e) {
-            if (e.getHRESULT()==0x8000500D) // see http://support.microsoft.com/kb/243440
+            if (e.getHRESULT() == E_ADS_PROPERTY_NOT_FOUND) {
                 return null;
+            }
             throw e;
         }
     }
 
-    private boolean isAccountDisabled(IADsUser usr) {
+    private void checkIfAccountDisabled(IADsUser usr) {
         try {
-            return usr.accountDisabled();
+            if (usr.accountDisabled()) {
+                throw new DisabledException(Messages.UserDetails_Disabled(usr.name()));
+            }
         } catch (ComException e) {
-            if (e.getHRESULT()==0x8000500D)
-                /*
-                    See http://support.microsoft.com/kb/243440 and JENKINS-10086
-                    We suspect this to be caused by old directory items that do not have this value,
-                    so assume this account is enabled.
-                 */
-                return false;
-            throw e;
+            if (e.getHRESULT() != E_ADS_PROPERTY_NOT_FOUND) {
+                throw e;
+            }
+        }
+    }
+
+    private void checkIfAccountExpired(IADsUser usr) {
+        try {
+            Date expirationDate = usr.accountExpirationDate();
+            if (expirationDate.equals(ACCOUNT_DOES_NOT_EXPIRE.getTime())) {
+                return;
+            }
+            Date now = new Date();
+            if (now.after(expirationDate)) {
+                throw new AccountExpiredException(Messages.UserDetails_Expired(usr.name(), expirationDate));
+            }
+        } catch (ComException e) {
+            if (e.getHRESULT() != E_ADS_PROPERTY_NOT_FOUND) {
+                throw e;
+            }
+        }
+    }
+
+    private void checkIfAccountLocked(IADsUser usr) {
+        try {
+            if (usr.isAccountLocked()) {
+                throw new LockedException(Messages.UserDetails_Locked(usr.name()));
+            }
+        } catch (ComException e) {
+            if (e.getHRESULT() != E_ADS_PROPERTY_NOT_FOUND) {
+                throw e;
+            }
         }
     }
 
