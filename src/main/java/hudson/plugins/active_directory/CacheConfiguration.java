@@ -3,6 +3,8 @@ package hudson.plugins.active_directory;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
+import com.google.common.base.Optional;
+import hudson.security.GroupDetails;
 import org.acegisecurity.userdetails.UserDetails;
 import org.kohsuke.stapler.DataBoundConstructor;
 
@@ -23,7 +25,7 @@ public class CacheConfiguration<K,V,E extends Exception> {
     /**
      * The {@link ActiveDirectoryGroupDetails} cache.
      */
-    private transient final Cache<String, ActiveDirectoryGroupDetails> groupCache;
+    private transient final Cache<String, Optional<GroupDetails>> groupCache;
 
     /**
      * CacheConfiguration DataBoundConstructor
@@ -79,7 +81,7 @@ public class CacheConfiguration<K,V,E extends Exception> {
      *
      * @return the cache for groups
      */
-    public Cache<String, ActiveDirectoryGroupDetails> getGroupCache() {
+    public Cache<String, Optional<GroupDetails>> getGroupCache() {
         return groupCache;
     }
 }

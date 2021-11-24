@@ -64,6 +64,7 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.Stack;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -110,7 +111,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     /**
      * The {@link ActiveDirectoryGroupDetails} cache.
      */
-    private final Cache<String, ActiveDirectoryGroupDetails> groupCache;
+    private final Cache<String, Optional<GroupDetails>> groupCache;
 
     /**
      * The threadPool to update the cache on background
@@ -511,7 +512,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
 
     public GroupDetails loadGroupByGroupname(final String groupname) {
         try {
-            return groupCache.get(groupname, s ->  {
+            Optional<GroupDetails> opt = groupCache.get(groupname, s ->  {
                             for (ActiveDirectoryDomain domain : domains) {
                                 if (domain==null) {
                                     throw new UserMayOrMayNotExistException("Unable to retrieve group information without bind DN/password configured");
@@ -550,7 +551,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                                             continue;
                                         }
                                         LOGGER.log(Level.FINE, "Found group {0} : {1}", new Object[] {groupname, group});
-                                        return new ActiveDirectoryGroupDetails(groupname);
+                                        return Optional.of(new ActiveDirectoryGroupDetails(groupname));
                                     } catch (NamingException e) {
                                         LOGGER.log(Level.WARNING, String.format("Failed to retrieve user information for %s", groupname), e);
                                         throw new BadCredentialsException("Failed to retrieve user information for "+ groupname, e);
@@ -567,8 +568,11 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                                 }
                             }
                             LOGGER.log(Level.WARNING, "Exhausted all configured domains and could not authenticate against any");
-                            throw new UserMayOrMayNotExistException(groupname);
+                            return Optional.empty();
                     });
+            // NPE check to make spotbugs happy...
+            if (opt == null) throw new UserMayOrMayNotExistException(groupname);
+            return opt.orElseThrow(() -> new UserMayOrMayNotExistException(groupname));
         } catch (Exception e) {
             if (e instanceof AuthenticationException) {
                 throw e;
