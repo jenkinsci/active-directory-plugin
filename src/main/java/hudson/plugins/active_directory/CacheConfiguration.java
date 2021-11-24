@@ -2,12 +2,11 @@ package hudson.plugins.active_directory;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import com.github.benmanes.caffeine.cache.LoadingCache;
-import com.google.common.base.Optional;
 import hudson.security.GroupDetails;
 import org.acegisecurity.userdetails.UserDetails;
 import org.kohsuke.stapler.DataBoundConstructor;
 
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 /**
