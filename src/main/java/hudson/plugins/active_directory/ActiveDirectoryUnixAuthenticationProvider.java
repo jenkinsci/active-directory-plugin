@@ -563,6 +563,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                                 } catch (AuthenticationException e) {
                                     // something went wrong talking to the server. This should be reported
                                     LOGGER.log(Level.WARNING, String.format("Failed to find the group %s in %s domain", groupname, domain.getName()), e);
+                                    throw e;
                                 } finally {
                                     Thread.currentThread().setContextClassLoader(ccl);
                                 }
