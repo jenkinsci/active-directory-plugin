@@ -2,28 +2,29 @@ package hudson.plugins.active_directory;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import com.github.benmanes.caffeine.cache.LoadingCache;
+import hudson.security.GroupDetails;
 import org.acegisecurity.userdetails.UserDetails;
 import org.kohsuke.stapler.DataBoundConstructor;
 
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 /**
  * Cache configuration
  */
-public class CacheConfiguration<K,V,E extends Exception> {
+public class CacheConfiguration {
     private final int size;
     private final int ttl;
 
     /**
      * The {@link UserDetails} cache.
      */
-    private transient final Cache<CacheKey, UserDetails> userCache;
+    private transient final Cache<CacheKey, Optional<UserDetails>> userCache;
 
     /**
      * The {@link ActiveDirectoryGroupDetails} cache.
      */
-    private transient final Cache<String, ActiveDirectoryGroupDetails> groupCache;
+    private transient final Cache<String, Optional<GroupDetails>> groupCache;
 
     /**
      * CacheConfiguration DataBoundConstructor
@@ -70,7 +71,7 @@ public class CacheConfiguration<K,V,E extends Exception> {
      *
      * @return the cache for users
      */
-    public Cache<CacheKey, UserDetails> getUserCache() {
+    public Cache<CacheKey, Optional<UserDetails>> getUserCache() {
         return userCache;
     }
 
@@ -79,7 +80,7 @@ public class CacheConfiguration<K,V,E extends Exception> {
      *
      * @return the cache for groups
      */
-    public Cache<String, ActiveDirectoryGroupDetails> getGroupCache() {
+    public Cache<String, Optional<GroupDetails>> getGroupCache() {
         return groupCache;
     }
 }

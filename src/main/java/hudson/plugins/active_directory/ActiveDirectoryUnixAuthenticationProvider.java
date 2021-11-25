@@ -64,6 +64,7 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.Stack;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -71,6 +72,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -105,12 +107,12 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     /**
      * The {@link UserDetails} cache.
      */
-    private final Cache<CacheKey, UserDetails> userCache;
+    private final Cache<CacheKey, Optional<UserDetails>> userCache;
 
     /**
      * The {@link ActiveDirectoryGroupDetails} cache.
      */
-    private final Cache<String, ActiveDirectoryGroupDetails> groupCache;
+    private final Cache<String, Optional<GroupDetails>> groupCache;
 
     /**
      * The threadPool to update the cache on background
@@ -334,7 +336,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
 
         try {
             final ActiveDirectoryUserDetail[] cacheMiss = new ActiveDirectoryUserDetail[1];
-            final Function<CacheKey, UserDetails> cacheKeyUserDetailsFunction = cacheKey1 ->
+            final Function<CacheKey, Optional<UserDetails>> cacheKeyUserDetailsFunction = cacheKey1 ->
                 {
                     DirContext context;
                     boolean anonymousBind = false;    // did we bind anonymously?
@@ -391,7 +393,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                             LOGGER.log(Level.FINE, "Failed to find {0} in userPrincipalName. Trying sAMAccountName", userPrincipalName);
                             user = new LDAPSearchBuilder(context, domainDN).subTreeScope().searchOne("(& (sAMAccountName={0})(objectCategory=user))", samAccountName);
                             if (user == null) {
-                                throw new UsernameNotFoundException("Authentication was successful but cannot locate the user information for " + username);
+                                return Optional.empty();
                             }
                         }
                         LOGGER.fine("Found user " + username + " : " + user);
@@ -427,7 +429,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                                 getStringAttribute(user, "mail"),
                                 getStringAttribute(user, "telephoneNumber")
                         );
-                        return cacheMiss[0];
+                        return Optional.of(cacheMiss[0]);
                     } catch (NamingException e) {
                         if (activeDirectoryInternalUser != null) {
                             throw new RuntimeException(e);
@@ -451,8 +453,12 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                         closeQuietly(context);
                     }
             };
-            userDetails = cacheKey == null ? cacheKeyUserDetailsFunction.apply(null) : userCache.get(cacheKey, cacheKeyUserDetailsFunction);
-            if (cacheMiss[0] != null || cacheKey == null) { // If a lookup was performed
+            Supplier<Exception> userNameNotFound = () -> new UsernameNotFoundException("Authentication was successful but cannot locate the user information for " + username);
+            if(cacheKey==null) return cacheKeyUserDetailsFunction.apply(null).orElseThrow(userNameNotFound);
+            Optional<UserDetails> opt = userCache.get(cacheKey, cacheKeyUserDetailsFunction);
+            if(opt==null) throw userNameNotFound.get();
+            userDetails = opt.orElseThrow(userNameNotFound);
+            if (cacheMiss[0] != null) { // If a lookup was performed
                 threadPoolExecutor.execute(() -> {
                     final String threadName = Thread.currentThread().getName();
                     Thread.currentThread().setName(threadName + " updating-cache-for-user-" + cacheMiss[0].getUsername());
@@ -511,7 +517,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
 
     public GroupDetails loadGroupByGroupname(final String groupname) {
         try {
-            return groupCache.get(groupname, s ->  {
+            Optional<GroupDetails> opt = groupCache.get(groupname, s ->  {
                             for (ActiveDirectoryDomain domain : domains) {
                                 if (domain==null) {
                                     throw new UserMayOrMayNotExistException("Unable to retrieve group information without bind DN/password configured");
@@ -550,7 +556,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                                             continue;
                                         }
                                         LOGGER.log(Level.FINE, "Found group {0} : {1}", new Object[] {groupname, group});
-                                        return new ActiveDirectoryGroupDetails(groupname);
+                                        return Optional.of(new ActiveDirectoryGroupDetails(groupname));
                                     } catch (NamingException e) {
                                         LOGGER.log(Level.WARNING, String.format("Failed to retrieve user information for %s", groupname), e);
                                         throw new BadCredentialsException("Failed to retrieve user information for "+ groupname, e);
@@ -562,13 +568,17 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                                 } catch (AuthenticationException e) {
                                     // something went wrong talking to the server. This should be reported
                                     LOGGER.log(Level.WARNING, String.format("Failed to find the group %s in %s domain", groupname, domain.getName()), e);
+                                    throw e;
                                 } finally {
                                     Thread.currentThread().setContextClassLoader(ccl);
                                 }
                             }
                             LOGGER.log(Level.WARNING, "Exhausted all configured domains and could not authenticate against any");
-                            throw new UserMayOrMayNotExistException(groupname);
+                            return Optional.empty();
                     });
+            // NPE check to make spotbugs happy...
+            if (opt == null) throw new UserMayOrMayNotExistException(groupname);
+            return opt.orElseThrow(() -> new UserMayOrMayNotExistException(groupname));
         } catch (Exception e) {
             if (e instanceof AuthenticationException) {
                 throw e;
