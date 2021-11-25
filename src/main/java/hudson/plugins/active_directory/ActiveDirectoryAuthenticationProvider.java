@@ -55,6 +55,7 @@ import org.acegisecurity.userdetails.UsernameNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -86,12 +87,12 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
     /**
      * The {@link UserDetails} cache.
      */
-    private final Cache<CacheKey, UserDetails> userCache;
+    private final Cache<CacheKey, Optional<UserDetails>> userCache;
 
     /**
      * The {@link ActiveDirectoryGroupDetails} cache.
      */
-    private final Cache<String, ActiveDirectoryGroupDetails> groupCache;
+    private final Cache<String, Optional<GroupDetails>> groupCache;
 
     public ActiveDirectoryAuthenticationProvider() throws IOException {
         this(null);
@@ -159,7 +160,7 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
             }
             final CacheKey cacheKey = CacheUtil.computeCacheKey(username, password, userCache.asMap().keySet());
 
-            final Function<CacheKey, UserDetails> userDetailsFunction = cacheKey1 ->
+            final Function<CacheKey, Optional<UserDetails>> userDetailsFunction = cacheKey1 ->
                 {
                     String dn = getDnOfUserOrGroup(username);
 
@@ -187,7 +188,7 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
                             throw new BadCredentialsException(msg, e);
                         }
                         if (usr == null)    // the user name was in fact a group
-                            throw new UsernameNotFoundException("User not found: "+ username);
+                            return Optional.empty();
 
                         List<GrantedAuthority> groups = new ArrayList<>();
                         for( Com4jObject g : usr.groups() ) {
@@ -202,19 +203,28 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
 
                         LOGGER.log(Level.FINE, "Login successful: {0} dn={1}", new Object[] {username, dn});
 
-                        return new ActiveDirectoryUserDetail(
+                        return Optional.of(new ActiveDirectoryUserDetail(
                                 username, "redacted",
                                 !isAccountDisabled(usr),
                                 true, true, true,
                                 groups.toArray(new GrantedAuthority[0]),
                                 getFullName(usr), getEmailAddress(usr), getTelephoneNumber(usr)
-                        ).updateUserInfo();
+                        ).updateUserInfo());
                     } finally {
                         col.disposeAll();
                         COM4J.removeListener(col);
                     }
                 };
-            return cacheKey == null ? userDetailsFunction.apply(null): userCache.get(cacheKey, userDetailsFunction);
+            if (cacheKey == null) {
+                return userDetailsFunction.apply(null).orElseThrow(() -> new UsernameNotFoundException("User not found: "+ username));
+            }
+            Optional<UserDetails> opt = userCache.get(cacheKey, userDetailsFunction);
+            // NPE check to make spotbugs happy
+            if (opt==null) {
+                throw new UsernameNotFoundException("User not found: "+ username);
+            }
+            return opt.orElseThrow(() -> new UsernameNotFoundException("User not found: "+ username));
+
         } catch (Exception e) {
             if (e instanceof AuthenticationException) {
                 throw (AuthenticationException)e;
@@ -289,7 +299,7 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
 
 	public GroupDetails loadGroupByGroupname(final String groupname) {
         try {
-            return groupCache.get(groupname, s ->   {
+            Optional<GroupDetails> opt = groupCache.get(groupname, s ->   {
                 ComObjectCollector col = new ComObjectCollector();
                 COM4J.addListener(col);
                 try {
@@ -303,10 +313,9 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
                     if (group == null) {
                         throw new UserMayOrMayNotExistException(groupname);
                     }
-                    return new ActiveDirectoryGroupDetails(groupname);
+                    return Optional.of(new ActiveDirectoryGroupDetails(groupname));
                 } catch (UsernameNotFoundException e) {
-                    // failed to convert group name to DN
-                    throw new UsernameNotFoundException("Failed to get the DN of the group " + groupname);
+                    return Optional.empty();
                 } catch (ComException e) {
                     // recover gracefully since AD might behave in a way we haven't anticipated
                     LOGGER.log(Level.WARNING, String.format("Failed to figure out details of AD group: %s", groupname), e);
@@ -316,6 +325,9 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
                     COM4J.removeListener(col);
                 }
             });
+            // NPE check to make spotbugs happy
+            if (opt==null) throw new UsernameNotFoundException("Failed to get the DN of the group " + groupname);
+            return opt.orElseThrow(() -> new UsernameNotFoundException("Failed to get the DN of the group " + groupname));
         } catch (Exception e) {
             if (e instanceof AuthenticationException) {
                 throw (AuthenticationException)e;

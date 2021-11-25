@@ -12,14 +12,14 @@ import java.util.concurrent.TimeUnit;
 /**
  * Cache configuration
  */
-public class CacheConfiguration<K,V,E extends Exception> {
+public class CacheConfiguration {
     private final int size;
     private final int ttl;
 
     /**
      * The {@link UserDetails} cache.
      */
-    private transient final Cache<CacheKey, UserDetails> userCache;
+    private transient final Cache<CacheKey, Optional<UserDetails>> userCache;
 
     /**
      * The {@link ActiveDirectoryGroupDetails} cache.
@@ -71,7 +71,7 @@ public class CacheConfiguration<K,V,E extends Exception> {
      *
      * @return the cache for users
      */
-    public Cache<CacheKey, UserDetails> getUserCache() {
+    public Cache<CacheKey, Optional<UserDetails>> getUserCache() {
         return userCache;
     }
 

@@ -72,6 +72,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -106,7 +107,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     /**
      * The {@link UserDetails} cache.
      */
-    private final Cache<CacheKey, UserDetails> userCache;
+    private final Cache<CacheKey, Optional<UserDetails>> userCache;
 
     /**
      * The {@link ActiveDirectoryGroupDetails} cache.
@@ -335,7 +336,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
 
         try {
             final ActiveDirectoryUserDetail[] cacheMiss = new ActiveDirectoryUserDetail[1];
-            final Function<CacheKey, UserDetails> cacheKeyUserDetailsFunction = cacheKey1 ->
+            final Function<CacheKey, Optional<UserDetails>> cacheKeyUserDetailsFunction = cacheKey1 ->
                 {
                     DirContext context;
                     boolean anonymousBind = false;    // did we bind anonymously?
@@ -392,7 +393,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                             LOGGER.log(Level.FINE, "Failed to find {0} in userPrincipalName. Trying sAMAccountName", userPrincipalName);
                             user = new LDAPSearchBuilder(context, domainDN).subTreeScope().searchOne("(& (sAMAccountName={0})(objectCategory=user))", samAccountName);
                             if (user == null) {
-                                throw new UsernameNotFoundException("Authentication was successful but cannot locate the user information for " + username);
+                                return Optional.empty();
                             }
                         }
                         LOGGER.fine("Found user " + username + " : " + user);
@@ -428,7 +429,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                                 getStringAttribute(user, "mail"),
                                 getStringAttribute(user, "telephoneNumber")
                         );
-                        return cacheMiss[0];
+                        return Optional.of(cacheMiss[0]);
                     } catch (NamingException e) {
                         if (activeDirectoryInternalUser != null) {
                             throw new RuntimeException(e);
@@ -452,8 +453,12 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                         closeQuietly(context);
                     }
             };
-            userDetails = cacheKey == null ? cacheKeyUserDetailsFunction.apply(null) : userCache.get(cacheKey, cacheKeyUserDetailsFunction);
-            if (cacheMiss[0] != null || cacheKey == null) { // If a lookup was performed
+            Supplier<Exception> userNameNotFound = () -> new UsernameNotFoundException("Authentication was successful but cannot locate the user information for " + username);
+            if(cacheKey==null) return cacheKeyUserDetailsFunction.apply(null).orElseThrow(userNameNotFound);
+            Optional<UserDetails> opt = userCache.get(cacheKey, cacheKeyUserDetailsFunction);
+            if(opt==null) throw userNameNotFound.get();
+            userDetails = opt.orElseThrow(userNameNotFound);
+            if (cacheMiss[0] != null) { // If a lookup was performed
                 threadPoolExecutor.execute(() -> {
                     final String threadName = Thread.currentThread().getName();
                     Thread.currentThread().setName(threadName + " updating-cache-for-user-" + cacheMiss[0].getUsername());
