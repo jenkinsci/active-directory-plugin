@@ -1,0 +1,9 @@
+<div>
+    <p>Requires the connection to Active Directory to be TLS encrypted.
+    </p><p>
+    If you are using non ADSI mode (you have specified a domain name in the configuration) then this will use LDAP over TLS (port 636 or port 3269) and will take precedence over <code>startTLS</code> which upgrades a connection to TLS in place.
+    </p><p>
+    For ADSI mode this changes ADSI from negotiating encryption for the *authentication* part only to using TLS encryption for the entire connection.
+    </p>
+    <P><strong>Note</strong>: in either operating mode enabling this option requires that your domain(s) have the <a rel="noopener noreferrer" target="_blank" href="https://www.jenkins.io/redirect/plugin/active-directory/certificate-services">Certificate Services</a> installed, or other <a rel="noopener noreferrer" target="_blank" href="https://www.jenkins.io/redirect/plugin/active-directory/3rd-party-cert-auth">manual setup</a> has been performed.
+</div>
