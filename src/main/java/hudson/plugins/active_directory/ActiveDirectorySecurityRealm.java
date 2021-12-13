@@ -26,6 +26,8 @@ package hudson.plugins.active_directory;
 import com.google.common.collect.Lists;
 import com.sun.jndi.ldap.LdapCtxFactory;
 import com4j.typelibs.ado20.ClassFactory;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
 import hudson.Functions;
@@ -35,6 +37,7 @@ import hudson.security.AbstractPasswordBasedSecurityRealm;
 import hudson.security.AuthorizationStrategy;
 import hudson.security.GroupDetails;
 import hudson.security.SecurityRealm;
+import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
@@ -52,6 +55,8 @@ import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
 import org.kohsuke.stapler.interceptor.RequirePOST;
+import org.kohsuke.stapler.verb.GET;
+import org.kohsuke.stapler.verb.POST;
 import org.springframework.dao.DataAccessException;
 
 import javax.naming.Context;
@@ -88,6 +93,10 @@ import static hudson.Util.*;
  * @author Kohsuke Kawaguchi
  */
 public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityRealm {
+
+    @Restricted(NoExternalUse.class)
+    static final String LEGACY_FORCE_LDAPS_PROPERTY = ActiveDirectorySecurityRealm.class.getName()+".forceLdaps";
+
     /**
      * Represent the old Active Directory Domain
      *
@@ -159,8 +168,16 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     /**
      * If true enable startTls in case plain communication is used. In case the plugin
      * is configured to use TLS then this option will not have any impact.
+     * @see #getRequireTLS()
      */
     public Boolean startTls;
+
+    /**
+     * If true uses ensures that the ldap connection is encrypted with TLS (or ssl).
+     * Takes precedence over requireTLS when set to {@code Boolean.TRUE}
+     * is configured to use TLS then this option will not have any impact.
+     */
+    private Boolean requireTLS = Boolean.TRUE;
 
     private GroupLookupStrategy groupLookupStrategy;
 
@@ -236,11 +253,16 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         this(domain, domains, site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups, customDomain, cache, startTls, (ActiveDirectoryInternalUsersDatabase) null);
     }
 
+    @Deprecated
+    public ActiveDirectorySecurityRealm(String domain, List<ActiveDirectoryDomain> domains, String site, String bindName,
+                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache, Boolean startTls, ActiveDirectoryInternalUsersDatabase internalUsersDatabase) {
+        this(domain, domains, site, bindName,bindPassword, server, groupLookupStrategy, removeIrrelevantGroups, customDomain, cache, startTls, internalUsersDatabase, true);
+    }
 
     @DataBoundConstructor
     // as Java signature, this binding doesn't make sense, so please don't use this constructor
     public ActiveDirectorySecurityRealm(String domain, List<ActiveDirectoryDomain> domains, String site, String bindName,
-                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache, Boolean startTls, ActiveDirectoryInternalUsersDatabase internalUsersDatabase) {
+                                        String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache, Boolean startTls, ActiveDirectoryInternalUsersDatabase internalUsersDatabase, boolean requireTLS) {
         if (customDomain!=null && !customDomain)
             domains = null;
         this.domain = fixEmpty(domain);
@@ -254,6 +276,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         this.cache = cache;
         this.startTls = startTls;
         this.internalUsersDatabase = internalUsersDatabase;
+        this.requireTLS = Boolean.valueOf(requireTLS);
     }
 
     @DataBoundSetter
@@ -282,6 +305,26 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     @Restricted(NoExternalUse.class)
     public Boolean isStartTls() {
         return startTls;
+    }
+
+    @Restricted(NoExternalUse.class)
+    @NonNull
+    /**
+     * Obtain the Boolean flag showing if the AD Connection shall enforce the use of TLS (plain text connections will not be allowed).
+     * Despite returning a {@code Boolean} this will never return {@code null}, it is a Boolean only to match the underlying {@code requireTLS} field, and if that is {@code null} the legacy {@code forceLdaps} property is used.
+     * @return {@code Boolean.TRUE} iff the connection to the server requires TLS.
+     */
+    public Boolean getRequireTLS() {
+        if (requireTLS != null) {
+            return requireTLS;
+        }
+        // legacy was forced by a system property prior to SECURITY-1389
+        return Boolean.getBoolean(LEGACY_FORCE_LDAPS_PROPERTY);
+    }
+
+    @Restricted(NoExternalUse.class)
+    public boolean isRequireTLSPersisted() {
+        return requireTLS != null;
     }
 
     public Integer getSize() {
@@ -374,7 +417,6 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         if (startTls == null) {
             this.startTls = true;
         }
-
         return this;
     }
 
@@ -500,6 +542,14 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             return model;
         }
 
+        public FormValidation doCheckRequireTLS() {
+            Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+            if (System.getProperty(ActiveDirectoryAuthenticationProvider.ADSI_FLAGS_SYSTEM_PROPERTY_NAME) != null) {
+                return FormValidation.warning("This setting is overridden by the ADSI mode system property");
+            }
+            return FormValidation.ok();
+        }
+
         private boolean isTrustAllCertificatesEnabled(TlsConfiguration tlsConfiguration) {
             return (tlsConfiguration == null || TlsConfiguration.TRUST_ALL_CERTIFICATES.equals(tlsConfiguration));
         }
@@ -511,13 +561,18 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             return bind(principalName, password, ldapServers, props, TlsConfiguration.TRUST_ALL_CERTIFICATES);
         }
 
+        @Deprecated
+        public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers, Hashtable<String, String> props, TlsConfiguration tlsConfiguration) throws NamingException {
+            return bind(principalName, password, ldapServers, props, tlsConfiguration, isRequireTLS());
+        }
+
         /**
          * Binds to the server using the specified username/password.
          * <p>
          * In a real deployment, often there are servers that don't respond or
          * otherwise broken, so try all the servers.
          */
-        public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers, Hashtable<String, String> props, TlsConfiguration tlsConfiguration) throws NamingException {
+        public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers, Hashtable<String, String> props, TlsConfiguration tlsConfiguration, boolean requireTLS) throws NamingException {
             // in a AD forest, it'd be mighty nice to be able to login as "joe"
             // as opposed to "joe@europe",
             // but the bind operation doesn't appear to allow me to do so.
@@ -534,7 +589,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
             newProps.put("java.naming.ldap.attributes.binary","tokenGroups objectSid");
 
-            if (FORCE_LDAPS && isTrustAllCertificatesEnabled(tlsConfiguration)) {
+            if (requireTLS && isTrustAllCertificatesEnabled(tlsConfiguration)) {
                 newProps.put("java.naming.ldap.factory.socket", TrustAllSocketFactory.class.getName());
             }
 
@@ -543,7 +598,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
             for (SocketInfo ldapServer : ldapServers) {
                 try {
-                    LdapContext context = bind(principalName, password, ldapServer, newProps, tlsConfiguration);
+                    LdapContext context = bind(principalName, password, ldapServer, newProps, tlsConfiguration, requireTLS);
                     LOGGER.fine("Bound to " + ldapServer);
                     return context;
                 } catch (javax.naming.AuthenticationException e) {
@@ -597,12 +652,12 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         @IgnoreJRERequirement
         @Deprecated
         private LdapContext bind(String principalName, String password, SocketInfo server, Hashtable<String, String> props) throws NamingException {
-            return bind(principalName, password, server, props, null);
+            return bind(principalName, password, server, props, null, isRequireTLS());
         }
 
         @IgnoreJRERequirement
-        private LdapContext bind(String principalName, String password, SocketInfo server, Hashtable<String, String> props, TlsConfiguration tlsConfiguration) throws NamingException {
-            String ldapUrl = (FORCE_LDAPS?"ldaps://":"ldap://") + server + '/';
+        private LdapContext bind(String principalName, String password, SocketInfo server, Hashtable<String, String> props, TlsConfiguration tlsConfiguration, boolean requireTLS) throws NamingException {
+            String ldapUrl = (requireTLS?"ldaps://":"ldap://") + server + '/';
             String oldName = Thread.currentThread().getName();
             Thread.currentThread().setName("Connecting to "+ldapUrl+" : "+oldName);
             LOGGER.fine("Connecting to " + ldapUrl);
@@ -621,7 +676,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                      isStartTls= activeDirectorySecurityRealm.isStartTls();
                 }
 
-                if (!FORCE_LDAPS && isStartTls) {
+                if (!requireTLS && isStartTls) {
                     // try to upgrade to TLS if we can, but failing to do so isn't fatal
                     // see http://download.oracle.com/javase/jndi/tutorial/ldap/ext/starttls.html
                     StartTlsResponse rsp = null;
@@ -693,6 +748,14 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         }
 
         /**
+         * @deprecated see obtainLDAPServer(DirContext, String, String, String, boolean)
+         */
+        @Deprecated
+        public List<SocketInfo> obtainLDAPServer(DirContext ictx, String domainName, String site, String preferredServers) throws NamingException {
+            return obtainLDAPServer(ictx, domainName, site, preferredServers, isRequireTLS());
+        }
+
+        /**
          * Use DNS and obtains the LDAP servers that we should try.
          *
          * @param preferredServers
@@ -702,10 +765,11 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
          *      an authentication attempt with every listed server, which can lock the user out!) This also
          *      puts this feature in alignment with {@link #DOMAIN_CONTROLLERS}, which seems to indicate that
          *      there are users who prefer this behaviour.
-         *
+         * 
+         * @param useTLS {@code true} if we should use ldaps.
          * @return A list with at least one item.
          */
-        public List<SocketInfo> obtainLDAPServer(DirContext ictx, String domainName, String site, String preferredServers) throws NamingException {
+        public List<SocketInfo> obtainLDAPServer(DirContext ictx, String domainName, String site, String preferredServers, boolean useTLS) throws NamingException {
             List<SocketInfo> result = new ArrayList<>();
             if (preferredServers==null || preferredServers.isEmpty())
                 preferredServers = DOMAIN_CONTROLLERS;
@@ -769,7 +833,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                     if (hostName.endsWith("."))
                         hostName = hostName.substring(0, hostName.length()-1);
                     int port = Integer.parseInt(fields[2]);
-                    if (FORCE_LDAPS) {
+                    if (isRequireTLS()) {
                         // map to LDAPS ports. I don't think there's any SRV records specifically for LDAPS.
                         // I think Microsoft considers LDAP+TLS the way to go, or else there should have been
                         // separate SRV entries.
@@ -792,6 +856,16 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
             LOGGER.fine(ldapServer + " resolved to " + result);
             return result;
+        }
+
+        @Deprecated // this is here purely to ease access to the variable from the descriptor.
+        private boolean isRequireTLS() {
+            boolean requireTLS = true; // secure by default
+            SecurityRealm securityRealm = Jenkins.get().getSecurityRealm();
+            if (securityRealm instanceof ActiveDirectorySecurityRealm) {
+                requireTLS = Boolean.TRUE.equals(((ActiveDirectorySecurityRealm)securityRealm).getRequireTLS());
+            }
+            return requireTLS;
         }
     }
 
@@ -842,17 +916,6 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
      */
     @SuppressFBWarnings(value = "MS_SHOULD_BE_FINAL", justification = "Diagnostic fields are left mutable so that groovy console can be used to dynamically turn/off probes.")
     public static String DOMAIN_CONTROLLERS = System.getProperty(ActiveDirectorySecurityRealm.class.getName()+".domainControllers");
-
-    /**
-     * Instead of LDAP+TLS upgrade, start right away with LDAPS.
-     * For the time being I'm trying not to expose this to users. I don't see why any AD shouldn't support
-     * TLS upgrade if it's got the certificate.
-     *
-     * One legitimate use case is when the domain controller is Windows 2000, which doesn't support TLS
-     * (according to http://support.microsoft.com/kb/321051).
-     */
-    @SuppressFBWarnings(value = "MS_SHOULD_BE_FINAL", justification = "Diagnostic fields are left mutable so that groovy console can be used to dynamically turn/off probes.")
-    public static boolean FORCE_LDAPS = Boolean.getBoolean(ActiveDirectorySecurityRealm.class.getName()+".forceLdaps");
 
     /**
      * Store all the extra environment variable to be used on the LDAP Context

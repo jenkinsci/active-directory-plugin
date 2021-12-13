@@ -35,6 +35,7 @@ import com4j.typelibs.activeDirectory.IADsGroup;
 import com4j.typelibs.activeDirectory.IADsOpenDSObject;
 import com4j.typelibs.activeDirectory.IADsUser;
 import com4j.typelibs.ado20.ClassFactory;
+import com4j.typelibs.ado20.Property;
 import com4j.typelibs.ado20._Command;
 import com4j.typelibs.ado20._Connection;
 import com4j.typelibs.ado20._Recordset;
@@ -57,10 +58,14 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.Locale;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.apache.commons.lang.StringUtils;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.DoNotUse;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataAccessResourceFailureException;
 
@@ -72,6 +77,12 @@ import org.springframework.dao.DataAccessResourceFailureException;
 public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirectoryAuthenticationProvider {
     @SuppressFBWarnings("MS_SHOULD_BE_FINAL")
     private static /* non-final for Groovy */ boolean ALLOW_EMPTY_PASSWORD = Boolean.getBoolean(ActiveDirectoryAuthenticationProvider.class.getName() + ".ALLOW_EMPTY_PASSWORD");
+
+    @Restricted(NoExternalUse.class)
+    static final String ADSI_FLAGS_SYSTEM_PROPERTY_NAME = ActiveDirectoryAuthenticationProvider.class.getName() + ".ADSI_FLAGS_OVERRIDE";
+
+    @Restricted(NoExternalUse.class)
+    static final String ADSI_PASSWORDLESS_FLAGS_SYSTEM_PROPERTY_NAME = ActiveDirectoryAuthenticationProvider.class.getName() + ".ADSI_PASSWORDLESS_FLAGS_OVERRIDE";
 
     private final String defaultNamingContext;
     /**
@@ -94,19 +105,58 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
      */
     private final Cache<String, ActiveDirectoryGroupDetails> groupCache;
 
+    /** Flags used for ADSI when we have a username/password */
+    private final int ADSI_FLAGS;
+
+    /** Flags used for ADSI when we are using null userneam/password */
+    private final int ADSI_PASSWORDLESS_FLAGS;
+
+    @Deprecated
+    @Restricted(DoNotUse.class)
     public ActiveDirectoryAuthenticationProvider() throws IOException {
         this(null);
     }
 
     public ActiveDirectoryAuthenticationProvider(ActiveDirectorySecurityRealm realm) throws DataAccessException {
-        try {
-            IADs rootDSE = COM4J.getObject(IADs.class, "LDAP://RootDSE", null);
+        final Integer adsi_override_flags = Integer.getInteger(ADSI_FLAGS_SYSTEM_PROPERTY_NAME);
+        if (adsi_override_flags != null) {
+            LOGGER.log(Level.INFO, () -> String.format(Locale.ROOT, "ADSI_FLAGS_OVERRIDE set, use the following as the flags for ADSI: 0x%1$04X", adsi_override_flags));
+            LOGGER.log(Level.INFO, "See https://www.jenkins.io/redirect/plugin/active-directory/iads-ads_authentication_enum for full flag details.");
+            ADSI_FLAGS = adsi_override_flags.intValue();
+        } else {
+            if (realm == null) {
+                // backwards compatibility in case anyone is actually calling ActiveDirectoryAuthenticationProvider.
+                // just be secure by default.
+                ADSI_FLAGS = DEFAULT_TLS_FLAGS;
+            } else {
+                ADSI_FLAGS = realm.getRequireTLS() ? DEFAULT_TLS_FLAGS : DEFAULT_NON_TLS_FLAGS;
+            }
+        }
+        final Integer adsi_passwordless_override_flags = Integer.getInteger(ADSI_PASSWORDLESS_FLAGS_SYSTEM_PROPERTY_NAME);
+        if (adsi_passwordless_override_flags != null) {
+            LOGGER.log(Level.INFO, () -> String.format(Locale.ROOT, "ADSI_PASSWORDLESS_FLAGS_OVERRIDE set, use the following as the flags for passwordless ADSI: 0x%1$04X", adsi_passwordless_override_flags));
+            LOGGER.log(Level.INFO, "See https://www.jenkins.io/redirect/plugin/active-directory/iads-ads_authentication_enum for full flag details.");
+            ADSI_PASSWORDLESS_FLAGS = adsi_passwordless_override_flags.intValue();
+        } else {
+            // use ADS_SECURE_AUTHENTICATION to use the process' credentials.
+            ADSI_PASSWORDLESS_FLAGS = ADSI_FLAGS | ADS_SECURE_AUTHENTICATION;
+        }
 
+        try {
+            // do this in 2 stages so we can set the ADSI flags :)
+            // we add ADS_SECURE_AUTHENTICATION here as this is using username/password less auth
+            // and want the auth of the running process not an anonymous bind
+            // without this on server 2019 I observed that if the first user to attempt to login failed then no users could login at all :-o
+            IADsOpenDSObject dso = COM4J.getObject(IADsOpenDSObject.class, "LDAP:", null);
+            IADs rootDSE = dso.openDSObject("LDAP://RootDSE", null, null, ADSI_PASSWORDLESS_FLAGS).queryInterface(IADs.class);
             defaultNamingContext = (String)rootDSE.get("defaultNamingContext");
-            LOGGER.info("Active Directory domain is "+defaultNamingContext);
+            LOGGER.info("Active Directory domain is " + defaultNamingContext);
 
             con = ClassFactory.createConnection();
             con.provider("ADsDSOObject");
+            Property property = con.properties("ADSI Flag");
+            property.value(ADSI_PASSWORDLESS_FLAGS);
+
             con.open("Active Directory Provider",""/*default*/,""/*default*/,-1/*default*/);
 
             if (realm != null) {
@@ -178,8 +228,8 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
                         IADsUser usr;
                         try {
                             usr = (authentication==null
-                                    ? dso.openDSObject(dnToLdapUrl(dn), null, null, ADS_READONLY_SERVER)
-                                    : dso.openDSObject(dnToLdapUrl(dn), dn, ((UserPassword)password).getPassword(), ADS_READONLY_SERVER))
+                                    ? dso.openDSObject(dnToLdapUrl(dn), null, null, ADSI_PASSWORDLESS_FLAGS)
+                                    : dso.openDSObject(dnToLdapUrl(dn), dn, ((UserPassword)password).getPassword(), ADSI_FLAGS))
                                     .queryInterface(IADsUser.class);
                         } catch (ComException e) {
                             // this is failing
@@ -281,16 +331,20 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
     }
 
     private String getDnOfUserOrGroup(String userOrGroupname) throws UsernameNotFoundException {
-		_Command cmd = ClassFactory.createCommand();
+        /* This would be easier with IDirectorySearch
+         * https://docs.microsoft.com/en-us/windows/win32/adsi/searching-with-idirectorysearch
+         * however that is not possible with com4j so we use the VB documented way
+         * https://docs.microsoft.com/en-us/windows/win32/ad/example-code-for-searching-for-users
+         */
+        _Command cmd = ClassFactory.createCommand();
         cmd.activeConnection(con);
-
-        cmd.commandText("<LDAP://"+defaultNamingContext+">;(sAMAccountName="+userOrGroupname+");distinguishedName;subTree");
+        cmd.commandText("<LDAP://" +defaultNamingContext+ ">;(sAMAccountName="+userOrGroupname+");distinguishedName;subTree");
         _Recordset rs = cmd.execute(null, Variant.getMissing(), -1/*default*/);
-        if(rs.eof())
-            throw new UsernameNotFoundException("No such user or group: "+userOrGroupname);
-
+        if(rs.eof()) {
+            throw new UsernameNotFoundException("No such user or group: " + userOrGroupname);
+        }
         String dn = rs.fields().item("distinguishedName").value().toString();
-		return dn;
+        return dn;
 	}
 
 	public GroupDetails loadGroupByGroupname(final String groupname) {
@@ -303,7 +357,7 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
                         // First get the distinguishedName
                         String dn = getDnOfUserOrGroup(groupname);
                         IADsOpenDSObject dso = COM4J.getObject(IADsOpenDSObject.class, "LDAP:", null);
-                        IADsGroup group = dso.openDSObject(dnToLdapUrl(dn), null, null, ADS_READONLY_SERVER)
+                        IADsGroup group = dso.openDSObject(dnToLdapUrl(dn), null, null, ADSI_PASSWORDLESS_FLAGS)
                                 .queryInterface(IADsGroup.class);
 
                         // If not a group will throw UserMayOrMayNotExistException
@@ -339,13 +393,44 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
         }
     }
 
-    private static final Logger LOGGER = Logger.getLogger(ActiveDirectoryAuthenticationProvider.class.getName());
+	private static final Logger LOGGER = Logger.getLogger(ActiveDirectoryAuthenticationProvider.class.getName());
+
+    /*
+     * ADS flags from https://docs.microsoft.com/en-gb/windows/win32/api/iads/ne-iads-ads_authentication_enum
+     */
+
+    /**
+     * Requests secure authentication.
+     */
+    // only use this for anonymous binds (seems to break at least default server 2019 setups)
+    private static final int ADS_SECURE_AUTHENTICATION = 0x1;
+
+    /**
+     * The channel is encrypted using Secure Sockets Layer (SSL).
+     * Not supported in all deployments as it requires the Certificate Server be deployed.
+     * This is identical to {@code ADS_USE_ENCRYPTION}.
+     */
+    private static final int ADS_USE_SSL = 0x2;
 
     /**
      * Signify that we can connect to a read-only mirror.
-     *
-     * See http://msdn.microsoft.com/en-us/library/windows/desktop/aa772247(v=vs.85).aspx
      */
     private static final int ADS_READONLY_SERVER = 0x4;
+
+    /**
+     * Verifies data integrity.
+     */
+    private static final int ADS_USE_SIGNING = 0x40;
+
+    /**
+     * Encrypts data using Kerberos.
+     */
+    private static final int ADS_USE_SEALING= 0x80;
+
+    /** ADSI flags to use when not in TLS MODE */
+    private static final int DEFAULT_NON_TLS_FLAGS = ADS_READONLY_SERVER | ADS_USE_SIGNING | ADS_USE_SEALING;
+
+    /** ADSI flags to use when in TLS MODE */
+    private static final int DEFAULT_TLS_FLAGS = ADS_READONLY_SERVER | ADS_USE_SSL;
 
 }
