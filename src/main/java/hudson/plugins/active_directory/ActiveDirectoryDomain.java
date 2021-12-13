@@ -294,7 +294,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
                     // this check must be identical to that of ActiveDirectory.groovy
                     try {
                         // make sure we can connect via ADSI
-                        new ActiveDirectoryAuthenticationProvider();
+                        new ActiveDirectoryAuthenticationProvider(activeDirectorySecurityRealm);
                         return FormValidation.ok("Success");
                     } catch (Exception e) {
                         return FormValidation.error(e, "Failed to contact Active Directory");
