@@ -98,7 +98,7 @@ public class TheFlintstonesTest {
         ActiveDirectoryDomain activeDirectoryDomain = new ActiveDirectoryDomain(AD_DOMAIN, dockerIp + ":" +  dockerPort , null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD);
         List<ActiveDirectoryDomain> domains = new ArrayList<>(1);
         domains.add(activeDirectoryDomain);
-        ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, null, null, null, null, GroupLookupStrategy.RECURSIVE, false, true, null, false, null, null);
+        ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, null, null, null, null, GroupLookupStrategy.RECURSIVE, false, true, null, false, null, false);
         j.getInstance().setSecurityRealm(activeDirectorySecurityRealm);
         while(!FileUtils.readFileToString(d.getLogfile()).contains("custom (exit status 0; expected)")) {
             Thread.sleep(1000);

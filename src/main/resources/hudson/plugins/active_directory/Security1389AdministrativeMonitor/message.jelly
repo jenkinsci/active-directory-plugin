@@ -1,0 +1,10 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:f="/lib/form" xmlns:l="/lib/layout">
+
+  <div class="alert alert-danger">
+    <form method="post" action="${rootURL}/${it.url}/disable">
+      <f:submit value="${%Dismiss}"/>
+    </form>
+    <p>${%blurb(rootURL + "/configureSecurity/")}</p>
+  </div>
+</j:jelly>
