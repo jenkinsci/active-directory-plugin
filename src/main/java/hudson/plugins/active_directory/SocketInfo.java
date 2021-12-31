@@ -23,7 +23,7 @@
  */
 package hudson.plugins.active_directory;
 
-import javax.annotation.CheckForNull;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.Socket;
