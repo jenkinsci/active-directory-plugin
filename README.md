@@ -15,7 +15,7 @@ Jenkins then uses DNS SRV records and LDAP service of Active Directory to authen
 
 Jenkins recognizes all the groups in Active Directory that the user belongs to, so you can use those to make authorization decisions (for example you can choose the matrix-based security as the authorization strategy and perhaps allow "Domain Admins" to administer Jenkins).
 
-#### Setup
+## Setup
 
 Install Certs in Store
 
@@ -25,7 +25,7 @@ Update jenkins.xml
 
 
 
-#### Active Directory Health Status
+## Active Directory Health Status
 
 Since the version 2.5 the AD plugin adds a ManagementLink to report a Health Status about the Domain and Domain controllers. In order to correctly use this feature, you should be logged-in into the instance and the cache should be disabled. Then, you will get:
 
@@ -40,7 +40,7 @@ Since the version 2.5 the AD plugin adds a ManagementLink to report a Health Sta
 
 ![](docs/images/ad-managementLink-view.png)
 
-#### Fall-back user
+## Fall-back user
 
 -   Since the version 2.5 of the AD plugin, you can define a user to fall back in case there is a communication issue between Jenkins and the AD server.
 -   On this way, this admin user can be used to continue administering Jenkins in case of communication issues, where usually you were following the link [Disable security](https://www.jenkins.io/doc/book/system-administration/security/#disabling-security). 
@@ -60,6 +60,36 @@ hudsonPrivateSecurityRealm.createAccount("admin", "mypassword");
 IMPORTANT: This fallback user will ONLY work under a `NamingException`, which includes `CommunicationException`. This means that it does not always fallback into the fallback user. It will only do it when there are problems when contacting the AD server.
   
 ![](docs/images/ad-internalJenkinsUser.png)
+
+
+## Encryption support
+
+From versions `2.26` (SECURITY-1389) the connection to the Active Directory server can be configured via the UI to require the use of TLS for the communications ("require TLS" option).
+
+![](docs/images/requireTLS.png)
+
+Prior to this change it was only configured by the now defunct `hudson.plugins.active_directory.ActiveDirectorySecurityRealm.forceLdaps` system property and this was not used for ADSI based setups. 
+For new setups this defaults to on.
+If you had previously been using the above property once you save the "Global Security" (`$JENKINS_URL/configureSecurity`) you can remove the system property.
+
+*Note* : For upgrades from prior versions without the system property set, connections may still be performed with plain text (if using `Enable StartTls` and the `StartTLS` command fails, or the plugin is using ADSI), it is **Strongly** recommended that you enable the option.
+
+### Configuring the trusted certificates
+
+When using TLS for new installs the default will be to use the JVM trust store.
+
+## ADSI mode flags (expert use only)
+
+When using ADSI mode the plugin passes various flag options to the ADS interface. 
+Different options are passed based on the "require TLS" flag with ADSI mode is handled slightly differently. 
+There are various modes of operation that can be set to fine tune the behaviour, and different flags are needed for the searching of a user (when using the local computer account), and for validating a users' password.
+The plugin will attempt to set these to versions that use Encryption, but depending on the AD server setup this may not be supported and the alternative of using Kerberos based encryption may be better.
+
+[This microsoft document](https://docs.microsoft.com/en-gb/windows/win32/api/iads/ne-iads-ads_authentication_enum) explains the current flags and should the defaults not work they can be changed by setting the system properties `hudson.plugins.active_directory.ActiveDirectoryAuthenticationProvider.ADSI_FLAGS_OVERRIDE` and `hudson.plugins.active_directory.ActiveDirectoryAuthenticationProvider.ADSI_PASSWORDLESS_FLAGS_OVERRIDE` to the integer value corresponding to the flags that you wish to enable.
+The values are listed in [this document](https://docs.microsoft.com/en-us/windows/win32/adschema/a-authenticationoptions) and extreme care must be taken to choose a set of values that does not compromise the security of the Jenkins instance.
+`hudson.plugins.active_directory.ActiveDirectoryAuthenticationProvider.ADSI_FLAGS_OVERRIDE` is used for validate the username/password combination of users and `hudson.plugins.active_directory.ActiveDirectoryAuthenticationProvider.ADSI_PASSWORDLESS_FLAGS_OVERRIDE` is used when searching for a user or group with the Jenkins services' computer or service account.
+If you have had to change these flags we would like to know (raise a Jira, and please include the flags you used and what version of Windows Server you are using so we can collate them and possibly improve this area if there is a common theme), conversely if we have no reports of them being changed the code could be removed to simplify things.
+
 
 #### [SECURITY-251](https://www.jenkins.io/security/advisory/2017-03-20/#SECURITY-251) Active Directory Plugin did not verify certificate of AD server
 
@@ -121,7 +151,7 @@ Disaster recovery: In case that after all of this you cannot login anymore, you 
 
     <tlsConfiguration>TRUST_ALL_CERTIFICATES</tlsConfiguration>
 
-#### IMPORTANT Active Directory 2.0 - Better multi-domains support
+## IMPORTANT Active Directory 2.0 - Better multi-domains support
 
 The latest release of the Active Directory plugin provides you a better multi-domains support.
 
@@ -196,7 +226,7 @@ If you are not sure what the notation for a group name is, try the following pro
 
 ## Troubleshooting
 
-#### Create/Update a dedicated Logs Recorder
+### Create/Update a dedicated Logs Recorder
 
 If you think you've configured everything correctly but still not being able to login (or any other problems), please enable [Logging](https://www.jenkins.io/doc/book/system-administration/viewing-logs/) and configure logging level for "hudson.plugins.active_directory" to ALL. Attempt a login and then file a ticket with the log output.
 
@@ -207,7 +237,7 @@ Also, it might be useful to enable:
     org.acegisecurity.ldap = ALL
     org.acegisecurity.providers.ldap = ALL
 
-#### Use a tool like 'ldapsearch' to validate credentials and authentication settings
+### Use a tool like 'ldapsearch' to validate credentials and authentication settings
 
 Take care to escape special character with \`\\\` in case it is necessary.
 
@@ -233,7 +263,7 @@ All these fields should match with the following fields in the AD plugin configu
 -   \<passwd\> -\> Bind Password
 -   \<userid\> -\> User we want to look for. We can look for the managerDN itself or for a different user on the tree. In the example, this can be set-up for example to CN=felix, OU=Support, DC=support-cloudbees, DC=com.
 
-#### If using Domain controller check that all servers on the farm are working correctly
+### If using Domain controller check that all servers on the farm are working correctly
 
 In case, we are using a Domain Controller like in the example below we might want to list all the AD servers in the farm by using:
 
@@ -243,7 +273,7 @@ In case, we are using a Domain Controller like in the example below we might wan
 
 It might happen that one of the servers in the farm is incorrectly replicated and the ad-plugin is sticky with this one, so we might want to check with ldapsearch command or the Test button in the GUI that all the servers are working correctly trying to look for an user on the tree.
 
-#### If using Domain controller check that all servers on the farm are working correctly
+### If using Domain controller check that all servers on the farm are working correctly
 
 You can check this by using:
 
