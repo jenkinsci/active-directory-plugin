@@ -32,9 +32,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.jvnet.hudson.test.JenkinsRule;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.util.Arrays;
 import java.util.HashSet;
@@ -42,15 +39,14 @@ import java.util.Set;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
-import static org.powermock.api.mockito.PowerMockito.when;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Tests for the "Remove Irrelevant Groups" feature.
  *
  * @author Fredrik Persson &lt;fredrik6.persson@sonymobile.com&gt;
  */
-@RunWith(PowerMockRunner.class)
-@PowerMockIgnore({"javax.crypto.*", "javax.xml.*", "com.sun.*", "org.xml.*"})
 public class RemoveIrrelevantGroupsTest {
 
     @Rule
@@ -76,7 +72,7 @@ public class RemoveIrrelevantGroupsTest {
             usedGroups.add(group);
         }
 
-        AuthorizationStrategy authorizationStrategy = PowerMockito.mock(AuthorizationStrategy.class);
+        AuthorizationStrategy authorizationStrategy = mock(AuthorizationStrategy.class);
         when(authorizationStrategy.getGroups()).thenReturn(usedGroups);
         jenkinsRule.getInstance().setAuthorizationStrategy(authorizationStrategy);
     }
