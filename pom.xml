@@ -39,7 +39,7 @@
     <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
     <jenkins.version>2.235.5</jenkins.version>
     <java.level>8</java.level>
-    <configuration-as-code.version>1.35</configuration-as-code.version>
+    <configuration-as-code.version>1429.v09b_044a_c93de</configuration-as-code.version>
   </properties>
 
   <dependencies>
