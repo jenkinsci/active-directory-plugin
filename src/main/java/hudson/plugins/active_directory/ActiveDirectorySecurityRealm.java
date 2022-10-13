@@ -23,7 +23,6 @@
  */
 package hudson.plugins.active_directory;
 
-import com.sun.jndi.ldap.LdapCtxFactory;
 import com4j.typelibs.ado20.ClassFactory;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -65,6 +64,7 @@ import javax.naming.directory.Attribute;
 import javax.naming.directory.Attributes;
 import javax.naming.directory.DirContext;
 import javax.naming.directory.InitialDirContext;
+import javax.naming.ldap.InitialLdapContext;
 import javax.naming.ldap.LdapContext;
 import javax.naming.ldap.StartTlsRequest;
 import javax.naming.ldap.StartTlsResponse;
@@ -662,12 +662,13 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             Thread.currentThread().setName("Connecting to "+ldapUrl+" : "+oldName);
             LOGGER.fine("Connecting to " + ldapUrl);
             try {
+                props.put(Context.INITIAL_CONTEXT_FACTORY, "com.sun.jndi.ldap.LdapCtxFactory");
                 props.put(Context.PROVIDER_URL, ldapUrl);
                 props.put("java.naming.ldap.version", "3");
                 
                 customizeLdapProperties(props);
                 
-                LdapContext context = (LdapContext)LdapCtxFactory.getLdapCtxInstance(ldapUrl, props);
+                LdapContext context = new InitialLdapContext(props, null);
 
                 boolean isStartTls = true;
                 SecurityRealm securityRealm = Jenkins.getActiveInstance().getSecurityRealm();
@@ -700,7 +701,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                         // JENKINS-44787 It seems than to go back to plain-text LDAP does not work
                         // in all cases and to re-create the context is necessary
                         context.close();
-                        context = (LdapContext)LdapCtxFactory.getLdapCtxInstance(ldapUrl, props);
+                        context = new InitialLdapContext(props, null);
                     }
                 }
 
@@ -734,7 +735,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         public DirContext createDNSLookupContext() throws NamingException {
             Hashtable env = new Hashtable();
             env.put(Context.INITIAL_CONTEXT_FACTORY, "com.sun.jndi.dns.DnsContextFactory");
-            env.put("java.naming.provider.url", "dns:");
+            env.put(Context.PROVIDER_URL, "dns:");
             return new InitialDirContext(env);
         }
 
