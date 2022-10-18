@@ -5,8 +5,8 @@ import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.mindrot.jbcrypt.BCrypt;
 
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import java.security.SecureRandom;
 import java.util.Objects;
 import java.util.Set;
@@ -25,7 +25,7 @@ public final class CacheUtil {
     }
 
     public static @CheckForNull
-    CacheKey computeCacheKey(@Nonnull String username, @Nonnull AbstractActiveDirectoryAuthenticationProvider.Password password, Set<CacheKey> existingKeys) {
+    CacheKey computeCacheKey(@NonNull String username, @NonNull AbstractActiveDirectoryAuthenticationProvider.Password password, Set<CacheKey> existingKeys) {
         Objects.requireNonNull(username);
         Objects.requireNonNull(password);
 
@@ -49,7 +49,7 @@ public final class CacheUtil {
         return new CacheKey(username);
     }
 
-    private static String computeHash(@Nonnull String password, String salt) {
+    private static String computeHash(@NonNull String password, String salt) {
         return BCrypt.hashpw(password, salt);
     }
 
