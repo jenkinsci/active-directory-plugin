@@ -179,20 +179,7 @@ public class ActiveDirectoryUserDetail extends User {
      * Gets the corresponding {@link hudson.model.User} object.
      */
     public hudson.model.User getJenkinsUser() {
-        try { // TODO 1.651.2+ remove reflection
-            return (hudson.model.User) hudson.model.User.class.getMethod("getById", String.class, boolean.class).invoke(null, getUsername(), true);
-        } catch (InvocationTargetException e) {
-            if (e.getCause() instanceof RuntimeException) {
-                throw (RuntimeException)e.getCause();
-            }
-            // Only RuntimeException is expected
-            LOGGER.log(Level.WARNING, String.format("There was a problem obtaining the Jenkins user %s by Id", getUsername()), e);
-        } catch (NoSuchMethodException e) {
-            // fine, older baseline
-        } catch (Exception e) { // unexpected
-            LOGGER.log(Level.WARNING, String.format("There was a problem obtaining the Jenkins user %s by Id", getUsername()), e);
-        }
-        return hudson.model.User.get(getUsername());
+        return hudson.model.User.getById(getUsername(), true);
     }
 
     /**
