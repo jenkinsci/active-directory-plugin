@@ -10,7 +10,7 @@
 
   <artifactId>active-directory</artifactId>
   <packaging>hpi</packaging>
-  <version>2.28</version>
+  <version>${revision}${changelist}</version>
   <name>Jenkins Active Directory plugin</name>
   <description>Enables authentication through Active Directory</description>
   <url>https://github.com/jenkinsci/active-directory-plugin</url>
@@ -19,7 +19,7 @@
    <connection>scm:git:git://github.com/${gitHubRepo}.git</connection>
    <developerConnection>scm:git:git@github.com:${gitHubRepo}.git</developerConnection>
    <url>https://github.com/${gitHubRepo}</url>
-   <tag>active-directory-2.28</tag>
+   <tag>${scmTag}</tag>
   </scm>
 
   <developers>
@@ -34,7 +34,7 @@
   </developers>
 
   <properties>
-    <revision>2.28</revision>
+    <revision>2.29</revision>
     <changelist>-SNAPSHOT</changelist>
     <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
     <jenkins.version>2.332.4</jenkins.version>
