@@ -4,7 +4,7 @@
   <parent>
     <groupId>org.jenkins-ci.plugins</groupId>
     <artifactId>plugin</artifactId>
-    <version>4.19</version>
+    <version>4.50</version>
     <relativePath />
   </parent>
 
@@ -37,10 +37,20 @@
     <revision>2.28</revision>
     <changelist>-SNAPSHOT</changelist>
     <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
-    <jenkins.version>2.235.5</jenkins.version>
-    <java.level>8</java.level>
-    <configuration-as-code.version>1.35</configuration-as-code.version>
+    <jenkins.version>2.332.4</jenkins.version>
   </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>io.jenkins.tools.bom</groupId>
+        <artifactId>bom-2.332.x</artifactId>
+        <version>1678.vc1feb_6a_3c0f1</version>
+        <scope>import</scope>
+        <type>pom</type>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 
   <dependencies>
     <dependency>
@@ -73,12 +83,10 @@
     <dependency>
       <groupId>org.jenkins-ci.plugins</groupId>
       <artifactId>mailer</artifactId>
-      <version>1.5</version>
     </dependency>
     <dependency>
       <groupId>io.jenkins.plugins</groupId>
       <artifactId>caffeine-api</artifactId>
-      <version>2.9.0-17.v79e9099a51e3</version>
     </dependency>
     <dependency>
       <groupId>com.github.spotbugs</groupId>
@@ -102,7 +110,7 @@
     <dependency>
       <groupId>org.jenkins-ci.test</groupId>
       <artifactId>docker-fixtures</artifactId>
-      <version>1.10</version>
+      <version>166.v912b_95083ffe</version>
       <scope>test</scope>
       <exclusions>
         <exclusion>
@@ -123,13 +131,11 @@
     <dependency>
       <groupId>io.jenkins</groupId>
       <artifactId>configuration-as-code</artifactId>
-      <version>${configuration-as-code.version}</version>
       <optional>true</optional>
     </dependency>
     <dependency>
       <groupId>io.jenkins.configuration-as-code</groupId>
       <artifactId>test-harness</artifactId>
-      <version>${configuration-as-code.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
