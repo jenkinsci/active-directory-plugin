@@ -43,6 +43,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.security.GroupDetails;
 import hudson.security.SecurityRealm;
 import hudson.security.UserMayOrMayNotExistException;
+import jenkins.security.SecurityListener;
 import org.acegisecurity.AuthenticationException;
 import org.acegisecurity.BadCredentialsException;
 import org.acegisecurity.GrantedAuthority;
@@ -252,13 +253,15 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
 
                         LOGGER.log(Level.FINE, "Login successful: {0} dn={1}", new Object[] {username, dn});
 
-                        return new ActiveDirectoryUserDetail(
-                                username, "redacted",
-                                !isAccountDisabled(usr),
-                                true, true, true,
-                                groups.toArray(new GrantedAuthority[0]),
-                                getFullName(usr), getEmailAddress(usr), getTelephoneNumber(usr)
+                        UserDetails userDetails = new ActiveDirectoryUserDetail(
+                            username, "redacted",
+                            !isAccountDisabled(usr),
+                            true, true, true,
+                            groups.toArray(new GrantedAuthority[0]),
+                            getFullName(usr), getEmailAddress(usr), getTelephoneNumber(usr)
                         ).updateUserInfo();
+                        SecurityListener.fireAuthenticated(userDetails);
+                        return userDetails;
                     } finally {
                         col.disposeAll();
                         COM4J.removeListener(col);
