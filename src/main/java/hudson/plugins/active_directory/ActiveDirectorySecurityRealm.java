@@ -347,7 +347,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     }
 
     public GroupLookupStrategy getGroupLookupStrategy() {
-        if (groupLookupStrategy==null)      return GroupLookupStrategy.AUTO;
+        if (groupLookupStrategy==null)      return GroupLookupStrategy.TOKENGROUPS;
         return groupLookupStrategy;
     }
 
