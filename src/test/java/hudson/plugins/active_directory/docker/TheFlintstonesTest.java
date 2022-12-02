@@ -198,7 +198,7 @@ public class TheFlintstonesTest {
     public void validateCustomDomainController() throws ServletException, NamingException, IOException, Exception {
         dynamicSetUp();
         ActiveDirectoryDomain.DescriptorImpl adDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
-        assertEquals("OK: Success", adDescriptor.doValidateTest(AD_DOMAIN, dockerIp + ":" + dockerPort, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD, null).toString().trim());
+        assertEquals("OK: Success", adDescriptor.doValidateTest(AD_DOMAIN, dockerIp + ":" + dockerPort, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD, null, false).toString().trim());
     }
 
     @Issue("JENKINS-36148")
@@ -206,7 +206,7 @@ public class TheFlintstonesTest {
     public void validateDomain() throws ServletException, NamingException, IOException, Exception {
         dynamicSetUp();
         ActiveDirectoryDomain.DescriptorImpl adDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
-        assertEquals("OK: Success", adDescriptor.doValidateTest(AD_DOMAIN, null, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD, null).toString().trim());
+        assertEquals("OK: Success", adDescriptor.doValidateTest(AD_DOMAIN, null, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD, null, false).toString().trim());
 
     }
 
@@ -347,6 +347,23 @@ public class TheFlintstonesTest {
         }
         final List<String> messages = l.getMessages();
         assertTrue(messages.stream().anyMatch(s -> s.contains("Failed to retrieve user Fred")));
+    }
+
+    @Issue("JENKINS-69683")
+    @Test
+    public void validateTestDomainRequireTLSDisabled() throws Exception {
+        dynamicSetUp();
+        ActiveDirectoryDomain.DescriptorImpl adDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
+        assertEquals("OK: Success", adDescriptor.doValidateTest(AD_DOMAIN, null, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD, null, false).toString().trim());
+    }
+
+
+    @Issue("JENKINS-69683")
+    @Test
+    public void validateTestDomainServerRequireTLSDisabled() throws Exception {
+        dynamicSetUp();
+        ActiveDirectoryDomain.DescriptorImpl adDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
+        assertEquals("OK: Success", adDescriptor.doValidateTest(AD_DOMAIN, dockerIp + ":" +  dockerPort, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD, null, false).toString().trim());
     }
 
     @DockerFixture(id = "ad-dc", ports= {135, 138, 445, 39, 464, 389, 3268}, udpPorts = {53}, matchHostPorts = true)
