@@ -363,7 +363,7 @@ public class TheFlintstonesTest {
     public void validateTestDomainServerRequireTLSDisabled() throws Exception {
         dynamicSetUp();
         ActiveDirectoryDomain.DescriptorImpl adDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
-        assertEquals("OK: Success", adDescriptor.doValidateTest(AD_DOMAIN, "127.0.0.1:3268", null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD, null, false).toString().trim());
+        assertEquals("OK: Success", adDescriptor.doValidateTest(AD_DOMAIN, dockerIp + ":" +  dockerPort, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD, null, false).toString().trim());
     }
 
     @DockerFixture(id = "ad-dc", ports= {135, 138, 445, 39, 464, 389, 3268}, udpPorts = {53}, matchHostPorts = true)
