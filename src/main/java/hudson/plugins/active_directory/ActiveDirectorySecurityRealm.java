@@ -44,7 +44,6 @@ import org.acegisecurity.BadCredentialsException;
 import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
 import org.acegisecurity.userdetails.UserDetails;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
-import org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -649,13 +648,11 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         }
 
         @SuppressFBWarnings(value = "UPM_UNCALLED_PRIVATE_METHOD", justification = "Deprecated method.It will removed at some point")
-        @IgnoreJRERequirement
         @Deprecated
         private LdapContext bind(String principalName, String password, SocketInfo server, Hashtable<String, String> props) throws NamingException {
             return bind(principalName, password, server, props, null, isRequireTLS());
         }
 
-        @IgnoreJRERequirement
         private LdapContext bind(String principalName, String password, SocketInfo server, Hashtable<String, String> props, TlsConfiguration tlsConfiguration, boolean requireTLS) throws NamingException {
             String ldapUrl = (requireTLS?"ldaps://":"ldap://") + server + '/';
             String oldName = Thread.currentThread().getName();
