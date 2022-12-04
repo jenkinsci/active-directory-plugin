@@ -16,6 +16,7 @@ public class ActiveDirectoryGenericContainer<SELF extends ActiveDirectoryGeneric
                 .withFileFromClasspath("named.conf.options", "hudson/plugins/active_directory/docker/TheFlintstonesTest/TheFlintstones/named.conf.options")
                 .withFileFromClasspath("sssd.conf", "hudson/plugins/active_directory/docker/TheFlintstonesTest/TheFlintstones/sssd.conf")
                 .withFileFromClasspath("supervisord.conf", "hudson/plugins/active_directory/docker/TheFlintstonesTest/TheFlintstones/supervisord.conf"));
+        setWaitStrategy(null);
         addFixedExposedPort(135, 135);
         addFixedExposedPort(138, 138);
         addFixedExposedPort(445, 445);
