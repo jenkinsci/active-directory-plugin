@@ -33,15 +33,12 @@ import jenkins.model.Jenkins;
 import org.acegisecurity.AuthenticationServiceException;
 import org.acegisecurity.userdetails.UserDetails;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
-import org.apache.commons.io.FileUtils;
-import org.jenkinsci.test.acceptance.docker.DockerContainer;
-import org.jenkinsci.test.acceptance.docker.DockerFixture;
-import org.jenkinsci.test.acceptance.docker.DockerRule;
 
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.testcontainers.containers.GenericContainer;
 
 import javax.naming.CommunicationException;
 import javax.naming.NamingException;
@@ -76,7 +73,7 @@ import org.jvnet.hudson.test.recipes.LocalData;
 public class TheFlintstonesTest {
 
     @Rule
-    public DockerRule<TheFlintstones> docker = new DockerRule<>(TheFlintstones.class);
+    public GenericContainer docker = new ActiveDirectoryGenericContainer();
 
     @Rule
     public JenkinsRule j = new JenkinsRule();
@@ -92,15 +89,14 @@ public class TheFlintstonesTest {
     public int dockerPort;
 
     public void dynamicSetUp() throws Exception {
-        TheFlintstones d = docker.get();
-        dockerIp = d.ipBound(3268);
-        dockerPort = d.port(3268);
+        dockerIp = docker.getHost();
+        dockerPort = docker.getMappedPort(3268);
         ActiveDirectoryDomain activeDirectoryDomain = new ActiveDirectoryDomain(AD_DOMAIN, dockerIp + ":" +  dockerPort , null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD);
         List<ActiveDirectoryDomain> domains = new ArrayList<>(1);
         domains.add(activeDirectoryDomain);
         ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, null, null, null, null, GroupLookupStrategy.RECURSIVE, false, true, null, false, null, false);
         j.getInstance().setSecurityRealm(activeDirectorySecurityRealm);
-        while(!FileUtils.readFileToString(d.getLogfile()).contains("custom (exit status 0; expected)")) {
+        while(!docker.getLogs().contains("custom (exit status 0; expected)")) {
             Thread.sleep(1000);
         }
         UserDetails userDetails = null;
@@ -116,9 +112,8 @@ public class TheFlintstonesTest {
     }
 
     public void manualSetUp() throws Exception {
-        TheFlintstones d = docker.get();
-        dockerIp = d.ipBound(3268);
-        dockerPort = d.port(3268);
+        dockerIp = docker.getHost();
+        dockerPort = docker.getMappedPort(3268);
 
         ActiveDirectorySecurityRealm activeDirectorySecurityRealm = (ActiveDirectorySecurityRealm) j.jenkins.getSecurityRealm();
         for (ActiveDirectoryDomain activeDirectoryDomain : activeDirectorySecurityRealm.getDomains()) {
@@ -126,7 +121,7 @@ public class TheFlintstonesTest {
             activeDirectoryDomain.servers = dockerIp + ":" +  dockerPort;
         }
 
-        while(!FileUtils.readFileToString(d.getLogfile()).contains("custom (exit status 0; expected)")) {
+        while(!docker.getLogs().contains("custom (exit status 0; expected)")) {
             Thread.sleep(1000);
         }
         UserDetails userDetails = null;
@@ -365,10 +360,4 @@ public class TheFlintstonesTest {
         ActiveDirectoryDomain.DescriptorImpl adDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
         assertEquals("OK: Success", adDescriptor.doValidateTest(AD_DOMAIN, dockerIp + ":" +  dockerPort, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD, null, false).toString().trim());
     }
-
-    @DockerFixture(id = "ad-dc", ports= {135, 138, 445, 39, 464, 389, 3268}, udpPorts = {53}, matchHostPorts = true)
-    public static class TheFlintstones extends DockerContainer {
-
-    }
-
 }

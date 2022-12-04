@@ -8,14 +8,11 @@ import hudson.plugins.active_directory.CacheConfiguration;
 import hudson.plugins.active_directory.GroupLookupStrategy;
 import org.acegisecurity.AuthenticationServiceException;
 import org.acegisecurity.userdetails.UserDetails;
-import org.apache.commons.io.FileUtils;
-import org.jenkinsci.test.acceptance.docker.DockerContainer;
-import org.jenkinsci.test.acceptance.docker.DockerFixture;
-import org.jenkinsci.test.acceptance.docker.DockerRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.LoggerRule;
+import org.testcontainers.containers.GenericContainer;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,7 +26,7 @@ import static org.junit.Assert.fail;
 public class EntoEndUserCacheLookupDisabledTest {
 
     @Rule
-    public DockerRule<TheFlintstonesTest.TheFlintstones> docker = new DockerRule<>(TheFlintstonesTest.TheFlintstones.class);
+    public GenericContainer docker = new ActiveDirectoryGenericContainer();
 
     @Rule
     public JenkinsRule j = new JenkinsRule();
@@ -47,9 +44,8 @@ public class EntoEndUserCacheLookupDisabledTest {
     public void customSingleADSetup(ActiveDirectoryDomain activeDirectoryDomain, String site, String bindName, String bindPassword,
                                     GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain,
                                     CacheConfiguration cache, Boolean startTls, ActiveDirectoryInternalUsersDatabase internalUsersDatabase) throws Exception {
-        TheFlintstonesTest.TheFlintstones d = docker.get();
-        dockerIp = d.ipBound(3268);
-        dockerPort = d.port(3268);
+        dockerIp = docker.getHost();
+        dockerPort = docker.getMappedPort(3268);
 
         activeDirectoryDomain.servers = dockerIp + ":" + dockerPort;
         List<ActiveDirectoryDomain> domains = new ArrayList<>(1);
@@ -57,7 +53,7 @@ public class EntoEndUserCacheLookupDisabledTest {
 
         ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, site, bindName, bindPassword, null, groupLookupStrategy, removeIrrelevantGroups, customDomain, cache, startTls, internalUsersDatabase, false);
         j.getInstance().setSecurityRealm(activeDirectorySecurityRealm);
-        while(!FileUtils.readFileToString(d.getLogfile()).contains("custom (exit status 0; expected)")) {
+        while(!docker.getLogs().contains("custom (exit status 0; expected)")) {
             Thread.sleep(1000);
         }
         UserDetails userDetails = null;
@@ -140,11 +136,6 @@ public class EntoEndUserCacheLookupDisabledTest {
         // Try to login as Fred with correct password
         wc.login("Fred", "ia4uV1EeKait");
         assertThat(wc.goToXml("whoAmI/api/xml").asXml().replaceAll("\\s+", ""), containsString("<name>Fred</name>"));
-
-    }
-
-    @DockerFixture(id = "ad-dc", ports= {135, 138, 445, 39, 464, 389, 3268}, udpPorts = {53}, matchHostPorts = true, dockerfileFolder="docker/TheFlintstonesTest/TheFlintstones")
-    public static class TheFlintstones extends DockerContainer {
 
     }
 }

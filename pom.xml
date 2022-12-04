@@ -108,24 +108,10 @@
     </dependency>
     <!-- For docker integration tests -->
     <dependency>
-      <groupId>org.jenkins-ci.test</groupId>
-      <artifactId>docker-fixtures</artifactId>
-      <version>166.v912b_95083ffe</version>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers</artifactId>
+      <version>1.17.6</version>
       <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>com.google.inject</groupId>
-          <artifactId>guice</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>commons-io</groupId>
-          <artifactId>commons-io</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>com.fasterxml.jackson.core</groupId>
-          <artifactId>jackson-databind</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
     <!-- JCasC compatibility -->
     <dependency>
