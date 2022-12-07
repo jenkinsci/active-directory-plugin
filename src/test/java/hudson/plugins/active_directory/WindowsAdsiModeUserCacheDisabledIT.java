@@ -1,7 +1,6 @@
 package hudson.plugins.active_directory;
 
 import com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException;
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -18,8 +17,12 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
 
-
-public class WindowsAdsiModeUserCacheEnabledTest {
+/**
+ * This tests requires a very specific windows environment to run, the windows machine
+ * needs to be joined to a function domain that has the user fred with the password ia4uV1EeKait.
+ * It is enabled in the ITs profile, but will skip on I as that profile is enabled only on the special Linux environment.
+ */
+public class WindowsAdsiModeUserCacheDisabledIT {
 
     @BeforeClass
     public static void setUp() {
@@ -31,24 +34,6 @@ public class WindowsAdsiModeUserCacheEnabledTest {
 
     @Rule
     public LoggerRule l = new LoggerRule();
-
-    private static String CACHE_AUTH;
-
-    @BeforeClass
-    public static void enableHealthMetrics() {
-        CACHE_AUTH = System.getProperty(CacheUtil.class.getName() + ".cacheAuth");
-        System.setProperty(CacheUtil.class.getName() + ".cacheAuth", "true");
-    }
-
-    @AfterClass
-    public static void disableHealthMetrics() {
-        // Put back the previous value before the test was executed
-        if (CACHE_AUTH != null) {
-            System.setProperty(CacheUtil.class.getName() + ".cacheAuth", CACHE_AUTH);
-        } else {
-            System.clearProperty(CacheUtil.class.getName() + ".cacheAuth");
-        }
-    }
 
     public void dynamicCacheEnableSetUp() throws Exception {
         CacheConfiguration cacheConfiguration = new CacheConfiguration(500,30);

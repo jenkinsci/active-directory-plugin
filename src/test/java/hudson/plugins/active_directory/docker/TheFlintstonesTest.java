@@ -27,31 +27,33 @@ package hudson.plugins.active_directory.docker;
 import com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException;
 import hudson.plugins.active_directory.ActiveDirectoryDomain;
 import hudson.plugins.active_directory.ActiveDirectorySecurityRealm;
+import hudson.plugins.active_directory.DNSUtils;
 import hudson.plugins.active_directory.GroupLookupStrategy;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
 import org.acegisecurity.AuthenticationServiceException;
 import org.acegisecurity.userdetails.UserDetails;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
-
+import org.junit.After;
+import org.junit.Assume;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
-import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.DockerClientFactory;
 
 import javax.naming.CommunicationException;
-import javax.naming.NamingException;
-import javax.servlet.ServletException;
-import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import static junit.framework.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -72,8 +74,13 @@ import org.jvnet.hudson.test.recipes.LocalData;
  */
 public class TheFlintstonesTest {
 
+    @Before
+    public void skipIfNoDocker() {
+        Assume.assumeTrue("Docker is needed to run these tests", DockerClientFactory.instance().isDockerAvailable());
+    }
+
     @Rule
-    public GenericContainer docker = new ActiveDirectoryGenericContainer();
+    public ActiveDirectoryGenericContainer<?> docker = new ActiveDirectoryGenericContainer<>().withDynamicPorts();
 
     @Rule
     public JenkinsRule j = new JenkinsRule();
@@ -87,6 +94,21 @@ public class TheFlintstonesTest {
     public final static int MAX_RETRIES = 30;
     public String dockerIp;
     public int dockerPort;
+
+    @Before
+    public void overrideDNS() throws Exception {
+        // see hudson.plugins.active_directory.ActiveDirectoryDomain.createDNSLookupContext()
+        // getHost returns a hostname not IPaddress...
+        // use our DNS to resolve that to an IP address.
+        String DNS_URLs = "dns://"+InetAddress.getByName(docker.getHost()).getHostAddress()+":"+docker.getDNSPort();
+        System.setProperty(DNSUtils.OVERRIDE_DNS_PROPERTY, DNS_URLs);
+    }
+
+    @After
+    public void resetDNS() {
+        // see hudson.plugins.active_directory.ActiveDirectoryDomain.createDNSLookupContext()
+        System.clearProperty(ActiveDirectoryDomain.class.getName()+ ".OVERRIDE_DNS_SERVERS");
+    }
 
     public void dynamicSetUp() throws Exception {
         dockerIp = docker.getHost();
@@ -177,32 +199,6 @@ public class TheFlintstonesTest {
         } catch (UsernameNotFoundException e) {
             assertTrue(e.getMessage().contains("Authentication was successful but cannot locate the user information for Homer"));
         }
-    }
-
-    @Issue("JENKINS-36148")
-    @Test
-    public void checkDomainHealth() throws Exception {
-        dynamicSetUp();
-        ActiveDirectorySecurityRealm securityRealm = (ActiveDirectorySecurityRealm) Jenkins.getInstance().getSecurityRealm();
-        ActiveDirectoryDomain domain = securityRealm.getDomain(AD_DOMAIN);
-        assertEquals("NS: dc1.samdom.example.com.", domain.getRecordFromDomain().toString().trim());
-    }
-
-    @Issue("JENKINS-36148")
-    @Test
-    public void validateCustomDomainController() throws ServletException, NamingException, IOException, Exception {
-        dynamicSetUp();
-        ActiveDirectoryDomain.DescriptorImpl adDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
-        assertEquals("OK: Success", adDescriptor.doValidateTest(AD_DOMAIN, dockerIp + ":" + dockerPort, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD, null, false).toString().trim());
-    }
-
-    @Issue("JENKINS-36148")
-    @Test
-    public void validateDomain() throws ServletException, NamingException, IOException, Exception {
-        dynamicSetUp();
-        ActiveDirectoryDomain.DescriptorImpl adDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
-        assertEquals("OK: Success", adDescriptor.doValidateTest(AD_DOMAIN, null, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD, null, false).toString().trim());
-
     }
 
     @Issue("JENKINS-45576")
@@ -344,20 +340,13 @@ public class TheFlintstonesTest {
         assertTrue(messages.stream().anyMatch(s -> s.contains("Failed to retrieve user Fred")));
     }
 
-    @Issue("JENKINS-69683")
+    @Issue("JENKINS-36148")
     @Test
-    public void validateTestDomainRequireTLSDisabled() throws Exception {
+    public void checkDomainHealth() throws Exception {
         dynamicSetUp();
-        ActiveDirectoryDomain.DescriptorImpl adDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
-        assertEquals("OK: Success", adDescriptor.doValidateTest(AD_DOMAIN, null, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD, null, false).toString().trim());
+        ActiveDirectorySecurityRealm securityRealm = (ActiveDirectorySecurityRealm) Jenkins.getInstance().getSecurityRealm();
+        ActiveDirectoryDomain domain = securityRealm.getDomain(AD_DOMAIN);
+        assertEquals("NS: dc1.samdom.example.com.", domain.getRecordFromDomain().toString().trim());
     }
 
-
-    @Issue("JENKINS-69683")
-    @Test
-    public void validateTestDomainServerRequireTLSDisabled() throws Exception {
-        dynamicSetUp();
-        ActiveDirectoryDomain.DescriptorImpl adDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
-        assertEquals("OK: Success", adDescriptor.doValidateTest(AD_DOMAIN, dockerIp + ":" +  dockerPort, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD, null, false).toString().trim());
-    }
 }

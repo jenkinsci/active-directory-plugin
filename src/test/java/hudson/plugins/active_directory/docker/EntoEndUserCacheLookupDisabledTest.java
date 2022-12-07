@@ -8,10 +8,13 @@ import hudson.plugins.active_directory.CacheConfiguration;
 import hudson.plugins.active_directory.GroupLookupStrategy;
 import org.acegisecurity.AuthenticationServiceException;
 import org.acegisecurity.userdetails.UserDetails;
+import org.junit.Assume;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.LoggerRule;
+import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.GenericContainer;
 
 import java.util.ArrayList;
@@ -25,8 +28,13 @@ import static org.junit.Assert.fail;
 
 public class EntoEndUserCacheLookupDisabledTest {
 
+    @Before
+    public void skipIfNoDocker() {
+        Assume.assumeTrue("Docker is needed to run these tests", DockerClientFactory.instance().isDockerAvailable());
+    }
+
     @Rule
-    public GenericContainer docker = new ActiveDirectoryGenericContainer();
+    public ActiveDirectoryGenericContainer<?> docker = new ActiveDirectoryGenericContainer<>().withDynamicPorts();
 
     @Rule
     public JenkinsRule j = new JenkinsRule();
