@@ -94,31 +94,6 @@ public class TheFlintstonesIT {
         }
     }
 
-    public void manualSetUp() throws Exception {
-        dockerIp = docker.getHost();
-        dockerPort = docker.getMappedPort(3268);
-
-        ActiveDirectorySecurityRealm activeDirectorySecurityRealm = (ActiveDirectorySecurityRealm) j.jenkins.getSecurityRealm();
-        for (ActiveDirectoryDomain activeDirectoryDomain : activeDirectorySecurityRealm.getDomains()) {
-            activeDirectoryDomain.bindPassword = Secret.fromString(AD_MANAGER_DN_PASSWORD);
-            activeDirectoryDomain.servers = dockerIp + ":" +  dockerPort;
-        }
-
-        while(!docker.getLogs().contains("custom (exit status 0; expected)")) {
-            Thread.sleep(1000);
-        }
-        UserDetails userDetails = null;
-        int i = 0;
-        while (i < MAX_RETRIES && userDetails == null) {
-            try {
-                userDetails = j.jenkins.getSecurityRealm().loadUserByUsername("Fred");
-            } catch (AuthenticationServiceException e) {
-                Thread.sleep(1000);
-            }
-            i ++;
-        }
-    }
-
     @Issue("JENKINS-36148")
     @Test
     public void validateCustomDomainController() throws ServletException, NamingException, IOException, Exception {
