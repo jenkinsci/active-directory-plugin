@@ -31,15 +31,13 @@ import static org.junit.Assert.fail;
 
 public class EntoEndUserCacheLookupEnabledTest {
 
-    @Before
-    public void skipIfNoDocker() {
-        Assume.assumeTrue("Docker is needed to run these tests", DockerClientFactory.instance().isDockerAvailable());
-    }
+    @Rule(order = 0)
+    public RequireDockerRule rdr = new RequireDockerRule();
 
-    @Rule
+    @Rule(order = 1)
     public ActiveDirectoryGenericContainer<?> docker = new ActiveDirectoryGenericContainer<>().withDynamicPorts();
 
-    @Rule
+    @Rule(order = 2) // start Jenkins after the container so that timeouts do not apply to container building.
     public JenkinsRule j = new JenkinsRule();
 
     @Rule
