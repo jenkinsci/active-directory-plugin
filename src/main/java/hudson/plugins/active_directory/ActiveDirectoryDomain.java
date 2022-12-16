@@ -207,7 +207,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
         Attribute a = null;
         try {
             LOGGER.log(Level.FINE, "Attempting to resolve {0} to NS record", name);
-            ictx = createDNSLookupContext();
+            ictx = DNSUtils.createDNSLookupContext();
             Attributes attributes = ictx.getAttributes(name, new String[]{"NS"});
             a = attributes.get("NS");
             if (a == null) {
@@ -225,15 +225,6 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
         return a;
     }
 
-    /**
-     * Creates {@link DirContext} for accessing DNS.
-     */
-    public DirContext createDNSLookupContext() throws NamingException {
-        Hashtable env = new Hashtable();
-        env.put(Context.INITIAL_CONTEXT_FACTORY, "com.sun.jndi.dns.DnsContextFactory");
-        env.put("java.naming.provider.url", "dns:");
-        return new InitialDirContext(env);
-    }
 
     /**
      * Get the list of servers which compose the {@link Catalog}
@@ -247,7 +238,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
         String ldapServer = catalog + (site != null ? site + "._sites." : "") + this.name;
         LOGGER.log(Level.FINE, "Attempting to resolve {0} to SRV record", ldapServer);
         try {
-            Attributes attributes = createDNSLookupContext().getAttributes(ldapServer, new String[] { "SRV" });
+            Attributes attributes = DNSUtils.createDNSLookupContext().getAttributes(ldapServer, new String[] { "SRV" });
             return attributes.get("SRV");
         } catch (NamingException | NumberFormatException e) {
             LOGGER.log(Level.WARNING, String.format("Failed to resolve %s", ldapServer), e);
@@ -320,7 +311,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
                 Secret password = Secret.fromString(bindPassword);
 
                 // Then look for the LDAP server
-                DirContext ictx = activeDirectorySecurityRealm.getDescriptor().createDNSLookupContext();
+                DirContext ictx = DNSUtils.createDNSLookupContext();
                 List<SocketInfo> obtainerServers;
                 try {
                     obtainerServers = activeDirectorySecurityRealm.getDescriptor().obtainLDAPServer(ictx, name, site, servers, requireTLS);

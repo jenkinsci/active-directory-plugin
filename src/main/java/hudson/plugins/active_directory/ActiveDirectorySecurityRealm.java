@@ -142,7 +142,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     public transient final String site;
 
     /**
-     * Represent the old bindName
+     * Represent the old Name
      *
      * <p>
      * We need to keep this as transient in order to be able to use readResolve
@@ -665,7 +665,6 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                 props.put(Context.INITIAL_CONTEXT_FACTORY, "com.sun.jndi.ldap.LdapCtxFactory");
                 props.put(Context.PROVIDER_URL, ldapUrl);
                 props.put("java.naming.ldap.version", "3");
-                
                 customizeLdapProperties(props);
                 
                 LdapContext context = new InitialLdapContext(props, null);
@@ -729,23 +728,13 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             }
         }
 
-        /**
-         * Creates {@link DirContext} for accessing DNS.
-         */
-        public DirContext createDNSLookupContext() throws NamingException {
-            Hashtable env = new Hashtable();
-            env.put(Context.INITIAL_CONTEXT_FACTORY, "com.sun.jndi.dns.DnsContextFactory");
-            env.put(Context.PROVIDER_URL, "dns:");
-            return new InitialDirContext(env);
-        }
-
         @Deprecated
         public List<SocketInfo> obtainLDAPServer(String domainName, String site, String preferredServer) throws NamingException {
-            return obtainLDAPServer(createDNSLookupContext(), domainName, site, preferredServer);
+            return obtainLDAPServer(DNSUtils.createDNSLookupContext(), domainName, site, preferredServer);
         }
 
         public List<SocketInfo> obtainLDAPServer(ActiveDirectoryDomain activeDirectoryDomain) throws NamingException {
-            return obtainLDAPServer(createDNSLookupContext(), activeDirectoryDomain.getName(), activeDirectoryDomain.getSite(), activeDirectoryDomain.getServers());
+            return obtainLDAPServer(DNSUtils.createDNSLookupContext(), activeDirectoryDomain.getName(), activeDirectoryDomain.getSite(), activeDirectoryDomain.getServers());
         }
 
         /**
