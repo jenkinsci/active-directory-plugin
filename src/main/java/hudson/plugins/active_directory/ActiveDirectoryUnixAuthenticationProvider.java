@@ -37,7 +37,6 @@ import hudson.util.Secret;
 
 import javax.naming.NameNotFoundException;
 
-import jenkins.security.SecurityListener;
 import org.acegisecurity.AuthenticationException;
 import org.acegisecurity.AuthenticationServiceException;
 import org.acegisecurity.BadCredentialsException;
@@ -221,9 +220,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
 
             for (ActiveDirectoryDomain domain : domains) {
                 try {
-                    UserDetails userDetails = retrieveUser(username, authentication, domain);
-                    SecurityListener.fireAuthenticated(userDetails);
-                    return userDetails;
+                    return retrieveUser(username, authentication, domain);
                 } catch (NamingException ne) {
                     if (userMatchesInternalDatabaseUser(username)) {
                         LOGGER.log(Level.WARNING, String.format("Looking into Jenkins Internal Users Database for user %s", username));
@@ -235,9 +232,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                         }
                         if (hudsonPrivateSecurityRealm.isPasswordCorrect(password)) {
                             LOGGER.log(Level.INFO, String.format("Falling back into the internal user %s", username));
-                            UserDetails userDetails = new ActiveDirectoryUserDetail(username, "redacted", true, true, true, true, hudsonPrivateSecurityRealm.getAuthorities(), internalUser.getDisplayName(), "", "");
-                            SecurityListener.fireAuthenticated(userDetails);
-                            return userDetails;
+                            return new ActiveDirectoryUserDetail(username, "redacted", true, true, true, true, hudsonPrivateSecurityRealm.getAuthorities(), internalUser.getDisplayName(), "", "");
                         } else {
                             LOGGER.log(Level.WARNING, String.format("Credential exception trying to authenticate against %s domain", domain.getName()), ne);
                             errors.add(new MultiCauseUserMayOrMayNotExistException("We can't tell if the user exists or not: " + username, notFound));

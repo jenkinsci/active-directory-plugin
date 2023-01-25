@@ -39,6 +39,7 @@ import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
+import jenkins.security.SecurityListener;
 import org.acegisecurity.AuthenticationException;
 import org.acegisecurity.BadCredentialsException;
 import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
@@ -891,7 +892,9 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
     @Override
     protected UserDetails authenticate(String username, String password) throws AuthenticationException {
-        return getAuthenticationProvider().retrieveUser(username,new UsernamePasswordAuthenticationToken(username,password));
+        UserDetails userDetails = getAuthenticationProvider().retrieveUser(username,new UsernamePasswordAuthenticationToken(username,password));
+        SecurityListener.fireAuthenticated(userDetails);
+        return userDetails;
     }
 
     private static final Logger LOGGER = Logger.getLogger(ActiveDirectorySecurityRealm.class.getName());
