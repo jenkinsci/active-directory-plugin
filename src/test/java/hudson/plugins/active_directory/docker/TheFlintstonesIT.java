@@ -94,35 +94,17 @@ public class TheFlintstonesIT {
 
     @Issue("JENKINS-36148")
     @Test
-    public void validateCustomDomainController() throws ServletException, NamingException, IOException, Exception {
+    public void validateCustomDomainController() throws Exception {
         dynamicSetUp();
         ActiveDirectoryDomain.DescriptorImpl adDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
-        assertEquals("OK: Success", adDescriptor.doValidateTest(AD_DOMAIN, dockerIp + ":" + dockerPort, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD, null, false).toString().trim());
+        assertEquals("OK: Success", adDescriptor.doValidateTest(AD_DOMAIN, dockerIp + ":" + dockerPort, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD, null).toString().trim());
     }
 
     @Issue("JENKINS-36148")
     @Test
-    public void validateDomain() throws ServletException, NamingException, IOException, Exception {
+    public void validateDomain() throws Exception {
         dynamicSetUp();
         ActiveDirectoryDomain.DescriptorImpl adDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
-        assertEquals("OK: Success", adDescriptor.doValidateTest(AD_DOMAIN, null, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD, null, false).toString().trim());
-
+        assertEquals("OK: Success", adDescriptor.doValidateTest(AD_DOMAIN, null, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD, null).toString().trim());
     }
-
-    @Issue("JENKINS-69683")
-    @Test
-    public void validateTestDomainRequireTLSDisabled() throws Exception {
-        dynamicSetUp();
-        ActiveDirectoryDomain.DescriptorImpl adDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
-        assertEquals("OK: Success", adDescriptor.doValidateTest(AD_DOMAIN, null, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD, null, false).toString().trim());
-    }
-
-    @Issue("JENKINS-69683")
-    @Test
-    public void validateTestDomainServerRequireTLSDisabled() throws Exception {
-        dynamicSetUp();
-        ActiveDirectoryDomain.DescriptorImpl adDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
-        assertEquals("OK: Success", adDescriptor.doValidateTest(AD_DOMAIN, dockerIp + ":" +  dockerPort, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD, null, false).toString().trim());
-    }
-
 }
