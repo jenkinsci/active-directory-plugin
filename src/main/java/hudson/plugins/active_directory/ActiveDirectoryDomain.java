@@ -268,14 +268,14 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
 
         @RequirePOST
         public FormValidation doValidateTest(@QueryParameter(fixEmpty = true) String name, @QueryParameter(fixEmpty = true) String servers, @QueryParameter(fixEmpty = true) String site, @QueryParameter(fixEmpty = true) String bindName,
-                                             @QueryParameter(fixEmpty = true) String bindPassword, @QueryParameter(fixEmpty = true) TlsConfiguration tlsConfiguration, @QueryParameter(fixEmpty = true) boolean requireTLS) throws IOException, ServletException, NamingException {
+                                             @QueryParameter(fixEmpty = true) String bindPassword, @QueryParameter(fixEmpty = true) TlsConfiguration tlsConfiguration) throws IOException, ServletException, NamingException {
             Jenkins.get().checkPermission(Jenkins.ADMINISTER);
             ActiveDirectoryDomain domain = new ActiveDirectoryDomain(name, servers, site, bindName, bindPassword, tlsConfiguration);
             List<ActiveDirectoryDomain> domains = new ArrayList<>(1);
             domains.add(domain);
 
             ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, site, bindName,
-                    bindPassword, null, GroupLookupStrategy.AUTO, false, true, null, false, (ActiveDirectoryInternalUsersDatabase) null, requireTLS);
+                    bindPassword, null, GroupLookupStrategy.AUTO, false, true, null, false, (ActiveDirectoryInternalUsersDatabase) null);
 
             ClassLoader ccl = Thread.currentThread().getContextClassLoader();
             Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
@@ -314,7 +314,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
                 DirContext ictx = DNSUtils.createDNSLookupContext();
                 List<SocketInfo> obtainerServers;
                 try {
-                    obtainerServers = activeDirectorySecurityRealm.getDescriptor().obtainLDAPServer(ictx, name, site, servers, requireTLS);
+                    obtainerServers = activeDirectorySecurityRealm.getDescriptor().obtainLDAPServer(ictx, name, site, servers);
                 } catch (NamingException e) {
                     String msg = site == null ? "No LDAP server was found in " + name : "No LDAP server was found in the " + site + " site of " + name;
                     LOGGER.log(Level.WARNING, msg, e);
@@ -325,7 +325,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
                     // Make sure the bind actually works
                     try {
                         Hashtable<String, String> props = new Hashtable<>(0);
-                        DirContext context = activeDirectorySecurityRealm.getDescriptor().bind(bindName, Secret.toString(password), obtainerServers, props, tlsConfiguration, requireTLS);
+                        DirContext context = activeDirectorySecurityRealm.getDescriptor().bind(bindName, Secret.toString(password), obtainerServers, props, tlsConfiguration);
                         try {
                             // Actually do a search to make sure the credential is valid
                             Attributes userAttributes = new LDAPSearchBuilder(context, toDC(name)).subTreeScope().searchOne("(objectClass=user)");
