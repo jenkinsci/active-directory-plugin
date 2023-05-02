@@ -684,6 +684,8 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                     try {
                         rsp = (StartTlsResponse)context.extendedOperation(new StartTlsRequest());
                         if (isTrustAllCertificatesEnabled(tlsConfiguration)) {
+                            // ignore host name verification
+                            rsp.setHostnameVerifier((hostname, session) -> true);
                             rsp.negotiate((SSLSocketFactory)TrustAllSocketFactory.getDefault());
                         } else {
                             rsp.negotiate();
