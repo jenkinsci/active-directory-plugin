@@ -1,6 +1,6 @@
 package hudson.plugins.active_directory;
 
-import com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException;
+import org.htmlunit.FailingHttpStatusCodeException;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
