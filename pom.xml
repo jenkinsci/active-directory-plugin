@@ -37,15 +37,15 @@
     <revision>2.31</revision>
     <changelist>-SNAPSHOT</changelist>
     <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
-    <jenkins.version>2.332.4</jenkins.version>
+    <jenkins.version>2.387.3</jenkins.version>
   </properties>
 
   <dependencyManagement>
     <dependencies>
       <dependency>
         <groupId>io.jenkins.tools.bom</groupId>
-        <artifactId>bom-2.332.x</artifactId>
-        <version>1678.vc1feb_6a_3c0f1</version>
+        <artifactId>bom-2.387.x</artifactId>
+        <version>2143.ve4c3c9ec790a</version>
         <scope>import</scope>
         <type>pom</type>
       </dependency>
