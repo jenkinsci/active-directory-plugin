@@ -42,6 +42,9 @@
     </j:when>
     <j:otherwise>
       <!-- code path for ActiveDirectoryUnixAuthenticationProvider: running on Unix -->
+      <st:include page="configAdvanced.jelly" class="${descriptor.clazz}"/>
+      <st:include page="configCache.jelly" class="${descriptor.clazz}"/>
+      <st:include page="requireTLS.jelly" class="${descriptor.clazz}"/>
       <f:entry field="domains" title="${%Domains}">
         <f:repeatable field="domains" add="${%Add Domain}">
           <a:blockWrapper>
@@ -65,7 +68,7 @@
               <f:select />
             </f:entry>
             <f:nested>
-              <f:validateButton with="name,servers,site,bindName,bindPassword,tlsConfiguration" title="${%Test Domain}" method="validateTest"/>
+              <f:validateButton with="name,servers,site,bindName,bindPassword,tlsConfiguration,groupLookupStrategy,removeIrrelevantGroups,startTls,requireTLS" title="${%Test Domain}" method="validateTest"/>
             </f:nested>
           </a:blockWrapper>
           <div align="right">
@@ -73,9 +76,6 @@
           </div>
         </f:repeatable>
       </f:entry>
-      <st:include page="configAdvanced.jelly" class="${descriptor.clazz}"/>
-      <st:include page="configCache.jelly" class="${descriptor.clazz}"/>
-      <st:include page="requireTLS.jelly" class="${descriptor.clazz}"/>
     </j:otherwise>
   </j:choose>
 </j:jelly>

@@ -268,14 +268,15 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
 
         @RequirePOST
         public FormValidation doValidateTest(@QueryParameter(fixEmpty = true) String name, @QueryParameter(fixEmpty = true) String servers, @QueryParameter(fixEmpty = true) String site, @QueryParameter(fixEmpty = true) String bindName,
-                                             @QueryParameter(fixEmpty = true) String bindPassword, @QueryParameter(fixEmpty = true) TlsConfiguration tlsConfiguration, @QueryParameter(fixEmpty = true) boolean requireTLS) throws IOException, ServletException, NamingException {
+                                             @QueryParameter(fixEmpty = true) String bindPassword, @QueryParameter(fixEmpty = true) TlsConfiguration tlsConfiguration, @QueryParameter GroupLookupStrategy groupLookupStrategy,
+                                             @QueryParameter(fixEmpty = false) boolean removeIrrelevantGroups, @QueryParameter(fixEmpty = true) boolean startTls, @QueryParameter(fixEmpty = true) boolean requireTLS) throws NamingException {
             Jenkins.get().checkPermission(Jenkins.ADMINISTER);
             ActiveDirectoryDomain domain = new ActiveDirectoryDomain(name, servers, site, bindName, bindPassword, tlsConfiguration);
             List<ActiveDirectoryDomain> domains = new ArrayList<>(1);
             domains.add(domain);
 
-            ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, site, bindName,
-                    bindPassword, null, GroupLookupStrategy.AUTO, false, true, null, false, (ActiveDirectoryInternalUsersDatabase) null, requireTLS);
+            ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(name, domains, site, bindName,
+                    bindPassword, null, groupLookupStrategy, removeIrrelevantGroups, true, null, startTls, null, requireTLS);
 
             ClassLoader ccl = Thread.currentThread().getContextClassLoader();
             Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
@@ -325,7 +326,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
                     // Make sure the bind actually works
                     try {
                         Hashtable<String, String> props = new Hashtable<>(0);
-                        DirContext context = activeDirectorySecurityRealm.getDescriptor().bind(bindName, Secret.toString(password), obtainerServers, props, tlsConfiguration, requireTLS);
+                        DirContext context = activeDirectorySecurityRealm.getDescriptor().bind(bindName, Secret.toString(password), obtainerServers, props, tlsConfiguration, requireTLS, startTls);
                         try {
                             // Actually do a search to make sure the credential is valid
                             Attributes userAttributes = new LDAPSearchBuilder(context, toDC(name)).subTreeScope().searchOne("(objectClass=user)");
