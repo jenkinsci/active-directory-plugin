@@ -34,6 +34,7 @@ public class ActiveDirectoryGenericContainer<SELF extends ActiveDirectoryGeneric
      */
     public ActiveDirectoryGenericContainer<SELF> withStaticPorts() {
         addFixedExposedPort(3268, 3268); // global catalog
+        addFixedExposedPort(3269, 3269); // global catalog over tls
         addFixedExposedPort(53, 53, InternetProtocol.TCP); // DNS over TCP
         addFixedExposedPort(53, 53, InternetProtocol.UDP); // DNS over UDP
         return this;

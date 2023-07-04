@@ -567,13 +567,18 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             return bind(principalName, password, ldapServers, props, tlsConfiguration, isRequireTLS());
         }
 
-        /**
-         * Binds to the server using the specified username/password.
-         * <p>
-         * In a real deployment, often there are servers that don't respond or
-         * otherwise broken, so try all the servers.
-         */
+        @Deprecated
         public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers, Hashtable<String, String> props, TlsConfiguration tlsConfiguration, boolean requireTLS) throws NamingException {
+            return bind(principalName, password, ldapServers, props, tlsConfiguration, requireTLS, isStartTLS());
+        }
+
+            /**
+             * Binds to the server using the specified username/password.
+             * <p>
+             * In a real deployment, often there are servers that don't respond or
+             * otherwise broken, so try all the servers.
+             */
+        public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers, Hashtable<String, String> props, TlsConfiguration tlsConfiguration, boolean requireTLS, boolean startTls) throws NamingException {
             // in a AD forest, it'd be mighty nice to be able to login as "joe"
             // as opposed to "joe@europe",
             // but the bind operation doesn't appear to allow me to do so.
@@ -599,7 +604,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
             for (SocketInfo ldapServer : ldapServers) {
                 try {
-                    LdapContext context = bind(principalName, password, ldapServer, newProps, tlsConfiguration, requireTLS);
+                    LdapContext context = bind(principalName, password, ldapServer, newProps, tlsConfiguration, requireTLS, startTls);
                     LOGGER.fine("Bound to " + ldapServer);
                     return context;
                 } catch (javax.naming.AuthenticationException e) {
@@ -656,8 +661,15 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             return bind(principalName, password, server, props, null, isRequireTLS());
         }
 
+        @SuppressFBWarnings(value = "UPM_UNCALLED_PRIVATE_METHOD", justification = "Deprecated method.It will removed at some point")
         @IgnoreJRERequirement
+        @Deprecated
         private LdapContext bind(String principalName, String password, SocketInfo server, Hashtable<String, String> props, TlsConfiguration tlsConfiguration, boolean requireTLS) throws NamingException {
+            return bind(principalName, password, server, props, tlsConfiguration, requireTLS, isStartTLS());
+        }
+
+        @IgnoreJRERequirement
+        private LdapContext bind(String principalName, String password, SocketInfo server, Hashtable<String, String> props, TlsConfiguration tlsConfiguration, boolean requireTLS, boolean startTLS) throws NamingException {
             String ldapUrl = (requireTLS?"ldaps://":"ldap://") + server + '/';
             String oldName = Thread.currentThread().getName();
             Thread.currentThread().setName("Connecting to "+ldapUrl+" : "+oldName);
@@ -670,14 +682,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                 
                 LdapContext context = new InitialLdapContext(props, null);
 
-                boolean isStartTls = true;
-                SecurityRealm securityRealm = Jenkins.getActiveInstance().getSecurityRealm();
-                if (securityRealm instanceof ActiveDirectorySecurityRealm) {
-                    ActiveDirectorySecurityRealm activeDirectorySecurityRealm = (ActiveDirectorySecurityRealm) securityRealm;
-                     isStartTls= activeDirectorySecurityRealm.isStartTls();
-                }
-
-                if (!requireTLS && isStartTls) {
+                if (!requireTLS && startTLS) {
                     // try to upgrade to TLS if we can, but failing to do so isn't fatal
                     // see http://download.oracle.com/javase/jndi/tutorial/ldap/ext/starttls.html
                     StartTlsResponse rsp = null;
@@ -857,6 +862,16 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                 requireTLS = Boolean.TRUE.equals(((ActiveDirectorySecurityRealm)securityRealm).getRequireTLS());
             }
             return requireTLS;
+        }
+
+        @Deprecated // this is here purely to ease access to the variable from the descriptor.
+        private boolean isStartTLS() {
+            boolean startTLS = true; // secure by default
+            SecurityRealm securityRealm = Jenkins.get().getSecurityRealm();
+            if (securityRealm instanceof ActiveDirectorySecurityRealm) {
+                startTLS = Boolean.TRUE.equals(((ActiveDirectorySecurityRealm)securityRealm).isStartTls());
+            }
+            return startTLS;
         }
     }
 

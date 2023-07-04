@@ -34,7 +34,7 @@
   </developers>
 
   <properties>
-    <revision>2.31</revision>
+    <revision>2.30.1</revision>
     <changelist>-SNAPSHOT</changelist>
     <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
     <jenkins.version>2.332.4</jenkins.version>

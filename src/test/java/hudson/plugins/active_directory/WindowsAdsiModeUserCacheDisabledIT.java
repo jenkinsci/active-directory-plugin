@@ -38,14 +38,14 @@ public class WindowsAdsiModeUserCacheDisabledIT {
     public void dynamicCacheEnableSetUp() throws Exception {
         CacheConfiguration cacheConfiguration = new CacheConfiguration(500,30);
         ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, null, null, null,
-                null, null, null, false, null, cacheConfiguration, null, (ActiveDirectoryInternalUsersDatabase) null);
+                null, null, null, false, null, cacheConfiguration, null, (ActiveDirectoryInternalUsersDatabase) null, false);
         j.jenkins.setSecurityRealm(activeDirectorySecurityRealm);
     }
 
 
     public void dynamicCacheDisabledSetUp() throws Exception {
         ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, null, null, null,
-                null, null, null, false, null, null, null, (ActiveDirectoryInternalUsersDatabase) null);
+                null, null, null, false, null, null, null, (ActiveDirectoryInternalUsersDatabase) null, false);
         j.jenkins.setSecurityRealm(activeDirectorySecurityRealm);
     }
 
