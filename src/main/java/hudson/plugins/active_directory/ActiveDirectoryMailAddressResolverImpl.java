@@ -33,7 +33,6 @@ import org.acegisecurity.userdetails.UserDetails;
 import org.acegisecurity.userdetails.UserDetailsService;
 import org.springframework.dao.DataAccessException;
 
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static java.util.logging.Level.*;
