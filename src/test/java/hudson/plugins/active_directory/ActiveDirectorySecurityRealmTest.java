@@ -1,6 +1,6 @@
 package hudson.plugins.active_directory;
 
-import com.gargoylesoftware.htmlunit.html.DomElement;
+import org.htmlunit.html.DomElement;
 import hudson.model.AdministrativeMonitor;
 import hudson.plugins.active_directory.docker.TheFlintstonesTest;
 import hudson.security.HudsonPrivateSecurityRealm;

@@ -2,6 +2,7 @@ package hudson.plugins.active_directory;
 
 import io.jenkins.plugins.casc.misc.RoundTripAbstractTest;
 import jenkins.model.Jenkins;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.contrib.java.lang.system.EnvironmentVariables;
 import org.jvnet.hudson.test.RestartableJenkinsRule;
@@ -10,6 +11,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+@Ignore("setting environment variables is not supported in Java 17")
 public class ActiveDirectoryJCasCCompatibilityTest extends RoundTripAbstractTest {
 
     @Rule

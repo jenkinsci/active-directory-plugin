@@ -1,7 +1,7 @@
-buildPlugin(configurations: [
-    [platform: 'linux', jdk: '11'],
-    [platform: 'windows', jdk: '11'],
-], useContainerAgent: false)
+buildPlugin(useContainerAgent: false, configurations: [
+  [platform: 'linux', jdk: 17],
+  [platform: 'windows', jdk: 11],
+])
 
 node('docker') {
      stage('checkout') {
