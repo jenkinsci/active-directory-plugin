@@ -3,11 +3,10 @@ package hudson.plugins.active_directory;
 import hudson.Extension;
 import io.jenkins.plugins.casc.SecretSource;
 import io.jenkins.plugins.casc.misc.RoundTripAbstractTest;
-import jenkins.model.Jenkins;
-import org.jvnet.hudson.test.RestartableJenkinsRule;
-
 import java.io.IOException;
 import java.util.Optional;
+import jenkins.model.Jenkins;
+import org.jvnet.hudson.test.RestartableJenkinsRule;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
