@@ -1,4 +1,4 @@
-FROM docker:stable-dind
+FROM docker:dind
 # Keys were rotated in the edge repos, so we need to do this now
 RUN apk add -X https://dl-cdn.alpinelinux.org/alpine/v3.16/main -u alpine-keys --allow-untrusted
 # Workaround for  https://github.com/AdoptOpenJDK/openjdk-docker/issues/75
