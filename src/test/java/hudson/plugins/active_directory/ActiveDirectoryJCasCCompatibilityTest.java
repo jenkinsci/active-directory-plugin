@@ -1,9 +1,11 @@
 package hudson.plugins.active_directory;
 
+import hudson.Extension;
+import io.jenkins.plugins.casc.SecretSource;
 import io.jenkins.plugins.casc.misc.RoundTripAbstractTest;
+import java.io.IOException;
+import java.util.Optional;
 import jenkins.model.Jenkins;
-import org.junit.Rule;
-import org.junit.contrib.java.lang.system.EnvironmentVariables;
 import org.jvnet.hudson.test.RestartableJenkinsRule;
 
 import static org.junit.Assert.assertEquals;
@@ -11,11 +13,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 public class ActiveDirectoryJCasCCompatibilityTest extends RoundTripAbstractTest {
-
-    @Rule
-    public EnvironmentVariables env = new EnvironmentVariables()
-            .set("BIND_PASSWORD_1", "PASSW1")
-            .set("BIND_PASSWORD_2", "PASSW2");
 
     @Override
     protected void assertConfiguredAsExpected(RestartableJenkinsRule restartableJenkinsRule, String s) {
@@ -63,5 +60,20 @@ public class ActiveDirectoryJCasCCompatibilityTest extends RoundTripAbstractTest
     @Override
     protected String stringInLogExpected() {
         return "Setting class hudson.plugins.active_directory.ActiveDirectorySecurityRealm.groupLookupStrategy = RECURSIVE";
+    }
+
+    @Extension
+    public static class TheSource extends SecretSource {
+        @Override
+        public Optional<String> reveal(String secret) throws IOException {
+            switch (secret) {
+                case "BIND_PASSWORD_1":
+                    return Optional.of("PASSW1");
+                case "BIND_PASSWORD_2" :
+                    return Optional.of("PASSW2");
+                default:
+                    return Optional.empty();
+            }
+        }
     }
 }
