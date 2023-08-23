@@ -238,7 +238,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                             errors.add(new MultiCauseUserMayOrMayNotExistException("We can't tell if the user exists or not: " + username, notFound));
                         }
                     } else {
-                        LOGGER.log(Level.WARNING, String.format("Communications issues when trying to authenticate against %s domain", domain.getName()), ne);
+                        LOGGER.log(Level.WARNING, String.format("Communications issues when trying to authenticate against %s domain for user %s", domain.getName(), (username == null ? "<null>" : username)), ne);
                         errors.add(new MultiCauseUserMayOrMayNotExistException("We can't tell if the user exists or not: " + username, notFound));
                     }
                 } catch (UsernameNotFoundException e) {
