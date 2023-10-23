@@ -91,7 +91,7 @@
                         tr.appendChild(td2);
                         tr.appendChild(td3);
                         tr.appendChild(td4);
-                        $(demo).appendChild(tr);
+                        demo.appendChild(tr);
                     });
                 }
             </script>
