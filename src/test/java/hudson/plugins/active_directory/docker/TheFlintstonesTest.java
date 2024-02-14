@@ -98,7 +98,11 @@ public class TheFlintstonesTest {
         // see hudson.plugins.active_directory.ActiveDirectoryDomain.createDNSLookupContext()
         // getHost returns a hostname not IPaddress...
         // use our DNS to resolve that to an IP address.
-        String DNS_URLs = "dns://"+InetAddress.getByName(docker.getHost()).getHostAddress()+":"+docker.getDNSPort();
+        String hostAddress = InetAddress.getByName(docker.getHost()).getHostAddress();
+        if (Boolean.getBoolean("java.net.preferIPv6Addresses")) {
+            hostAddress = String.format("[%s]", hostAddress);
+        } 
+        String DNS_URLs = "dns://"+hostAddress+":"+docker.getDNSPort();
         System.setProperty(DNSUtils.OVERRIDE_DNS_PROPERTY, DNS_URLs);
     }
 
