@@ -46,6 +46,7 @@ import org.testcontainers.DockerClientFactory;
 import javax.naming.CommunicationException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -98,11 +99,7 @@ public class TheFlintstonesTest {
         // see hudson.plugins.active_directory.ActiveDirectoryDomain.createDNSLookupContext()
         // getHost returns a hostname not IPaddress...
         // use our DNS to resolve that to an IP address.
-        String hostAddress = InetAddress.getByName(docker.getHost()).getHostAddress();
-        if (Boolean.getBoolean("java.net.preferIPv6Addresses")) {
-            hostAddress = String.format("[%s]", hostAddress);
-        } 
-        String DNS_URLs = "dns://"+hostAddress+":"+docker.getDNSPort();
+        String DNS_URLs = new URI("dns", null, InetAddress.getByName(docker.getHost()).getHostAddress(), Integer.parseInt(docker.getDNSPort()), null, null, null).toASCIIString();
         System.setProperty(DNSUtils.OVERRIDE_DNS_PROPERTY, DNS_URLs);
     }
 
