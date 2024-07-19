@@ -39,7 +39,10 @@ import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
+import jenkins.security.FIPS140;
 import jenkins.security.SecurityListener;
+import jenkins.util.SystemProperties;
+
 import org.acegisecurity.AuthenticationException;
 import org.acegisecurity.BadCredentialsException;
 import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
@@ -274,9 +277,17 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         this.groupLookupStrategy = groupLookupStrategy;
         this.removeIrrelevantGroups = removeIrrelevantGroups;
         this.cache = cache;
-        this.startTls = startTls;
         this.internalUsersDatabase = internalUsersDatabase;
-        this.requireTLS = Boolean.valueOf(requireTLS);
+
+//        // Gives exception if TLS is not used in FIPS mode and system property LEGACY_FORCE_LDAPS_PROPERTY is not set.
+//        if (isFipsNonCompliant(requireTLS, startTls) && !Boolean.getBoolean(LEGACY_FORCE_LDAPS_PROPERTY)) {
+//            throw new IllegalArgumentException(Messages.TlsConfiguration_WarningMessage());
+//        } else {
+//            this.startTls = startTls;
+//            this.requireTLS = requireTLS;
+//        }
+        this.startTls = startTls;
+        this.requireTLS = requireTLS;
     }
 
     @DataBoundSetter
@@ -477,6 +488,17 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         req.getView(this, "test.jelly").forward(req, rsp);
     }
 
+    /**
+     * Checks whether Jenkins is running in FIPS mode and TLS is not enabled for communication.
+     *
+     * @param requireTLS
+     * @param startTls
+     * @return boolean - true if the application is running in non-compliance with FIPS.
+     */
+    private static boolean isFipsNonCompliant(boolean requireTLS, boolean startTls) {
+        return FIPS140.useCompliantAlgorithms() && !requireTLS && !startTls;
+    }
+
     @Extension
     public static final class DescriptorImpl extends Descriptor<SecurityRealm> {
         public String getDisplayName() {
@@ -542,10 +564,22 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             return model;
         }
 
-        public FormValidation doCheckRequireTLS() {
+        public FormValidation doCheckRequireTLS(@QueryParameter boolean requireTLS, @QueryParameter boolean startTls) {
+            if (isFipsNonCompliant(requireTLS, startTls)) {
+                return FormValidation.warning(Messages.TlsConfiguration_WarningMessage());
+            }
             Jenkins.get().checkPermission(Jenkins.ADMINISTER);
             if (System.getProperty(ActiveDirectoryAuthenticationProvider.ADSI_FLAGS_SYSTEM_PROPERTY_NAME) != null) {
                 return FormValidation.warning("This setting is overridden by the ADSI mode system property");
+            }
+            return FormValidation.ok();
+        }
+
+        public FormValidation doCheckStartTls(@QueryParameter boolean requireTLS, @QueryParameter boolean startTls) {
+            if (isFipsNonCompliant(requireTLS, startTls)) {
+                return FormValidation.warning(Messages.TlsConfiguration_WarningMessage());
+            } else if (!Boolean.getBoolean(LEGACY_FORCE_LDAPS_PROPERTY) && !requireTLS && !startTls) {
+                return FormValidation.error(Messages.TlsConfiguration_ErrorMessage());
             }
             return FormValidation.ok();
         }
@@ -646,7 +680,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                 props.put(propName, prop);
             }
         }
-        
+
         /** Lookups for hardcoded LDAP properties if they are specified as System properties and uses them */
         private void customizeLdapProperties(Hashtable<String, String> props) {
              customizeLdapProperty(props, "com.sun.jndi.ldap.connect.timeout");
@@ -675,7 +709,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                 props.put(Context.PROVIDER_URL, ldapUrl);
                 props.put("java.naming.ldap.version", "3");
                 customizeLdapProperties(props);
-                
+
                 LdapContext context = new InitialLdapContext(props, null);
 
                 if (!requireTLS && startTLS) {
@@ -757,7 +791,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
          *      an authentication attempt with every listed server, which can lock the user out!) This also
          *      puts this feature in alignment with {@link #DOMAIN_CONTROLLERS}, which seems to indicate that
          *      there are users who prefer this behaviour.
-         * 
+         *
          * @param useTLS {@code true} if we should use ldaps.
          * @return A list with at least one item.
          */

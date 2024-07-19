@@ -1,19 +1,20 @@
 package hudson.plugins.active_directory;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.htmlunit.html.DomElement;
-import hudson.model.AdministrativeMonitor;
-import hudson.plugins.active_directory.docker.TheFlintstonesTest;
-import hudson.security.HudsonPrivateSecurityRealm;
-import hudson.security.SecurityRealm;
-import jenkins.model.Jenkins;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.recipes.LocalData;
 
-import java.util.ArrayList;
-import java.util.List;
+import hudson.plugins.active_directory.docker.TheFlintstonesTest;
+import hudson.security.HudsonPrivateSecurityRealm;
+import hudson.security.SecurityRealm;
+import hudson.util.FormValidation;
+import jenkins.model.Jenkins;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
@@ -21,7 +22,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertFalse;
 
 
 public class ActiveDirectorySecurityRealmTest {
@@ -316,6 +316,7 @@ public class ActiveDirectorySecurityRealmTest {
     @Test
     public void testReadResolveMultipleDomainsOneDomainEndToEnd() throws Exception {
         ActiveDirectorySecurityRealm activeDirectorySecurityRealm = (ActiveDirectorySecurityRealm) jenkinsRule.jenkins.getSecurityRealm();
+
         // Check there is one domain
         assertEquals(activeDirectorySecurityRealm.getDomains().size(), 1);
         // Check domain
@@ -325,13 +326,51 @@ public class ActiveDirectorySecurityRealmTest {
         // Check groupLookupStrategy
         assertEquals(activeDirectorySecurityRealm.getGroupLookupStrategy(), GroupLookupStrategy.RECURSIVE);
         // Check removeIrrelevantGroups
-        assertEquals(activeDirectorySecurityRealm.removeIrrelevantGroups,true);
+        assertEquals(activeDirectorySecurityRealm.removeIrrelevantGroups, true);
         // Check cache Size
-        assertEquals(activeDirectorySecurityRealm.getCache().getSize(),500);
+        assertEquals(activeDirectorySecurityRealm.getCache().getSize(), 500);
         // Check cache TTLS
-        assertEquals(activeDirectorySecurityRealm.getCache().getTtl(),1800);
+        assertEquals(activeDirectorySecurityRealm.getCache().getTtl(), 1800);
         // Check tlsConfiguration
-        assertEquals(activeDirectorySecurityRealm.getDomains().get(0).getTlsConfiguration(), TlsConfiguration.JDK_TRUSTSTORE);
+        assertEquals(activeDirectorySecurityRealm.getDomains().get(0).getTlsConfiguration(),
+                     TlsConfiguration.JDK_TRUSTSTORE);
+    }
+
+    @LocalData
+    @Test
+    public void testStartTlsForWarnings() throws Exception {
+        ActiveDirectorySecurityRealm activeDirectorySecurityRealm = (ActiveDirectorySecurityRealm) jenkinsRule.jenkins.getSecurityRealm();
+
+        FormValidation result = activeDirectorySecurityRealm.getDescriptor().doCheckStartTls(false, false);
+        assertEquals(FormValidation.Kind.ERROR, result.kind);
+
+        result = activeDirectorySecurityRealm.getDescriptor().doCheckStartTls(true, true);
+        assertEquals(FormValidation.Kind.OK, result.kind);
+
+        result = activeDirectorySecurityRealm.getDescriptor().doCheckStartTls(true, false);
+        assertEquals(FormValidation.Kind.OK, result.kind);
+
+        result = activeDirectorySecurityRealm.getDescriptor().doCheckStartTls(false, true);
+        assertEquals(FormValidation.Kind.OK, result.kind);
+
+    }
+
+    @LocalData
+    @Test
+    public void testRequireTlsForWarnings() throws Exception {
+        ActiveDirectorySecurityRealm activeDirectorySecurityRealm = (ActiveDirectorySecurityRealm) jenkinsRule.jenkins.getSecurityRealm();
+
+        FormValidation result = activeDirectorySecurityRealm.getDescriptor().doCheckRequireTLS(false, false);
+        assertEquals(FormValidation.Kind.OK, result.kind);
+
+        result = activeDirectorySecurityRealm.getDescriptor().doCheckRequireTLS(true, true);
+        assertEquals(FormValidation.Kind.OK, result.kind);
+
+        result = activeDirectorySecurityRealm.getDescriptor().doCheckRequireTLS(true, false);
+        assertEquals(FormValidation.Kind.OK, result.kind);
+
+        result = activeDirectorySecurityRealm.getDescriptor().doCheckRequireTLS(false, true);
+        assertEquals(FormValidation.Kind.OK, result.kind);
     }
 
     @LocalData
