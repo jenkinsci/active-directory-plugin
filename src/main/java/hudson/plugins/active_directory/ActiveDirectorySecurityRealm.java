@@ -39,7 +39,10 @@ import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
+import jenkins.security.FIPS140;
 import jenkins.security.SecurityListener;
+import jenkins.util.SystemProperties;
+
 import org.acegisecurity.AuthenticationException;
 import org.acegisecurity.BadCredentialsException;
 import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
@@ -274,9 +277,14 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         this.groupLookupStrategy = groupLookupStrategy;
         this.removeIrrelevantGroups = removeIrrelevantGroups;
         this.cache = cache;
-        this.startTls = startTls;
         this.internalUsersDatabase = internalUsersDatabase;
-        this.requireTLS = Boolean.valueOf(requireTLS);
+        if ((FIPS140.useCompliantAlgorithms() || !Boolean.getBoolean(LEGACY_FORCE_LDAPS_PROPERTY)) && !startTls
+            && !requireTLS) {
+            throw new IllegalArgumentException(Messages.TlsConfiguration_WarningMessage());
+        } else {
+            this.startTls = startTls;
+            this.requireTLS = requireTLS;
+        }
     }
 
     @DataBoundSetter
@@ -542,10 +550,22 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             return model;
         }
 
-        public FormValidation doCheckRequireTLS() {
+        public FormValidation doCheckRequireTLS(@QueryParameter boolean requireTLS, @QueryParameter boolean startTls) {
+            if (FIPS140.useCompliantAlgorithms() && !requireTLS && !startTls) {
+                return FormValidation.warning(Messages.TlsConfiguration_WarningMessage());
+            }
             Jenkins.get().checkPermission(Jenkins.ADMINISTER);
             if (System.getProperty(ActiveDirectoryAuthenticationProvider.ADSI_FLAGS_SYSTEM_PROPERTY_NAME) != null) {
                 return FormValidation.warning("This setting is overridden by the ADSI mode system property");
+            }
+            return FormValidation.ok();
+        }
+
+        public FormValidation doCheckStartTls(@QueryParameter boolean requireTLS, @QueryParameter boolean startTls) {
+            if (FIPS140.useCompliantAlgorithms() && !requireTLS && !startTls) {
+                return FormValidation.warning(Messages.TlsConfiguration_WarningMessage());
+            } else if (!Boolean.getBoolean(LEGACY_FORCE_LDAPS_PROPERTY) && !requireTLS && !startTls) {
+                return FormValidation.error(Messages.TlsConfiguration_ErrorMessage());
             }
             return FormValidation.ok();
         }
