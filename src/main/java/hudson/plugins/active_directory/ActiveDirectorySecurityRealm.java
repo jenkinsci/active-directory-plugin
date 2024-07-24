@@ -39,9 +39,7 @@ import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
-import jenkins.security.FIPS140;
 import jenkins.security.SecurityListener;
-import jenkins.util.SystemProperties;
 
 import org.acegisecurity.AuthenticationException;
 import org.acegisecurity.BadCredentialsException;
