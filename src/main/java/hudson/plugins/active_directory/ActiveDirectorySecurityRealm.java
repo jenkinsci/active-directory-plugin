@@ -116,6 +116,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
      * We need to keep this as transient in order to be able to use readResolve
      * to migrate the old descriptor to the newone.
      *
+     * 
      * <p>
      * This has been deprecated since {@link ActiveDirectoryDomain}
      */
