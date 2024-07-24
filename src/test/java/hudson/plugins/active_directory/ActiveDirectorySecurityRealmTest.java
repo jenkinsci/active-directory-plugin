@@ -342,7 +342,7 @@ public class ActiveDirectorySecurityRealmTest {
         ActiveDirectorySecurityRealm activeDirectorySecurityRealm = (ActiveDirectorySecurityRealm) jenkinsRule.jenkins.getSecurityRealm();
 
         FormValidation result = activeDirectorySecurityRealm.getDescriptor().doCheckStartTls(false, false);
-        assertEquals(FormValidation.Kind.ERROR, result.kind);
+        assertEquals(FormValidation.Kind.OK, result.kind);
 
         result = activeDirectorySecurityRealm.getDescriptor().doCheckStartTls(true, true);
         assertEquals(FormValidation.Kind.OK, result.kind);

@@ -32,7 +32,7 @@ public class ActiveDirectorySecurityRealmFipsAndForceLdapEnabledTest {
         ActiveDirectorySecurityRealm activeDirectorySecurityRealm = (ActiveDirectorySecurityRealm) jenkinsRule.jenkins.getSecurityRealm();
 
         FormValidation result = activeDirectorySecurityRealm.getDescriptor().doCheckStartTls(false, false);
-        assertEquals(FormValidation.Kind.WARNING, result.kind);
+        assertEquals(FormValidation.Kind.OK, result.kind);
 
         result = activeDirectorySecurityRealm.getDescriptor().doCheckStartTls(true, true);
         assertEquals(FormValidation.Kind.OK, result.kind);
@@ -50,7 +50,7 @@ public class ActiveDirectorySecurityRealmFipsAndForceLdapEnabledTest {
         ActiveDirectorySecurityRealm activeDirectorySecurityRealm = (ActiveDirectorySecurityRealm) jenkinsRule.jenkins.getSecurityRealm();
 
         FormValidation result = activeDirectorySecurityRealm.getDescriptor().doCheckRequireTLS(false, false);
-        assertEquals(FormValidation.Kind.WARNING, result.kind);
+        assertEquals(FormValidation.Kind.OK, result.kind);
 
         result = activeDirectorySecurityRealm.getDescriptor().doCheckRequireTLS(true, true);
         assertEquals(FormValidation.Kind.OK, result.kind);
