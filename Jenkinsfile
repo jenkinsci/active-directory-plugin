@@ -4,6 +4,7 @@ buildPlugin(useContainerAgent: false, configurations: [
   [platform: 'windows', jdk: 17],
 ])
 
+/* TODO rewrite tests to use Testcontainers (and select Linux VM nodes above)
 node('docker') {
      stage('checkout') {
         checkout scm
@@ -17,3 +18,4 @@ node('docker') {
         junit 'target/surefire-reports/*.xml'
      }
 }
+*/
