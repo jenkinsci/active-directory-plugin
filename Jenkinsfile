@@ -10,7 +10,11 @@ node('docker') {
      }
 
      stage('maven') {
-        sh 'docker build -t fixture src/test/resources/fixture && docker run --add-host=samdom.example.com:127.0.0.1 -v /var/lib/docker --privileged --dns=127.0.0.1 --dns=8.8.8.8 -v $WORKSPACE:/project fixture clean install -P onlyITs'
+        // Maven tests will start a dummy AD service at samdom.example.com
+        sh '''
+        docker run --rm -v /etc:/host-etc:rw --user=root --entrypoint=sh alpine -c "echo '127.0.0.1 samdom.example.com' >> /host-etc/hosts"
+        '''
+        sh 'mvn -B -Djenkins.test.timeout=1200 fixture clean install -P onlyITs'
      }
 
      stage('surefire-report') {
