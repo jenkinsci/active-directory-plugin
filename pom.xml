@@ -37,7 +37,7 @@
     <revision>2.36</revision>
     <changelist>-SNAPSHOT</changelist>
     <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
-    <jenkins.version>2.426.3</jenkins.version>
+    <jenkins.version>2.387.3</jenkins.version>
   </properties>
 
   <dependencyManagement>

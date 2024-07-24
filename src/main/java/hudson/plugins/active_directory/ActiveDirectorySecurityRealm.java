@@ -496,7 +496,8 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
      * @return boolean - true if the application is running in non-compliance with FIPS.
      */
     private static boolean isFipsNonCompliant(boolean requireTLS, boolean startTls) {
-        return FIPS140.useCompliantAlgorithms() && !requireTLS && !startTls;
+        return !requireTLS && !startTls;
+//        return FIPS140.useCompliantAlgorithms() && !requireTLS && !startTls;
     }
 
     @Extension
