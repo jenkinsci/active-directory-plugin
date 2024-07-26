@@ -1,8 +1,11 @@
 package hudson.plugins.active_directory;
 
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestRule;
+import org.jvnet.hudson.test.FlagRule;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.recipes.LocalData;
 
@@ -20,11 +23,10 @@ public class ActiveDirectorySecurityRealmFipsAndForceLdapEnabledTest {
     @Rule
     public JenkinsRule jenkinsRule = new JenkinsRule();
 
-    @BeforeClass
-    public static void globalSetup() {
-        System.setProperty("jenkins.security.FIPS140.COMPLIANCE", "TRUE");
-        System.setProperty(LEGACY_FORCE_LDAPS_PROPERTY, "TRUE");
-    }
+    @ClassRule
+    public static TestRule forceLdapProp = FlagRule.systemProperty(LEGACY_FORCE_LDAPS_PROPERTY, "true");
+    @ClassRule
+    public static TestRule fip140Prop = FlagRule.systemProperty("jenkins.security.FIPS140.COMPLIANCE", "true");
 
     @LocalData
     @Test
@@ -32,16 +34,20 @@ public class ActiveDirectorySecurityRealmFipsAndForceLdapEnabledTest {
         ActiveDirectorySecurityRealm activeDirectorySecurityRealm = (ActiveDirectorySecurityRealm) jenkinsRule.jenkins.getSecurityRealm();
 
         FormValidation result = activeDirectorySecurityRealm.getDescriptor().doCheckStartTls(false, false);
-        assertEquals(FormValidation.Kind.OK, result.kind);
+        assertEquals("FIPS mode and legacy system property configured, so it's compliant", FormValidation.Kind.OK,
+                     result.kind);
 
         result = activeDirectorySecurityRealm.getDescriptor().doCheckStartTls(true, true);
-        assertEquals(FormValidation.Kind.OK, result.kind);
+        assertEquals("FIPS mode and one of legacy system property or requireTls/startTls configured. so it's compliant",
+                     FormValidation.Kind.OK, result.kind);
 
         result = activeDirectorySecurityRealm.getDescriptor().doCheckStartTls(true, false);
-        assertEquals(FormValidation.Kind.OK, result.kind);
+        assertEquals("FIPS mode and one of legacy system property or requireTls configured. so it's compliant",
+                     FormValidation.Kind.OK, result.kind);
 
         result = activeDirectorySecurityRealm.getDescriptor().doCheckStartTls(false, true);
-        assertEquals(FormValidation.Kind.OK, result.kind);
+        assertEquals("FIPS mode and one of legacy system property or startTls configured. so it's compliant",
+                     FormValidation.Kind.OK, result.kind);
     }
 
     @LocalData
@@ -50,15 +56,19 @@ public class ActiveDirectorySecurityRealmFipsAndForceLdapEnabledTest {
         ActiveDirectorySecurityRealm activeDirectorySecurityRealm = (ActiveDirectorySecurityRealm) jenkinsRule.jenkins.getSecurityRealm();
 
         FormValidation result = activeDirectorySecurityRealm.getDescriptor().doCheckRequireTLS(false, false);
-        assertEquals(FormValidation.Kind.OK, result.kind);
+        assertEquals("FIPS mode and legacy system property configured, so it's compliant", FormValidation.Kind.OK,
+                     result.kind);
 
         result = activeDirectorySecurityRealm.getDescriptor().doCheckRequireTLS(true, true);
-        assertEquals(FormValidation.Kind.OK, result.kind);
+        assertEquals("FIPS mode and one of legacy system property or requireTls/startTls configured. so it's compliant",
+                     FormValidation.Kind.OK, result.kind);
 
         result = activeDirectorySecurityRealm.getDescriptor().doCheckRequireTLS(true, false);
-        assertEquals(FormValidation.Kind.OK, result.kind);
+        assertEquals("FIPS mode and one of legacy system property or requireTls configured. so it's compliant",
+                     FormValidation.Kind.OK, result.kind);
 
         result = activeDirectorySecurityRealm.getDescriptor().doCheckRequireTLS(false, true);
-        assertEquals(FormValidation.Kind.OK, result.kind);
+        assertEquals("FIPS mode and one of legacy system property or startTls configured. so it's compliant",
+                     FormValidation.Kind.OK, result.kind);
     }
 }

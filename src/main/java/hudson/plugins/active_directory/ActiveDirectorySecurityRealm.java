@@ -489,9 +489,9 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     /**
      * Checks whether Jenkins is running in FIPS mode and TLS is not enabled for communication.
      *
-     * @param requireTLS
-     * @param startTls
-     * @return boolean - true if the application is running in non-compliance with FIPS.
+     * @return true if the application is in FIPS mode and requireTls, startTls, and legacy force ldap property are false.
+     * <br>
+     * false if either the application is not in FIPS mode or any of requireTls, startTls, or legacy force ldap property is true.
      */
     private static boolean isFipsNonCompliant(boolean requireTLS, boolean startTls) {
         return FIPS140.useCompliantAlgorithms() && !requireTLS && !startTls && !Boolean.getBoolean(LEGACY_FORCE_LDAPS_PROPERTY);

@@ -342,16 +342,16 @@ public class ActiveDirectorySecurityRealmTest {
         ActiveDirectorySecurityRealm activeDirectorySecurityRealm = (ActiveDirectorySecurityRealm) jenkinsRule.jenkins.getSecurityRealm();
 
         FormValidation result = activeDirectorySecurityRealm.getDescriptor().doCheckStartTls(false, false);
-        assertEquals(FormValidation.Kind.OK, result.kind);
+        assertEquals("no FIPS mode. So, no impact of TLS configuration", FormValidation.Kind.OK, result.kind);
 
         result = activeDirectorySecurityRealm.getDescriptor().doCheckStartTls(true, true);
-        assertEquals(FormValidation.Kind.OK, result.kind);
+        assertEquals("no FIPS mode. So, no impact of TLS configuration", FormValidation.Kind.OK, result.kind);
 
         result = activeDirectorySecurityRealm.getDescriptor().doCheckStartTls(true, false);
-        assertEquals(FormValidation.Kind.OK, result.kind);
+        assertEquals("no FIPS mode. So, no impact of TLS configuration", FormValidation.Kind.OK, result.kind);
 
         result = activeDirectorySecurityRealm.getDescriptor().doCheckStartTls(false, true);
-        assertEquals(FormValidation.Kind.OK, result.kind);
+        assertEquals("no FIPS mode. So, no impact of TLS configuration", FormValidation.Kind.OK, result.kind);
 
     }
 
@@ -361,16 +361,16 @@ public class ActiveDirectorySecurityRealmTest {
         ActiveDirectorySecurityRealm activeDirectorySecurityRealm = (ActiveDirectorySecurityRealm) jenkinsRule.jenkins.getSecurityRealm();
 
         FormValidation result = activeDirectorySecurityRealm.getDescriptor().doCheckRequireTLS(false, false);
-        assertEquals(FormValidation.Kind.OK, result.kind);
+        assertEquals("no FIPS mode. So, no impact of TLS configuration", FormValidation.Kind.OK, result.kind);
 
         result = activeDirectorySecurityRealm.getDescriptor().doCheckRequireTLS(true, true);
-        assertEquals(FormValidation.Kind.OK, result.kind);
+        assertEquals("no FIPS mode. So, no impact of TLS configuration", FormValidation.Kind.OK, result.kind);
 
         result = activeDirectorySecurityRealm.getDescriptor().doCheckRequireTLS(true, false);
-        assertEquals(FormValidation.Kind.OK, result.kind);
+        assertEquals("no FIPS mode. So, no impact of TLS configuration", FormValidation.Kind.OK, result.kind);
 
         result = activeDirectorySecurityRealm.getDescriptor().doCheckRequireTLS(false, true);
-        assertEquals(FormValidation.Kind.OK, result.kind);
+        assertEquals("no FIPS mode. So, no impact of TLS configuration", FormValidation.Kind.OK, result.kind);
     }
 
     @LocalData
