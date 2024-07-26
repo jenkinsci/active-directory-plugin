@@ -396,10 +396,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
      *         <br>
      *         false if either the application is not in FIPS mode or any of requireTls, startTls is true.
      */
-    private static boolean isFipsNonCompliant(Boolean requireTls, Boolean startTls) {
-        // requireTls or startTls can be null, so in order to avoid null pointer exception assuming the values as FALSE.
-        requireTls = requireTls == null ? false : requireTls;
-        startTls = startTls == null ? false : startTls;
+    private static boolean isFipsNonCompliant(boolean requireTls, boolean startTls) {
         return FIPS140.useCompliantAlgorithms() && !requireTls && !startTls;
     }
 
@@ -498,8 +495,11 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             this.startTls = true;
         }
 
+        //requireTls can be  null, to avoid null-pointer exception, set flag as false.
+        boolean requireTlsFlag = requireTLS == null ? false : requireTLS;
+
         // Gives exception if TLS is not used in FIPS mode.
-        if (isFipsNonCompliant(requireTLS, startTls))
+        if (isFipsNonCompliant(requireTlsFlag, startTls))
             throw new IllegalArgumentException(Messages.TlsConfiguration_ErrorMessage());
         return this;
     }
