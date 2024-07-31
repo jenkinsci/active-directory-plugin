@@ -4,8 +4,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.htmlunit.html.DomElement;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestRule;
+import org.jvnet.hudson.test.FlagRule;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.recipes.LocalData;
@@ -28,6 +31,9 @@ public class ActiveDirectorySecurityRealmTest {
 
     @Rule
     public JenkinsRule jenkinsRule = new JenkinsRule();
+
+    @ClassRule
+    public static TestRule fip140Prop = FlagRule.systemProperty("jenkins.security.FIPS140.COMPLIANCE", "false");
 
     public final static String AD_DOMAIN = "samdom.example.com";
     public final static String AD_MANAGER_DN = "CN=Administrator,CN=Users,DC=samdom,DC=example,DC=com";
@@ -390,5 +396,4 @@ public class ActiveDirectorySecurityRealmTest {
         JenkinsRule.WebClient wc = jenkinsRule.createWebClient().login("admin", "admin");
         assertThat(wc.goToXml("whoAmI/api/xml").asXml().replaceAll("\\s+", ""), containsString("<name>admin</name>"));
     }
-
 }

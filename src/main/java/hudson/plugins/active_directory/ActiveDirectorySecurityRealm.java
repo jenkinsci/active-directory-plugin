@@ -575,7 +575,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             }
             Jenkins.get().checkPermission(Jenkins.ADMINISTER);
             if (System.getProperty(ActiveDirectoryAuthenticationProvider.ADSI_FLAGS_SYSTEM_PROPERTY_NAME) != null) {
-                return FormValidation.error("This setting is overridden by the ADSI mode system property");
+                return FormValidation.warning("This setting is overridden by the ADSI mode system property");
             }
             return FormValidation.ok();
         }
