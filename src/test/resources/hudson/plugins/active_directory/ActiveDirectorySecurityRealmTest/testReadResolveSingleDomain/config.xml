@@ -7,8 +7,6 @@
   <useSecurity>true</useSecurity>
   <authorizationStrategy class="hudson.security.AuthorizationStrategy$Unsecured"/>
   <securityRealm class="hudson.plugins.active_directory.ActiveDirectorySecurityRealm" plugin="active-directory@1.49">
-    <startTls>true</startTls>
-    <requireTLS>true</requireTLS>
     <domain>example.com</domain>
     <bindName>bindUser</bindName>
     <site>site</site>
