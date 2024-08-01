@@ -39,7 +39,10 @@ import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
+import jenkins.security.FIPS140;
 import jenkins.security.SecurityListener;
+import jenkins.util.SystemProperties;
+
 import org.acegisecurity.AuthenticationException;
 import org.acegisecurity.BadCredentialsException;
 import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
@@ -263,7 +266,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     // as Java signature, this binding doesn't make sense, so please don't use this constructor
     public ActiveDirectorySecurityRealm(String domain, List<ActiveDirectoryDomain> domains, String site, String bindName,
                                         String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache, Boolean startTls, ActiveDirectoryInternalUsersDatabase internalUsersDatabase, boolean requireTLS) {
-        if (customDomain!=null && !customDomain)
+        if (customDomain != null && !customDomain)
             domains = null;
         this.domain = fixEmpty(domain);
         this.server = fixEmpty(server);
@@ -274,9 +277,14 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         this.groupLookupStrategy = groupLookupStrategy;
         this.removeIrrelevantGroups = removeIrrelevantGroups;
         this.cache = cache;
-        this.startTls = startTls;
         this.internalUsersDatabase = internalUsersDatabase;
-        this.requireTLS = Boolean.valueOf(requireTLS);
+
+        // Gives exception if TLS is not used in FIPS mode.
+        if (isFipsNonCompliant(requireTLS, startTls)) {
+            throw new IllegalArgumentException(Messages.TlsConfiguration_ErrorMessage());
+        }
+        this.startTls = startTls;
+        this.requireTLS = requireTLS;
     }
 
     @DataBoundSetter
@@ -381,43 +389,15 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         return null;
     }
 
-    public Object readResolve() throws ObjectStreamException {
-        if (domain != null) {
-            this.domains = new ArrayList<>();
-            domain = domain.trim();
-            String[] oldDomains = domain.split(",");
-            for (String oldDomain : oldDomains) {
-                oldDomain = oldDomain.trim();
-                this.domains.add(new ActiveDirectoryDomain(oldDomain, server));
-            }
-        }
-        List <ActiveDirectoryDomain> activeDirectoryDomains = this.getDomains();
-        // JENKINS-14281 On Windows domain can be indeed null
-        if (activeDirectoryDomains!= null) {
-            // JENKINS-39375 Support a different bindUser per domain
-            if (bindName != null && bindPassword != null) {
-                for (ActiveDirectoryDomain activeDirectoryDomain : activeDirectoryDomains) {
-                    activeDirectoryDomain.bindName = bindName;
-                    activeDirectoryDomain.bindPassword = bindPassword;
-                }
-            }
-            // JENKINS-39423 Make site independent of each domain
-            if (site != null) {
-                for (ActiveDirectoryDomain activeDirectoryDomain : activeDirectoryDomains) {
-                    activeDirectoryDomain.site = site;
-                }
-            }
-            // SECURITY-859 Make tlsConfiguration independent of each domain
-            if (tlsConfiguration != null) {
-                for (ActiveDirectoryDomain activeDirectoryDomain : activeDirectoryDomains) {
-                    activeDirectoryDomain.tlsConfiguration = tlsConfiguration;
-                }
-            }
-        }
-        if (startTls == null) {
-            this.startTls = true;
-        }
-        return this;
+    /**
+     * Checks whether Jenkins is running in FIPS mode and TLS is not enabled for communication.
+     *
+     * @return true if the application is in FIPS mode, requireTls and startTls are false.
+     *         <br>
+     *         false if either the application is not in FIPS mode or any of requireTls, startTls is true.
+     */
+    private static boolean isFipsNonCompliant(boolean requireTls, boolean startTls) {
+        return FIPS140.useCompliantAlgorithms() && !requireTls && !startTls;
     }
 
     @Override
@@ -475,6 +455,53 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
         req.setAttribute("output", out.toString());
         req.getView(this, "test.jelly").forward(req, rsp);
+    }
+
+    public Object readResolve() throws ObjectStreamException {
+        if (domain != null) {
+            this.domains = new ArrayList<>();
+            domain = domain.trim();
+            String[] oldDomains = domain.split(",");
+            for (String oldDomain : oldDomains) {
+                oldDomain = oldDomain.trim();
+                this.domains.add(new ActiveDirectoryDomain(oldDomain, server));
+            }
+        }
+        List<ActiveDirectoryDomain> activeDirectoryDomains = this.getDomains();
+        // JENKINS-14281 On Windows domain can be indeed null
+        if (activeDirectoryDomains != null) {
+            // JENKINS-39375 Support a different bindUser per domain
+            if (bindName != null && bindPassword != null) {
+                for (ActiveDirectoryDomain activeDirectoryDomain : activeDirectoryDomains) {
+                    activeDirectoryDomain.bindName = bindName;
+                    activeDirectoryDomain.bindPassword = bindPassword;
+                }
+            }
+            // JENKINS-39423 Make site independent of each domain
+            if (site != null) {
+                for (ActiveDirectoryDomain activeDirectoryDomain : activeDirectoryDomains) {
+                    activeDirectoryDomain.site = site;
+                }
+            }
+            // SECURITY-859 Make tlsConfiguration independent of each domain
+            if (tlsConfiguration != null) {
+                for (ActiveDirectoryDomain activeDirectoryDomain : activeDirectoryDomains) {
+                    activeDirectoryDomain.tlsConfiguration = tlsConfiguration;
+                }
+            }
+        }
+
+        if (startTls == null) {
+            this.startTls = true;
+        }
+
+        //requireTls can be  null, to avoid null-pointer exception, set flag as false.
+        boolean requireTlsFlag = requireTLS == null ? false : requireTLS;
+
+        // Gives exception if TLS is not used in FIPS mode.
+        if (isFipsNonCompliant(requireTlsFlag, startTls))
+            throw new IllegalArgumentException(Messages.TlsConfiguration_ErrorMessage());
+        return this;
     }
 
     @Extension
@@ -542,10 +569,20 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             return model;
         }
 
-        public FormValidation doCheckRequireTLS() {
+        public FormValidation doCheckRequireTLS(@QueryParameter boolean requireTLS, @QueryParameter boolean startTls) {
+            if (isFipsNonCompliant(requireTLS, startTls)) {
+                return FormValidation.error(Messages.TlsConfiguration_ErrorMessage());
+            }
             Jenkins.get().checkPermission(Jenkins.ADMINISTER);
             if (System.getProperty(ActiveDirectoryAuthenticationProvider.ADSI_FLAGS_SYSTEM_PROPERTY_NAME) != null) {
                 return FormValidation.warning("This setting is overridden by the ADSI mode system property");
+            }
+            return FormValidation.ok();
+        }
+
+        public FormValidation doCheckStartTls(@QueryParameter boolean requireTLS, @QueryParameter boolean startTls) {
+            if (isFipsNonCompliant(requireTLS, startTls)) {
+                return FormValidation.error(Messages.TlsConfiguration_ErrorMessage());
             }
             return FormValidation.ok();
         }
@@ -646,7 +683,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                 props.put(propName, prop);
             }
         }
-        
+
         /** Lookups for hardcoded LDAP properties if they are specified as System properties and uses them */
         private void customizeLdapProperties(Hashtable<String, String> props) {
              customizeLdapProperty(props, "com.sun.jndi.ldap.connect.timeout");
@@ -675,7 +712,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                 props.put(Context.PROVIDER_URL, ldapUrl);
                 props.put("java.naming.ldap.version", "3");
                 customizeLdapProperties(props);
-                
+
                 LdapContext context = new InitialLdapContext(props, null);
 
                 if (!requireTLS && startTLS) {
@@ -757,7 +794,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
          *      an authentication attempt with every listed server, which can lock the user out!) This also
          *      puts this feature in alignment with {@link #DOMAIN_CONTROLLERS}, which seems to indicate that
          *      there are users who prefer this behaviour.
-         * 
+         *
          * @param useTLS {@code true} if we should use ldaps.
          * @return A list with at least one item.
          */

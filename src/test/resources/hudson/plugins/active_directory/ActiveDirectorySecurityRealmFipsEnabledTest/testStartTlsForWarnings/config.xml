@@ -1,18 +1,26 @@
-<?xml version='1.1' encoding='UTF-8'?>
+<?xml version='1.0' encoding='UTF-8'?>
 <hudson>
   <disabledAdministrativeMonitors/>
-  <version>2.235.5</version>
-  <numExecutors>0</numExecutors>
+  <version>1.0</version>
+  <numExecutors>2</numExecutors>
   <mode>NORMAL</mode>
   <useSecurity>true</useSecurity>
   <authorizationStrategy class="hudson.security.AuthorizationStrategy$Unsecured"/>
-  <securityRealm class="hudson.plugins.active_directory.ActiveDirectorySecurityRealm">
+  <securityRealm class="hudson.plugins.active_directory.ActiveDirectorySecurityRealm" plugin="active-directory@2.0">
+    <domains>
+      <hudson.plugins.active__directory.ActiveDirectoryDomain>
+        <name>example.com</name>
+      </hudson.plugins.active__directory.ActiveDirectoryDomain>
+    </domains>
+    <site>site</site>
+    <bindName>bindUser</bindName>
+    <bindPassword>Uv8/yXQyHku/Bx5Shl4TsTa4MJDBxBiJTSIqpEt2+DA=</bindPassword>
     <groupLookupStrategy>AUTO</groupLookupStrategy>
     <removeIrrelevantGroups>false</removeIrrelevantGroups>
   </securityRealm>
   <disableRememberMe>false</disableRememberMe>
   <projectNamingStrategy class="jenkins.model.ProjectNamingStrategy$DefaultProjectNamingStrategy"/>
-  <workspaceDir>${JENKINS_HOME}/workspace/${ITEM_FULL_NAME}</workspaceDir>
+  <workspaceDir>${ITEM_ROOTDIR}/workspace</workspaceDir>
   <buildsDir>${ITEM_ROOTDIR}/builds</buildsDir>
   <markupFormatter class="hudson.markup.EscapedMarkupFormatter"/>
   <jdks/>
@@ -23,18 +31,15 @@
   <views>
     <hudson.model.AllView>
       <owner class="hudson" reference="../../.."/>
-      <name>all</name>
+      <name>All</name>
       <filterExecutors>false</filterExecutors>
       <filterQueue>false</filterQueue>
       <properties class="hudson.model.View$PropertyList"/>
     </hudson.model.AllView>
   </views>
-  <primaryView>all</primaryView>
-  <slaveAgentPort>0</slaveAgentPort>
+  <primaryView>All</primaryView>
+  <slaveAgentPort>-1</slaveAgentPort>
   <label></label>
-  <crumbIssuer class="hudson.security.csrf.DefaultCrumbIssuer">
-    <excludeClientIPFromCrumb>false</excludeClientIPFromCrumb>
-  </crumbIssuer>
   <nodeProperties/>
   <globalNodeProperties/>
 </hudson>
