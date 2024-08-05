@@ -3,6 +3,8 @@ package hudson.plugins.active_directory.docker;
 import java.io.IOException;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.InternetProtocol;
+import org.testcontainers.containers.wait.strategy.LogMessageWaitStrategy;
+import org.testcontainers.containers.wait.strategy.WaitStrategy;
 import org.testcontainers.images.builder.ImageFromDockerfile;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerCmd;
@@ -25,7 +27,8 @@ public class ActiveDirectoryGenericContainer<SELF extends ActiveDirectoryGeneric
                 .withFileFromClasspath("named.conf.options", "hudson/plugins/active_directory/docker/TheFlintstonesTest/TheFlintstones/named.conf.options")
                 .withFileFromClasspath("sssd.conf", "hudson/plugins/active_directory/docker/TheFlintstonesTest/TheFlintstones/sssd.conf")
                 .withFileFromClasspath("supervisord.conf", "hudson/plugins/active_directory/docker/TheFlintstonesTest/TheFlintstones/supervisord.conf"));
-        setWaitStrategy(null);
+        // wait for the custom.sh script to complete successfully
+        setWaitStrategy(new LogMessageWaitStrategy().withRegEx(".*\\Qexited: custom (exit status 0; expected)\\E.*"));
     }
 
     /*

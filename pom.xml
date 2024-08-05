@@ -129,6 +129,13 @@
       <version>1.19.0</version>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <!-- to manipulate DNS servers for testing -->
+      <groupId>org.burningwave</groupId>
+      <artifactId>tools</artifactId>
+      <version>0.26.1</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>

@@ -34,6 +34,10 @@ import javax.servlet.ServletException;
 import hudson.plugins.active_directory.TlsConfiguration;
 import org.acegisecurity.AuthenticationServiceException;
 import org.acegisecurity.userdetails.UserDetails;
+import org.burningwave.tools.net.DNSClientHostResolver;
+import org.burningwave.tools.net.DefaultHostResolver;
+import org.burningwave.tools.net.HostResolutionRequestInterceptor;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
@@ -48,17 +52,27 @@ import hudson.plugins.active_directory.GroupLookupStrategy;
  */
 public class TheFlintstonesIT {
 
+
     @Rule(order = 0)
     public RequireDockerRule rdr = new RequireDockerRule();
 
     @Rule(order = 1)
     public ActiveDirectoryGenericContainer<?> docker = new ActiveDirectoryGenericContainer<>().withStaticPorts();
 
-    @Rule(order = 2) // start Jenkins after the container so that timeouts do not apply to container building.
+    @Rule(order = 4) // start Jenkins after the container so that timeouts do not apply to container building.
     public JenkinsRule j = new JenkinsRule();
 
     @Rule
     public LoggerRule l = new LoggerRule();
+
+    @Before
+    public void configureDNSServer() {
+        // we need to pint the JVMs DNS resolver at the samba server
+        // for AD to work correctly it needs to be able to resolve hosts and do SRV lookups on the domain
+        HostResolutionRequestInterceptor.INSTANCE.install(
+                new DNSClientHostResolver("127.0.0.1"), // The SAMBA Server
+                DefaultHostResolver.INSTANCE);
+    }
 
     public final static String AD_DOMAIN = "samdom.example.com";
     public final static String AD_MANAGER_DN = "CN=Administrator,CN=Users,DC=SAMDOM,DC=EXAMPLE,DC=COM";
@@ -81,9 +95,6 @@ public class TheFlintstonesIT {
         domains.add(activeDirectoryDomain);
         ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, null, null, null, null, GroupLookupStrategy.RECURSIVE, false, true, null, false, null, requireTLS);
         j.getInstance().setSecurityRealm(activeDirectorySecurityRealm);
-        while(!docker.getLogs().contains("custom (exit status 0; expected)")) {
-            Thread.sleep(1000);
-        }
         UserDetails userDetails = null;
         int i = 0;
         while (i < MAX_RETRIES && userDetails == null) {
