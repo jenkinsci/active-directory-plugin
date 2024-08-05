@@ -67,7 +67,7 @@ public class TheFlintstonesIT {
 
     @Before
     public void configureDNSServer() {
-        // we need to pint the JVMs DNS resolver at the samba server
+        // we need to pint the JVMs DNS resolver at the AD (samba) server
         // for AD to work correctly it needs to be able to resolve hosts and do SRV lookups on the domain
         HostResolutionRequestInterceptor.INSTANCE.install(
                 new DNSClientHostResolver("127.0.0.1"), // The SAMBA Server
