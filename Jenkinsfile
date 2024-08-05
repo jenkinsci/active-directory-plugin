@@ -12,7 +12,6 @@ node('docker') {
 
      stage('maven') {
         sh 'sudo ./hack_systemd_resolve.sh'
-        sh 'netstat -tul'
         sh 'mvn clean install -P onlyITs'
      }
 
