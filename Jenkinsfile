@@ -12,7 +12,7 @@ node('docker') {
 
      stage('maven') {
         sh 'sudo ./hack_systemd_resolve.sh'
-        sh 'mvn clean install -P onlyITs'
+        sh 'mvn -B clean install -P onlyITs -Dtest=TheFlintstonesIT'
      }
 
      stage('surefire-report') {

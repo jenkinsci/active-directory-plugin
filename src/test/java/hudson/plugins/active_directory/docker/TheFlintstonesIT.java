@@ -57,6 +57,9 @@ import hudson.plugins.active_directory.GroupLookupStrategy;
 
 /**
  * Integration tests with Docker and requiring custom DNS in the target env with fixed ports.
+ * NOTE: these tests will fail if you have port53 (or any other port required by Samba bound locally)
+ * for DNS (port53 issues on linux see hack_systemd_resolve.sh or 
+ * <a href="https://www.linuxuprising.com/2020/07/ubuntu-how-to-free-up-port-53-used-by.html">Ubuntu: How To Free Up Port 53, Used By systemd-resolved</a>}
  */
 public class TheFlintstonesIT {
 
@@ -64,6 +67,8 @@ public class TheFlintstonesIT {
     @Rule(order = 0)
     public RequireDockerRule rdr = new RequireDockerRule();
 
+    // if the rule fails as port 53 is in use (on linux) see hack_systemd_resolve.sh 
+    // or https://www.linuxuprising.com/2020/07/ubuntu-how-to-free-up-port-53-used-by.html
     @Rule(order = 1)
     public ActiveDirectoryGenericContainer<?> docker = new ActiveDirectoryGenericContainer<>().withStaticPorts();
 
