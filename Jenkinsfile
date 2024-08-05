@@ -1,8 +1,9 @@
-buildPlugin(useContainerAgent: false, configurations: [
+/*buildPlugin(useContainerAgent: false, configurations: [
   [platform: 'linux', jdk: 21],
   [platform: 'linux', jdk: 11],
   [platform: 'windows', jdk: 17],
 ])
+*/
 
 node('docker') {
      stage('checkout') {
@@ -10,6 +11,8 @@ node('docker') {
      }
 
      stage('maven') {
+        sh 'systemctl status systemd-resolved'
+        sh 'netstat -tul'
         sh 'mvn clean install -P onlyITs'
      }
 
