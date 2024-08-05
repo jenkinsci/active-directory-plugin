@@ -6,12 +6,12 @@ set -x
 
 # uses instructions from https://www.linuxuprising.com/2020/07/ubuntu-how-to-free-up-port-53-used-by.html
 
-lsod -i :53
+lsof -i :53
 systemctl stop systemd-resolved
-lsod -i :53
+lsof -i :53
 sed -i 's/#DNS=.*/DNS=8.8.8.8/g' /etc/systemd/resolved.conf
 sed -i 's/DNSStubListener=yes/DNSStubListener=no/g' /etc/systemd/resolved.conf
 ln -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf
-lsod -i :53
+lsof -i :53
 systemctl start systemd-resolved
-lsod -i :53
+lsof -i :53
