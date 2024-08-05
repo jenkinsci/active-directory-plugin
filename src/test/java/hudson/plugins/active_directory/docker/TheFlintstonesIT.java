@@ -31,9 +31,13 @@ import static org.junit.Assume.assumeTrue;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.URI;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+
 import javax.naming.NamingException;
 import javax.servlet.ServletException;
 
@@ -44,6 +48,7 @@ import org.burningwave.tools.net.DNSClientHostResolver;
 import org.burningwave.tools.net.DefaultHostResolver;
 import org.burningwave.tools.net.HostResolutionRequestInterceptor;
 import org.burningwave.tools.net.HostResolver;
+import org.burningwave.tools.net.MappedHostResolver;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -53,6 +58,7 @@ import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.LoggerRule;
 import hudson.plugins.active_directory.ActiveDirectoryDomain;
 import hudson.plugins.active_directory.ActiveDirectorySecurityRealm;
+import hudson.plugins.active_directory.DNSUtils;
 import hudson.plugins.active_directory.GroupLookupStrategy;
 
 /**
@@ -79,31 +85,33 @@ public class TheFlintstonesIT {
     public LoggerRule l = new LoggerRule();
 
     @Before
-    public void configureDNSServer() throws UnknownHostException {
+    public void overrideDNSServers() throws UnknownHostException {
         // we need to pint the JVMs DNS resolver at the AD (samba) server
         // for AD to work correctly it needs to be able to resolve hosts and do SRV lookups on the domain
 
-        String host = docker.getHost();
         // whilst the `getHost()` is supposed to return an IPAddress in some cases it will return "localhost"
         // we need a resolved address to configure the resolver do a lookup before we change the DNS.
-        InetAddress hostInetAddr = InetAddress.getByName(host);
+
+        InetAddress hostInetAddr = InetAddress.getByName(docker.getHost());
+        String hostIP = hostInetAddr.getHostAddress();
+
+        // but additionally we need to use the locally bound ports and not what AD returns for name resolution
+        Map<String, String> hostAliases = new LinkedHashMap<>();
+        hostAliases.put("dc1.samdom.example.com", hostIP);
+        hostAliases.put("samdom.example.com", hostIP);
+        // this adds the A entry for the PDC, but will leave the discovery of this to the SRV lookup
 
         HostResolutionRequestInterceptor.INSTANCE.install(
-                new DNSClientHostResolver(hostInetAddr.getHostAddress()),
+                new MappedHostResolver(hostAliases),
+                new DNSClientHostResolver(hostIP, 553),
                 DefaultHostResolver.INSTANCE);
-    }
+        // we also need to set the JNDI default
+        // see hudson.plugins.active_directory.ActiveDirectoryDomain.createDNSLookupContext()
+        // getHost returns a hostname not IPaddress...
+        // use our DNS to resolve that to an IP address.
+        System.setProperty(DNSUtils.OVERRIDE_DNS_PROPERTY, "dns://"+hostIP+":553");
+        
 
-    @Before
-    public void ensureSaneNetworkingSetup() {
-        // the docker network used needs to be reachable from the host
-        // if we are using the default "bridge" network then windows based hosts can not by default get access to the non mapped ports
-        // on the bridge network (as the bridge network is not routable from windows!)
-        // the AD server will respond to queries for it's domain with its own IP address - and this would be an address on the bridge network
-        // that windows can not get access to
-        // There will likely be other scenarious in Linux and or mac also that may need to be added.
-        // whilst host based networking should work everywhere (new ActiveDirectoryGenericContainer<>().withNetworkMode("host")) this also seems to fail
-        // as the DNS request timeout
-        assumeFalse(File.pathSeparatorChar == ';');
     }
 
     public final static String AD_DOMAIN = "samdom.example.com";
@@ -120,7 +128,8 @@ public class TheFlintstonesIT {
     }
 
     public void dynamicSetUp(boolean requireTLS) throws Exception {
-        dockerIp = requireTLS ? docker.getHost() : "dc1.samdom.example.com";
+        //dockerIp = requireTLS ? docker.getHost() : "dc1.samdom.example.com";
+        dockerIp = "dc1.samdom.example.com";
         dockerPort = docker.getMappedPort(requireTLS ? GLOBAL_CATALOG_TLS : GLOBAL_CATALOG_PLAIN_TEXT);
         ActiveDirectoryDomain activeDirectoryDomain = new ActiveDirectoryDomain(AD_DOMAIN, dockerIp + ":" +  dockerPort , null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD);
         List<ActiveDirectoryDomain> domains = new ArrayList<>(1);
