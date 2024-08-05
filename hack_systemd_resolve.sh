@@ -9,9 +9,13 @@ set -x
 lsof -i :53
 systemctl stop systemd-resolved
 lsof -i :53
+cat /etc/systemd/resolved.conf
+cat /run/systemd/resolve/resolv.conf
 sed -i 's/#DNS=.*/DNS=8.8.8.8/g' /etc/systemd/resolved.conf
 sed -i 's/DNSStubListener=yes/DNSStubListener=no/g' /etc/systemd/resolved.conf
 ln -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf
 lsof -i :53
 systemctl start systemd-resolved
 lsof -i :53
+cat /etc/systemd/resolved.conf
+cat /run/systemd/resolve/resolv.conf
