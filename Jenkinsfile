@@ -11,7 +11,7 @@ node('docker') {
      }
 
      stage('maven') {
-        sh 'systemctl status systemd-resolved'
+        sh 'sudo ./hack_systemd_resolve.sh'
         sh 'netstat -tul'
         sh 'mvn clean install -P onlyITs'
      }

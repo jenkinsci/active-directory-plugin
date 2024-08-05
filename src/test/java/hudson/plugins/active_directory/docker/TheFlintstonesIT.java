@@ -25,7 +25,13 @@
 package hudson.plugins.active_directory.docker;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assume.assumeFalse;
+import static org.junit.Assume.assumeTrue;
+
+import java.io.File;
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 import javax.naming.NamingException;
@@ -37,7 +43,9 @@ import org.acegisecurity.userdetails.UserDetails;
 import org.burningwave.tools.net.DNSClientHostResolver;
 import org.burningwave.tools.net.DefaultHostResolver;
 import org.burningwave.tools.net.HostResolutionRequestInterceptor;
+import org.burningwave.tools.net.HostResolver;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
@@ -66,12 +74,31 @@ public class TheFlintstonesIT {
     public LoggerRule l = new LoggerRule();
 
     @Before
-    public void configureDNSServer() {
+    public void configureDNSServer() throws UnknownHostException {
         // we need to pint the JVMs DNS resolver at the AD (samba) server
         // for AD to work correctly it needs to be able to resolve hosts and do SRV lookups on the domain
+
+        String host = docker.getHost();
+        // whilst the `getHost()` is supposed to return an IPAddress in some cases it will return "localhost"
+        // we need a resolved address to configure the resolver do a lookup before we change the DNS.
+        InetAddress hostInetAddr = InetAddress.getByName(host);
+
         HostResolutionRequestInterceptor.INSTANCE.install(
-                new DNSClientHostResolver("127.0.0.1"), // The SAMBA Server
+                new DNSClientHostResolver(hostInetAddr.getHostAddress()),
                 DefaultHostResolver.INSTANCE);
+    }
+
+    @Before
+    public void ensureSaneNetworkingSetup() {
+        // the docker network used needs to be reachable from the host
+        // if we are using the default "bridge" network then windows based hosts can not by default get access to the non mapped ports
+        // on the bridge network (as the bridge network is not routable from windows!)
+        // the AD server will respond to queries for it's domain with its own IP address - and this would be an address on the bridge network
+        // that windows can not get access to
+        // There will likely be other scenarious in Linux and or mac also that may need to be added.
+        // whilst host based networking should work everywhere (new ActiveDirectoryGenericContainer<>().withNetworkMode("host")) this also seems to fail
+        // as the DNS request timeout
+        assumeFalse(File.pathSeparatorChar == ';');
     }
 
     public final static String AD_DOMAIN = "samdom.example.com";
