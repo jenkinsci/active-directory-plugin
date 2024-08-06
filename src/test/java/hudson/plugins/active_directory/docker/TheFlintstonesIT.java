@@ -25,13 +25,9 @@
 package hudson.plugins.active_directory.docker;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assume.assumeFalse;
-import static org.junit.Assume.assumeTrue;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
-import java.net.URI;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -47,10 +43,9 @@ import org.acegisecurity.userdetails.UserDetails;
 import org.burningwave.tools.net.DNSClientHostResolver;
 import org.burningwave.tools.net.DefaultHostResolver;
 import org.burningwave.tools.net.HostResolutionRequestInterceptor;
-import org.burningwave.tools.net.HostResolver;
 import org.burningwave.tools.net.MappedHostResolver;
+import org.junit.After;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
@@ -62,10 +57,7 @@ import hudson.plugins.active_directory.DNSUtils;
 import hudson.plugins.active_directory.GroupLookupStrategy;
 
 /**
- * Integration tests with Docker and requiring custom DNS in the target env with fixed ports.
- * NOTE: these tests will fail if you have port53 (or any other port required by Samba bound locally)
- * for DNS (port53 issues on linux see hack_systemd_resolve.sh or 
- * <a href="https://www.linuxuprising.com/2020/07/ubuntu-how-to-free-up-port-53-used-by.html">Ubuntu: How To Free Up Port 53, Used By systemd-resolved</a>}
+ * Integration tests with Docker and using samba as a DNS server
  */
 public class TheFlintstonesIT {
 
@@ -78,7 +70,7 @@ public class TheFlintstonesIT {
     @Rule(order = 1)
     public ActiveDirectoryGenericContainer<?> docker = new ActiveDirectoryGenericContainer<>().withStaticPorts();
 
-    @Rule(order = 4) // start Jenkins after the container so that timeouts do not apply to container building.
+    @Rule(order = 2) // start Jenkins after the container so that timeouts do not apply to container building.
     public JenkinsRule j = new JenkinsRule();
 
     @Rule
@@ -91,27 +83,30 @@ public class TheFlintstonesIT {
 
         // whilst the `getHost()` is supposed to return an IPAddress in some cases it will return "localhost"
         // we need a resolved address to configure the resolver do a lookup before we change the DNS.
-
         InetAddress hostInetAddr = InetAddress.getByName(docker.getHost());
         String hostIP = hostInetAddr.getHostAddress();
 
-        // but additionally we need to use the locally bound ports and not what AD returns for name resolution
+        // but additionally we need to use the locally bound ports for the catalog and not what AD returns for name resolution
         Map<String, String> hostAliases = new LinkedHashMap<>();
         hostAliases.put("dc1.samdom.example.com", hostIP);
-        hostAliases.put("samdom.example.com", hostIP);
         // this adds the A entry for the PDC, but will leave the discovery of this to the SRV lookup
 
         HostResolutionRequestInterceptor.INSTANCE.install(
                 new MappedHostResolver(hostAliases),
                 new DNSClientHostResolver(hostIP, 553),
                 DefaultHostResolver.INSTANCE);
+
         // we also need to set the JNDI default
         // see hudson.plugins.active_directory.ActiveDirectoryDomain.createDNSLookupContext()
         // getHost returns a hostname not IPaddress...
         // use our DNS to resolve that to an IP address.
         System.setProperty(DNSUtils.OVERRIDE_DNS_PROPERTY, "dns://"+hostIP+":553");
-        
+    }
 
+    @After
+    public void restoreDNS() {
+        HostResolutionRequestInterceptor.INSTANCE.install(DefaultHostResolver.INSTANCE);
+        System.clearProperty(DNSUtils.OVERRIDE_DNS_PROPERTY);
     }
 
     public final static String AD_DOMAIN = "samdom.example.com";
@@ -128,7 +123,6 @@ public class TheFlintstonesIT {
     }
 
     public void dynamicSetUp(boolean requireTLS) throws Exception {
-        //dockerIp = requireTLS ? docker.getHost() : "dc1.samdom.example.com";
         dockerIp = "dc1.samdom.example.com";
         dockerPort = docker.getMappedPort(requireTLS ? GLOBAL_CATALOG_TLS : GLOBAL_CATALOG_PLAIN_TEXT);
         ActiveDirectoryDomain activeDirectoryDomain = new ActiveDirectoryDomain(AD_DOMAIN, dockerIp + ":" +  dockerPort , null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD);

@@ -20,7 +20,7 @@ import static org.junit.Assume.assumeTrue;
 /**
  * This tests requires a very specific windows environment to run, the windows machine
  * needs to be joined to a function domain that has the user fred with the password ia4uV1EeKait.
- * It is enabled in the ITs profile, but will skip on I as that profile is enabled only on the special Linux environment.
+ * It is enabled in the WindowsITs profile, but will skip on I as that profile is enabled only on the special Linux environment.
  */
 public class WindowsAdsiModeUserCacheDisabledIT {
 
