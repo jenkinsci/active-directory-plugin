@@ -27,6 +27,7 @@ package hudson.plugins.active_directory.docker;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
+import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
@@ -96,7 +97,11 @@ public class TheFlintstonesIT {
 
         // we also need to set the JNDI default
         // see hudson.plugins.active_directory.ActiveDirectoryDomain.createDNSLookupContext()
-        System.setProperty(DNSUtils.OVERRIDE_DNS_PROPERTY, "dns://"+hostIP+":553");
+        if (hostInetAddr instanceof Inet6Address) {
+            System.setProperty(DNSUtils.OVERRIDE_DNS_PROPERTY, "dns://["+hostIP+"]:553");
+        } else {
+            System.setProperty(DNSUtils.OVERRIDE_DNS_PROPERTY, "dns://"+hostIP+":553");
+        }
     }
 
     @After
