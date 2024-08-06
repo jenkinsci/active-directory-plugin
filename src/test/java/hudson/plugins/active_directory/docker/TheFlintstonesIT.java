@@ -65,8 +65,6 @@ public class TheFlintstonesIT {
     @Rule(order = 0)
     public RequireDockerRule rdr = new RequireDockerRule();
 
-    // if the rule fails as port 53 is in use (on linux) see hack_systemd_resolve.sh 
-    // or https://www.linuxuprising.com/2020/07/ubuntu-how-to-free-up-port-53-used-by.html
     @Rule(order = 1)
     public ActiveDirectoryGenericContainer<?> docker = new ActiveDirectoryGenericContainer<>().withStaticPorts();
 
@@ -98,8 +96,6 @@ public class TheFlintstonesIT {
 
         // we also need to set the JNDI default
         // see hudson.plugins.active_directory.ActiveDirectoryDomain.createDNSLookupContext()
-        // getHost returns a hostname not IPaddress...
-        // use our DNS to resolve that to an IP address.
         System.setProperty(DNSUtils.OVERRIDE_DNS_PROPERTY, "dns://"+hostIP+":553");
     }
 
