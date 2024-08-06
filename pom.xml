@@ -163,6 +163,7 @@
   <profiles>
     <profile>
       <id>onlyITs</id>
+      <!-- configure surefire to only run the regular ITs when run with mvn test -->
       <build>
         <plugins>
           <plugin>
@@ -181,6 +182,7 @@
       </build>
     </profile>
     <profile>
+      <!-- configure surefire to run the regular ITs in addition to the regular tests when run with mvn test -->
       <id>ITs</id>
         <activation>
           <activeByDefault>true</activeByDefault>
@@ -211,6 +213,7 @@
       </build>
     </profile>
     <profile>
+      <!-- configure surefire to only run the special windows ITs when run with mvn test -->
       <id>onlyWindowsITs</id>
       <build>
         <plugins>
@@ -227,6 +230,7 @@
       </build>
     </profile>
     <profile>
+      <!-- configure surefire to run the special windows ITs in addition to the regular tests when run with mvn test -->
       <id>WindowsITs</id>
       <build>
         <plugins>
