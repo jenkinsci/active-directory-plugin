@@ -80,9 +80,6 @@ public class EntoEndUserCacheLookupEnabledTest {
 
         ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, site, bindName, bindPassword, null, groupLookupStrategy, removeIrrelevantGroups, customDomain, cache, startTls, internalUsersDatabase, false);
         j.getInstance().setSecurityRealm(activeDirectorySecurityRealm);
-        while(!docker.getLogs().contains("custom (exit status 0; expected)")) {
-            Thread.sleep(1000);
-        }
         UserDetails userDetails = null;
         int i = 0;
         while (i < MAX_RETRIES && userDetails == null) {

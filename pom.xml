@@ -129,6 +129,13 @@
       <version>1.19.0</version>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <!-- to manipulate DNS servers for testing -->
+      <groupId>org.burningwave</groupId>
+      <artifactId>tools</artifactId>
+      <version>0.26.1</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -156,6 +163,7 @@
   <profiles>
     <profile>
       <id>onlyITs</id>
+      <!-- configure surefire to only run the regular ITs when run with mvn test -->
       <build>
         <plugins>
           <plugin>
@@ -165,13 +173,20 @@
               <includes>
                 <include>**/*IT.java</include>
               </includes>
+              <excludes>
+                <exclude>**/Windows*IT.java</exclude>
+              </excludes>
             </configuration>
           </plugin>
         </plugins>
       </build>
     </profile>
     <profile>
+      <!-- configure surefire to run the regular ITs in addition to the regular tests when run with mvn test -->
       <id>ITs</id>
+        <activation>
+          <activeByDefault>true</activeByDefault>
+      </activation>
       <build>
         <plugins>
           <plugin>
@@ -187,6 +202,9 @@
                   <includes>
                     <include>**/*IT.java</include>
                   </includes>
+                  <excludes>
+                    <exclude>**/Windows*IT.java</exclude>
+                  </excludes>
                  </configuration>
               </execution>
             </executions>
@@ -194,6 +212,49 @@
         </plugins>
       </build>
     </profile>
+    <profile>
+      <!-- configure surefire to only run the special windows ITs when run with mvn test -->
+      <id>onlyWindowsITs</id>
+      <build>
+        <plugins>
+          <plugin>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <configuration>
+              <forkCount>1</forkCount> <!-- using static ports can not be parallized -->
+              <includes>
+                <include>**/Windows*IT.java</include>
+              </includes>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
+      <!-- configure surefire to run the special windows ITs in addition to the regular tests when run with mvn test -->
+      <id>WindowsITs</id>
+      <build>
+        <plugins>
+          <plugin>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>WindowsITs</id>
+                <goals>
+                  <goal>test</goal>
+                </goals>
+                <configuration>
+                  <forkCount>1</forkCount> <!-- using static ports can not be parallized -->
+                  <includes>
+                    <include>**/Windows*IT.java</include>
+                  </includes>
+                 </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+
   </profiles>
 
   <repositories>
