@@ -32,6 +32,7 @@ import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
+import jenkins.security.FIPS140;
 import org.acegisecurity.BadCredentialsException;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.accmod.Restricted;
@@ -149,6 +150,11 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
     @DataBoundConstructor
     public ActiveDirectoryDomain(String name, String servers, String site, String bindName, String bindPassword, TlsConfiguration tlsConfiguration) {
         this.name = name;
+        // Gives exception if Password is set lees than 14 chars long in FIPS mode.
+        if(FIPS140.useCompliantAlgorithms() && StringUtils.length(bindPassword) < 14) {
+            throw new IllegalArgumentException(Messages.passwordTooShortFIPS());
+        }
+
         // Append default port if not specified
         servers = fixEmpty(servers);
         if (servers != null) {
@@ -264,6 +270,17 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
                 model.add(tlsConfiguration.getDisplayName(),tlsConfiguration.name());
             }
             return model;
+        }
+
+        /**
+         * Displays an error message if the provided password is less than 14 characters
+         * while in FIPS mode. This message is triggered when the bindPassword field loses focus.
+         */
+        public FormValidation doCheckBindPassword(@QueryParameter String bindPassword) {
+            if(FIPS140.useCompliantAlgorithms() && StringUtils.length(bindPassword) < 14) {
+                return FormValidation.error(Messages.passwordTooShortFIPS());
+            }
+            return FormValidation.ok();
         }
 
         @RequirePOST
