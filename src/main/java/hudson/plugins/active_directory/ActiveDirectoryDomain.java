@@ -32,6 +32,7 @@ import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
+import jenkins.security.FIPS140;
 import org.acegisecurity.BadCredentialsException;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.accmod.Restricted;
@@ -260,11 +261,22 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
 
         public ListBoxModel doFillTlsConfigurationItems() {
             ListBoxModel model = new ListBoxModel();
-            for (TlsConfiguration tlsConfiguration : TlsConfiguration.values()) {
-                model.add(tlsConfiguration.getDisplayName(),tlsConfiguration.name());
+            // when in FIPS mode, insecure certificates should not be used, so this option will not be provided
+            if (FIPS140.useCompliantAlgorithms()) {
+                for (TlsConfiguration tlsConfiguration : TlsConfiguration.values()) {
+                    if (!tlsConfiguration.getDisplayName().contains("Insecure")) {
+                        model.add(tlsConfiguration.getDisplayName(), tlsConfiguration.name());
+                    }
+                }
+            }
+            else {
+                for (TlsConfiguration tlsConfiguration : TlsConfiguration.values()) {
+                    model.add(tlsConfiguration.getDisplayName(), tlsConfiguration.name());
+                }
             }
             return model;
         }
+
 
         @RequirePOST
         public FormValidation doValidateTest(@QueryParameter(fixEmpty = true) String name, @QueryParameter(fixEmpty = true) String servers, @QueryParameter(fixEmpty = true) String site, @QueryParameter(fixEmpty = true) String bindName,
