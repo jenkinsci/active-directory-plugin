@@ -149,6 +149,11 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
 
     @DataBoundConstructor
     public ActiveDirectoryDomain(String name, String servers, String site, String bindName, String bindPassword, TlsConfiguration tlsConfiguration) {
+        // Gives exception if an insecure certificate is used in FIPS mode.
+        if (isFipsNonCompliant(tlsConfiguration.name().equals(TlsConfiguration.TRUST_ALL_CERTIFICATES.name()))) {
+            throw new IllegalArgumentException(Messages.TlsConfiguration_CertificateError());
+        }
+
         this.name = name;
         // Append default port if not specified
         servers = fixEmpty(servers);
@@ -261,22 +266,18 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
 
         public ListBoxModel doFillTlsConfigurationItems() {
             ListBoxModel model = new ListBoxModel();
-            // when in FIPS mode, insecure certificates should not be used, so this option will not be provided
-            if (FIPS140.useCompliantAlgorithms()) {
-                for (TlsConfiguration tlsConfiguration : TlsConfiguration.values()) {
-                    if (!tlsConfiguration.getDisplayName().contains("Insecure")) {
-                        model.add(tlsConfiguration.getDisplayName(), tlsConfiguration.name());
-                    }
-                }
-            }
-            else {
-                for (TlsConfiguration tlsConfiguration : TlsConfiguration.values()) {
-                    model.add(tlsConfiguration.getDisplayName(), tlsConfiguration.name());
-                }
+            for (TlsConfiguration tlsConfiguration : TlsConfiguration.values()) {
+                model.add(tlsConfiguration.getDisplayName(),tlsConfiguration.name());
             }
             return model;
         }
 
+        public FormValidation doCheckTlsConfiguration(@QueryParameter String tlsConfiguration) {
+            if (!tlsConfiguration.isBlank() && isFipsNonCompliant(tlsConfiguration.equals(TlsConfiguration.TRUST_ALL_CERTIFICATES.name()))) {
+                return FormValidation.error(Messages.TlsConfiguration_CertificateError());
+            }
+            return FormValidation.ok();
+        }
 
         @RequirePOST
         public FormValidation doValidateTest(@QueryParameter(fixEmpty = true) String name, @QueryParameter(fixEmpty = true) String servers, @QueryParameter(fixEmpty = true) String site, @QueryParameter(fixEmpty = true) String bindName,
@@ -292,6 +293,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
 
             ClassLoader ccl = Thread.currentThread().getContextClassLoader();
             Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
+
             try {
                 // In case we can do native authentication
                 if (activeDirectorySecurityRealm.getDescriptor().canDoNativeAuth() && name==null) {
@@ -390,6 +392,17 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
                 Thread.currentThread().setContextClassLoader(ccl);
             }
         }
+    }
+
+    /**
+     * Checks whether Jenkins is running in FIPS mode and which certificate has been chosen.
+     *
+     * @return true if the application is in FIPS mode, and a secure certificate is used.
+     *         <br>
+     *         false if either the application is not in FIPS mode or any certificate is used.
+     */
+    private static boolean isFipsNonCompliant(boolean secureCertificate) {
+        return FIPS140.useCompliantAlgorithms() && secureCertificate;
     }
 
     private static final Logger LOGGER = Logger.getLogger(ActiveDirectoryUnixAuthenticationProvider.class.getName());
