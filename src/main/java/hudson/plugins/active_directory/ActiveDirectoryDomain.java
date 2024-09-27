@@ -395,14 +395,14 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
     }
 
     /**
-     * Checks whether Jenkins is running in FIPS mode and which certificate has been chosen.
+     * Checks whether Jenkins is running in FIPS mode and if the TLS configuration is safe.
      *
-     * @return true if the application is in FIPS mode, and a secure certificate is used.
+     * @return true if the application is in FIPS mode, and the TLS configuration is insecure.
      *         <br>
      *         false if either the application is not in FIPS mode or any certificate is used.
      */
-    private static boolean isFipsNonCompliant(boolean secureCertificate) {
-        return FIPS140.useCompliantAlgorithms() && secureCertificate;
+    private static boolean isFipsNonCompliant(boolean insecureTlsConfiguration) {
+        return FIPS140.useCompliantAlgorithms() && insecureTlsConfiguration;
     }
 
     private static final Logger LOGGER = Logger.getLogger(ActiveDirectoryUnixAuthenticationProvider.class.getName());
