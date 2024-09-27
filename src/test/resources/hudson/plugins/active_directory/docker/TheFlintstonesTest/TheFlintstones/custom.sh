@@ -13,10 +13,12 @@ samba-tool user add Fred ia4uV1EeKait
 samba-tool user add Wilma ia4uV1EeKait
 samba-tool user add Barney ia4uV1EeKait
 samba-tool user add Betty ia4uV1EeKait
+samba-tool user add Dino p1bfdrMsqyHhbAm
 
 # add users to groups
 samba-tool group addmembers The-Flintstones Fred
 samba-tool group addmembers The-Flintstones Wilma
+samba-tool group addmembers The-Flintstones Dino
 samba-tool group addmembers "The Rubbles" Barney
 
 # add alias for the "The Rubbles"

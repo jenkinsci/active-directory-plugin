@@ -24,6 +24,7 @@
 package hudson.plugins.active_directory;
 
 import com4j.typelibs.ado20.ClassFactory;
+import io.jenkins.cli.shaded.org.apache.commons.lang.StringUtils;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -941,6 +942,11 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
     @Override
     protected UserDetails authenticate(String username, String password) throws AuthenticationException {
+        // Check if the password length is less than 14 characters
+        if(FIPS140.useCompliantAlgorithms() && StringUtils.length(password) < 14) {
+            throw new IllegalArgumentException(Messages.passwordTooShortFIPS());
+        }
+
         UserDetails userDetails = getAuthenticationProvider().retrieveUser(username,new UsernamePasswordAuthenticationToken(username,password));
         SecurityListener.fireAuthenticated(userDetails);
         return userDetails;
