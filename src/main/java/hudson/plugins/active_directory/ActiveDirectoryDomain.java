@@ -286,13 +286,21 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
                                              @QueryParameter(fixEmpty = true) String bindPassword, @QueryParameter(fixEmpty = true) TlsConfiguration tlsConfiguration, @QueryParameter GroupLookupStrategy groupLookupStrategy,
                                              @QueryParameter(fixEmpty = false) boolean removeIrrelevantGroups, @QueryParameter(fixEmpty = true) boolean startTls, @QueryParameter(fixEmpty = true) boolean requireTLS) throws NamingException {
             Jenkins.get().checkPermission(Jenkins.ADMINISTER);
-            ActiveDirectoryDomain domain = new ActiveDirectoryDomain(name, servers, site, bindName, bindPassword, tlsConfiguration);
-            List<ActiveDirectoryDomain> domains = new ArrayList<>(1);
-            domains.add(domain);
 
-            ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(name, domains, site, bindName,
-                    bindPassword, null, groupLookupStrategy, removeIrrelevantGroups, true, null, startTls, null, requireTLS);
+            final ActiveDirectoryDomain domain;
+            final ActiveDirectorySecurityRealm activeDirectorySecurityRealm;
+            try {
+                domain = new ActiveDirectoryDomain(name, servers, site, bindName, bindPassword, tlsConfiguration);
+                List<ActiveDirectoryDomain> domains = new ArrayList<>(1);
+                domains.add(domain);
 
+                activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(name, domains, site, bindName, bindPassword, null,
+                                                                                groupLookupStrategy, removeIrrelevantGroups, true, null,
+                                                                                startTls, null, requireTLS);
+            } catch (IllegalArgumentException e) {
+                // Thrown in FIPS mode with invalid configuration
+                return FormValidation.error(e.getMessage());
+            }
             ClassLoader ccl = Thread.currentThread().getContextClassLoader();
             Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
 
