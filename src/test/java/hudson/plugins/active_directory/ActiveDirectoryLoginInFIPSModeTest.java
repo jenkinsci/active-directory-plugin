@@ -3,12 +3,12 @@ package hudson.plugins.active_directory;
 import java.lang.reflect.Field;
 import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
 import org.acegisecurity.userdetails.UserDetails;
-import org.junit.After;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.jvnet.hudson.test.FlagRule;
 import org.mockito.Mockito;
 
-import jenkins.security.FIPS140;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
@@ -16,16 +16,14 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
-/**
- * Author: Nevin Sunny
- * Date: 30/09/24
- * Time: 10:13 am
- */
 public class ActiveDirectoryLoginInFIPSModeTest {
-
 
 	private ActiveDirectorySecurityRealm securityRealm;
 	private AbstractActiveDirectoryAuthenticationProvider authenticationProvider;
+
+	@ClassRule
+	public static FlagRule<String> fipsSystemPropertyRule =
+			FlagRule.systemProperty("jenkins.security.FIPS140.COMPLIANCE", "true");
 
 	@Before
 	public void setUp() throws NoSuchMethodException, NoSuchFieldException, IllegalAccessException {
@@ -42,18 +40,8 @@ public class ActiveDirectoryLoginInFIPSModeTest {
 
 	}
 	
-	@After
-	public void tearDown() {
-		// Clear all static mocks after each test
-		Mockito.clearAllCaches();
-	}
-
 	@Test
 	public void testAuthenticateWithShortPassword() {
-		// Set FIPS to compliant algorithms
-		Mockito.mockStatic(FIPS140.class);
-		when(FIPS140.useCompliantAlgorithms()).thenReturn(true);
-
 		String username = "user";
 		String password = "short";
 
@@ -66,11 +54,7 @@ public class ActiveDirectoryLoginInFIPSModeTest {
 
 	@Test
 	public void testAuthenticateWithValidPassword() {
-		// Set FIPS to compliant algorithms
-		Mockito.mockStatic(FIPS140.class);
-		when(FIPS140.useCompliantAlgorithms()).thenReturn(true);
-
-		String username = "user";
+        String username = "user";
 		String password = "verylongpassword";
 
 		// Mock the retrieveUser method
