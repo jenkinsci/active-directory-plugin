@@ -275,7 +275,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
         @RequirePOST
         public FormValidation doCheckTlsConfiguration(@QueryParameter String tlsConfiguration) {
             Jenkins.get().checkPermission(Jenkins.ADMINISTER);
-            if (!tlsConfiguration.isBlank() && isFipsNonCompliant(tlsConfiguration.equals(TlsConfiguration.TRUST_ALL_CERTIFICATES.name()))) {
+            if (isFipsNonCompliant(TlsConfiguration.TRUST_ALL_CERTIFICATES.name().equals(tlsConfiguration))) {
                 return FormValidation.error(Messages.TlsConfiguration_CertificateError());
             }
             return FormValidation.ok();
