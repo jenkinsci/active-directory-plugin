@@ -42,14 +42,11 @@ import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
 import javax.naming.CommunicationException;
-import javax.naming.Context;
 import javax.naming.NamingException;
 import javax.naming.ServiceUnavailableException;
 import javax.naming.directory.Attribute;
 import javax.naming.directory.Attributes;
 import javax.naming.directory.DirContext;
-import javax.naming.directory.InitialDirContext;
-import javax.servlet.ServletException;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -276,6 +273,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
          * Displays an error message if the provided password is less than 14 characters
          * while in FIPS mode. This message is triggered when the bindPassword field loses focus.
          */
+        @RequirePOST
         public FormValidation doCheckBindPassword(@QueryParameter String bindPassword) {
             if(FIPS140.useCompliantAlgorithms() && StringUtils.length(bindPassword) < 14) {
                 return FormValidation.error(Messages.passwordTooShortFIPS());
