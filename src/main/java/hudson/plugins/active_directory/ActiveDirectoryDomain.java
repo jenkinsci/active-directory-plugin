@@ -150,7 +150,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
     @DataBoundConstructor
     public ActiveDirectoryDomain(String name, String servers, String site, String bindName, String bindPassword, TlsConfiguration tlsConfiguration) {
         // Gives exception if an insecure certificate is used in FIPS mode.
-        if (isFipsNonCompliant(tlsConfiguration.equals(TlsConfiguration.TRUST_ALL_CERTIFICATES))) {
+        if (isFipsNonCompliant(TlsConfiguration.TRUST_ALL_CERTIFICATES.equals(tlsConfiguration))) {
             throw new IllegalArgumentException(Messages.TlsConfiguration_CertificateError());
         }
 
@@ -275,7 +275,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
         @RequirePOST
         public FormValidation doCheckTlsConfiguration(@QueryParameter String tlsConfiguration) {
             Jenkins.get().checkPermission(Jenkins.ADMINISTER);
-            if (!tlsConfiguration.isBlank() && isFipsNonCompliant(tlsConfiguration.equals(TlsConfiguration.TRUST_ALL_CERTIFICATES.name()))) {
+            if (isFipsNonCompliant(TlsConfiguration.TRUST_ALL_CERTIFICATES.name().equals(tlsConfiguration))) {
                 return FormValidation.error(Messages.TlsConfiguration_CertificateError());
             }
             return FormValidation.ok();
