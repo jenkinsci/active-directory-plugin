@@ -1,0 +1,15 @@
+jenkins:
+  securityRealm:
+    activeDirectory:
+      cache:
+        size: 500
+        ttl: 600
+      customDomain: true
+      domains:
+        - bindName: "admin"
+          bindPassword: "${BIND_PASSWORD_2}"
+          name: "acme2"
+          servers: "ad1.acme2.com:123,ad2.acme2.com:456"
+          site: "site2"
+          tlsConfiguration: JDK_TRUSTSTORE
+      startTls: true
