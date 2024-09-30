@@ -24,7 +24,7 @@ public class ActiveDirectoryDomainTest {
 	public void testPasswordTooShortInFIPSMode() {
 		// Create an instance of ActiveDirectoryDomain with a short password and assert exception
 		IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
-			new ActiveDirectoryDomain("example.com", "server", "site", "bindName", "short", TlsConfiguration.TRUST_ALL_CERTIFICATES);
+			new ActiveDirectoryDomain("example.com", "server", "site", "bindName", "short", TlsConfiguration.JDK_TRUSTSTORE);
 		});
 
 		// Verify the exception message
@@ -34,7 +34,7 @@ public class ActiveDirectoryDomainTest {
 	@Test
 	public void testPasswordValidInFIPSMode() {
 		// Create an instance of ActiveDirectoryDomain with a valid password
-		ActiveDirectoryDomain domain = new ActiveDirectoryDomain("example.com", "server", "site", "bindName", "validPassword123", TlsConfiguration.TRUST_ALL_CERTIFICATES);
+		ActiveDirectoryDomain domain = new ActiveDirectoryDomain("example.com", "server", "site", "bindName", "validPassword123", TlsConfiguration.JDK_TRUSTSTORE);
 
 		// Verify the domain object is created successfully
 		assertEquals("example.com", domain.getName());
