@@ -3,6 +3,7 @@ package hudson.plugins.active_directory;
 import java.lang.reflect.Field;
 import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
 import org.acegisecurity.userdetails.UserDetails;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -39,6 +40,12 @@ public class ActiveDirectoryLoginInFIPSModeTest {
 		field.setAccessible(true);
 		field.set(securityRealm, authenticationProvider);
 
+	}
+	
+	@After
+	public void tearDown() {
+		// Clear all static mocks after each test
+		Mockito.clearAllCaches();
 	}
 
 	@Test
