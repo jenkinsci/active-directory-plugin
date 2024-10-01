@@ -13,15 +13,11 @@
         <bindName>CN=Administrator,CN=Users,DC=samdom,DC=example,DC=com</bindName>
         <bindPassword>small</bindPassword>
         <tlsConfiguration>TRUST_ALL_CERTIFICATES</tlsConfiguration>
-        <internalUsersDatabase>admin</internalUsersDatabase>
       </hudson.plugins.active__directory.ActiveDirectoryDomain>
     </domains>
     <startTls>true</startTls>
     <groupLookupStrategy>RECURSIVE</groupLookupStrategy>
     <removeIrrelevantGroups>false</removeIrrelevantGroups>
-    <internalUsersDatabase>
-      <jenkinsInternalUser>admin</jenkinsInternalUser>
-    </internalUsersDatabase>
   </securityRealm>
   <disableRememberMe>false</disableRememberMe>
   <projectNamingStrategy class="jenkins.model.ProjectNamingStrategy$DefaultProjectNamingStrategy"/>
