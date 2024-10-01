@@ -1,14 +1,20 @@
 package hudson.plugins.active_directory;
 
 import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
 import org.acegisecurity.userdetails.UserDetails;
+import org.htmlunit.FailingHttpStatusCodeException;
 import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.FlagRule;
+import org.jvnet.hudson.test.JenkinsRule;
 import org.mockito.Mockito;
-
+import org.springframework.security.authentication.AuthenticationServiceException;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
@@ -45,7 +51,7 @@ public class ActiveDirectoryLoginInFIPSModeTest {
 		String username = "user";
 		String password = "short";
 
-		Exception exception = assertThrows(IllegalArgumentException.class, () -> {
+		Exception exception = assertThrows(AuthenticationServiceException.class, () -> {
 			securityRealm.authenticate(username, password);
 		});
 
@@ -67,6 +73,4 @@ public class ActiveDirectoryLoginInFIPSModeTest {
 
 		assertEquals("user",userDetails.getUsername() );
 	}
-
-
 }
