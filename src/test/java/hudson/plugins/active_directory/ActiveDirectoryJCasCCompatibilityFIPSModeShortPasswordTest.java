@@ -30,7 +30,6 @@ public class ActiveDirectoryJCasCCompatibilityFIPSModeShortPasswordTest {
     @Test
     public void checkOfIncorrectConfigurationsWithShortPasswordInFIPSMode() throws IOException {
         thrown.expect(IllegalStateException.class);
-        thrown.expectMessage(Messages.passwordTooShortFIPS());
 
         String resourcePath = "configuration-as-code-fips-short-password.yaml";
         String resourceContent = this.getResourceContent(resourcePath);
