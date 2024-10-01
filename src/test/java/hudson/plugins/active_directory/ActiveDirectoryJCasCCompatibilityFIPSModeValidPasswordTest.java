@@ -28,7 +28,7 @@ public class ActiveDirectoryJCasCCompatibilityFIPSModeValidPasswordTest extends 
         assertEquals("admin", domain.bindName);
         assertEquals("ad1.acme.com:123,ad2.acme.com:456", domain.servers);
         assertEquals("site", domain.getSite());
-        assertEquals("S3cur3P@ssw0rd!", domain.getBindPassword().getPlainText());  // check for valid password
+        assertEquals("veryLargePassword", domain.getBindPassword().getPlainText());  // check for valid password
         assertEquals(TlsConfiguration.JDK_TRUSTSTORE, domain.getTlsConfiguration());
 
         assertEquals(2, realm.getEnvironmentProperties().size());
