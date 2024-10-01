@@ -57,6 +57,7 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.io.ObjectStreamException;
 
 import static hudson.plugins.active_directory.ActiveDirectoryUnixAuthenticationProvider.toDC;
 
@@ -201,6 +202,13 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
     @Restricted(NoExternalUse.class)
     public TlsConfiguration getTlsConfiguration() {
         return tlsConfiguration;
+    }
+
+    private Object readResolve() throws ObjectStreamException {
+        if (isFipsNonCompliant(tlsConfiguration != null && TlsConfiguration.TRUST_ALL_CERTIFICATES.name().equals(tlsConfiguration.name()))) {
+            throw new IllegalStateException(Messages.TlsConfiguration_CertificateError());
+        }
+        return this;
     }
 
     /**

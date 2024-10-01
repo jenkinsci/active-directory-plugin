@@ -1,6 +1,7 @@
 package hudson.plugins.active_directory;
 
 import java.nio.file.Paths;
+import java.util.logging.Level;
 
 import hudson.ExtensionList;
 import hudson.util.FormValidation;
@@ -10,18 +11,24 @@ import org.junit.Test;
 import org.junit.rules.TestRule;
 import org.jvnet.hudson.test.FlagRule;
 import org.jvnet.hudson.test.JenkinsRule;
-
+import org.jvnet.hudson.test.LoggerRule;
 import io.jenkins.plugins.casc.ConfigurationAsCode;
 import io.jenkins.plugins.casc.ConfiguratorException;
-
+import org.jvnet.hudson.test.recipes.LocalData;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.fail;
+import static org.jvnet.hudson.test.LoggerRule.recorded;
 
 public class ActiveDirectoryDomainFipsEnabledTest {
 
     @Rule
     public JenkinsRule jenkinsRule = new JenkinsRule();
+
+    @Rule
+    public LoggerRule loggerRule = new LoggerRule().record("hudson.diagnosis.OldDataMonitor", Level.INFO).capture(1000);
 
     @ClassRule
     public static TestRule fip140Prop = FlagRule.systemProperty("jenkins.security.FIPS140.COMPLIANCE", "true");
@@ -59,5 +66,13 @@ public class ActiveDirectoryDomainFipsEnabledTest {
         } catch (Exception e) {
             fail("Secure TLS configuration should be allowed");
         }
+    }
+
+    @Test
+    @LocalData
+    public void testBlowsUpOnStart() throws Throwable {
+
+        assertThat(loggerRule, recorded(any(String.class), hasProperty("message", containsString("Choosing an insecure TLS configuration in FIPS mode is not allowed"))));
+
     }
 }
