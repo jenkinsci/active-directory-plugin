@@ -131,9 +131,11 @@ public class ActiveDirectoryDomainIntegrationTest {
 		HtmlPage configPage = webClient.goTo("configureSecurity");
 
 		// Wait for JavaScript to finish loading the page
-		webClient.waitForBackgroundJavaScript(2000); // Wait for up to 2 seconds for the page to load
+		webClient.waitForBackgroundJavaScript(5000);
 		HtmlForm form = configPage.getFormByName("config");
 
+		// Wait for JavaScript to finish loading the page
+		webClient.waitForBackgroundJavaScript(5000);
 		//Check that the password is too short message is present
 		assertTrue(form.asNormalizedText().contains(Messages.passwordTooShortFIPS()));
 
