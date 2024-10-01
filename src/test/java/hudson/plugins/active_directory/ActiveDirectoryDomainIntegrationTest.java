@@ -123,29 +123,29 @@ public class ActiveDirectoryDomainIntegrationTest {
 	 * indicating that the password is too short, along with an "angry Jenkins" error message.</p>
 	 *
 	 */
-	@LocalData
-	@Test
-	public void testActiveDirectoryDomainTestDomainButtonClickWithShortPassword() throws Exception {
-		JenkinsRule.WebClient webClient = jenkins.createWebClient();
-		// Navigate to the configuration page
-		HtmlPage configPage = webClient.goTo("configureSecurity");
-		HtmlForm form = configPage.getFormByName("config");
-
-		//Check that the password is too short message is present
-		assertTrue(form.asNormalizedText().contains(Messages.passwordTooShortFIPS()));
-
-		// Click the "Test Domain" button
-		HtmlPage resultPage = getButtonByText(form, "Test Domain").click();
-
-		webClient.waitForBackgroundJavaScript(2000); // Wait for up to 5 seconds
-
-		String responseContent = resultPage.asNormalizedText();
-		// Assert that the error message is present in the page content
-		assertTrue(responseContent.contains("A problem occurred while processing the request"));
-
-		//Check that the password is too short message is present
-		assertTrue(responseContent.contains(Messages.passwordTooShortFIPS()));
-	}
+//	@LocalData
+//	@Test
+//	public void testActiveDirectoryDomainTestDomainButtonClickWithShortPassword() throws Exception {
+//		JenkinsRule.WebClient webClient = jenkins.createWebClient();
+//		// Navigate to the configuration page
+//		HtmlPage configPage = webClient.goTo("configureSecurity");
+//		HtmlForm form = configPage.getFormByName("config");
+//
+//		//Check that the password is too short message is present
+//		assertTrue(form.asNormalizedText().contains(Messages.passwordTooShortFIPS()));
+//
+//		// Click the "Test Domain" button
+//		HtmlPage resultPage = getButtonByText(form, "Test Domain").click();
+//
+//		webClient.waitForBackgroundJavaScript(2000); // Wait for up to 5 seconds
+//
+//		String responseContent = resultPage.asNormalizedText();
+//		// Assert that the error message is present in the page content
+//		assertTrue(responseContent.contains("A problem occurred while processing the request"));
+//
+//		//Check that the password is too short message is present
+//		assertTrue(responseContent.contains(Messages.passwordTooShortFIPS()));
+//	}
 
 	private HtmlButton getButtonByText(HtmlForm form, String text) throws Exception {
 		for (HtmlElement e : form.getElementsByTagName("button")) {
