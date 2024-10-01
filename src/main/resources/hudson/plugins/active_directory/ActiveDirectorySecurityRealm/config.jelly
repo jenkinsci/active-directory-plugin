@@ -68,7 +68,8 @@
               <f:select />
             </f:entry>
             <f:nested>
-              <f:validateButton with="name,servers,site,bindName,bindPassword,tlsConfiguration,groupLookupStrategy,removeIrrelevantGroups,startTls,requireTLS" title="${%Test Domain}" method="validateTest"/>
+              <f:validateButton
+                      with="name,servers,site,bindName,bindPassword,tlsConfiguration,groupLookupStrategy,removeIrrelevantGroups,startTls,requireTLS" title="${%Test Domain}" method="validateTest" clazz="testDomain"/>
             </f:nested>
           </a:blockWrapper>
           <div align="right">

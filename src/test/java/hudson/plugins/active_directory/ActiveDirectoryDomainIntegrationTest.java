@@ -53,7 +53,7 @@ public class ActiveDirectoryDomainIntegrationTest {
 		thrown.expect(FailingHttpStatusCodeException.class);
 
 		// Find the "Submit" button and click it
-		getButtonByText(form, "Save").click();
+		getButtonByClass(form, "Save").click();
 	}
 
 	/**
@@ -79,7 +79,7 @@ public class ActiveDirectoryDomainIntegrationTest {
 		thrown.expect(FailingHttpStatusCodeException.class);
 
 		// Find the "Apply" button and click it
-		getButtonByText(form, "Apply").click();
+		getButtonByClass(form, "Apply").click();
 	}
 
 	/**
@@ -102,7 +102,7 @@ public class ActiveDirectoryDomainIntegrationTest {
 		//Since password is valid is should not contain password too short message
 		assertFalse(form.asNormalizedText().contains(Messages.passwordTooShortFIPS()));
 		//Since password is valid, it should not throw exception oon clicking apply
-		assertEquals(200, getButtonByText(form, "Apply").click().getWebResponse().getStatusCode());
+		assertEquals(200, getButtonByClass(form, "Apply").click().getWebResponse().getStatusCode());
 
 		// Find the binf password filed and set an invalid password
 		HtmlInput bindPasswordField = form.getInputByName("_.bindPassword");
@@ -112,7 +112,7 @@ public class ActiveDirectoryDomainIntegrationTest {
 		thrown.expect(FailingHttpStatusCodeException.class);
 
 		// Find the "Submit" button and click it
-		getButtonByText(form, "Apply").click();
+		getButtonByClass(form, "Apply").click();
 	}
 
 	/**
@@ -123,33 +123,33 @@ public class ActiveDirectoryDomainIntegrationTest {
 	 * indicating that the password is too short, along with an "angry Jenkins" error message.</p>
 	 *
 	 */
-//	@LocalData
-//	@Test
-//	public void testActiveDirectoryDomainTestDomainButtonClickWithShortPassword() throws Exception {
-//		JenkinsRule.WebClient webClient = jenkins.createWebClient();
-//		// Navigate to the configuration page
-//		HtmlPage configPage = webClient.goTo("configureSecurity");
-//		HtmlForm form = configPage.getFormByName("config");
-//
-//		//Check that the password is too short message is present
-//		assertTrue(form.asNormalizedText().contains(Messages.passwordTooShortFIPS()));
-//
-//		// Click the "Test Domain" button
-//		HtmlPage resultPage = getButtonByText(form, "Test Domain").click();
-//
-//		webClient.waitForBackgroundJavaScript(2000); // Wait for up to 5 seconds
-//
-//		String responseContent = resultPage.asNormalizedText();
-//		// Assert that the error message is present in the page content
-//		assertTrue(responseContent.contains("A problem occurred while processing the request"));
-//
-//		//Check that the password is too short message is present
-//		assertTrue(responseContent.contains(Messages.passwordTooShortFIPS()));
-//	}
+	@LocalData
+	@Test
+	public void testActiveDirectoryDomainTestDomainButtonClickWithShortPassword() throws Exception {
+		JenkinsRule.WebClient webClient = jenkins.createWebClient();
+		// Navigate to the configuration page
+		HtmlPage configPage = webClient.goTo("configureSecurity");
+		HtmlForm form = configPage.getFormByName("config");
 
-	private HtmlButton getButtonByText(HtmlForm form, String text) throws Exception {
+		//Check that the password is too short message is present
+		assertTrue(form.asNormalizedText().contains(Messages.passwordTooShortFIPS()));
+
+		// Click the "Test Domain" button
+		HtmlPage resultPage = getButtonByClass(form, "Test Domain").click();
+
+		webClient.waitForBackgroundJavaScript(2000); // Wait for up to 5 seconds
+
+		String responseContent = resultPage.asNormalizedText();
+		// Assert that the error message is present in the page content
+		assertTrue(responseContent.contains("A problem occurred while processing the request"));
+
+		//Check that the password is too short message is present
+		assertTrue(responseContent.contains(Messages.passwordTooShortFIPS()));
+	}
+
+	private HtmlButton getButtonByClass(HtmlForm form, String text) throws Exception {
 		for (HtmlElement e : form.getElementsByTagName("button")) {
-			if (e.getTextContent().contains(text)) {
+			if (e.getAttribute("class").contains("testDomain")) {
 				return ((HtmlButton) e);
 			}
 		}
