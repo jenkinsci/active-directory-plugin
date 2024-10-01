@@ -31,38 +31,6 @@ public class ActiveDirectoryDomainIntegrationTest {
 
 
 	/**
-	 * Tests the behavior of the "Test Domain" button when a short password is configured.
-	 *
-	 * <p>For the preconfigured value, the password is "small" in the local data.
-	 * When the "Test Domain" button is clicked, the page should display an error message
-	 * indicating that the password is too short, along with an "angry Jenkins" error message.</p>
-	 *
-	 */
-	@LocalData
-	@Test
-	public void testActiveDirectoryDomainTestDomainButtonClickWithShortPassword() throws Exception {
-		JenkinsRule.WebClient webClient = jenkins.createWebClient();
-		// Navigate to the configuration page
-		HtmlPage configPage = webClient.goTo("configureSecurity");
-		HtmlForm form = configPage.getFormByName("config");
-
-		//Check that the password is too short message is present
-		assertTrue(form.asNormalizedText().contains(Messages.passwordTooShortFIPS()));
-
-		// Click the "Test Domain" button
-		HtmlPage resultPage = getButtonByText(form, "Test Domain").click();
-
-		webClient.waitForBackgroundJavaScript(2000); // Wait for up to 5 seconds
-
-		String responseContent = resultPage.asNormalizedText();
-		// Assert that the error message is present in the page content
-		assertTrue(responseContent.contains("A problem occurred while processing the request"));
-
-		//Check that the password is too short message is present
-		assertTrue(responseContent.contains(Messages.passwordTooShortFIPS()));
-	}
-
-	/**
 	 * Tests the behavior of the "Save" button when a short password is configured.
 	 *
 	 * <p>For the preconfigured value, the password is "small" in the local data.
@@ -145,6 +113,38 @@ public class ActiveDirectoryDomainIntegrationTest {
 
 		// Find the "Submit" button and click it
 		getButtonByText(form, "Apply").click();
+	}
+
+	/**
+	 * Tests the behavior of the "Test Domain" button when a short password is configured.
+	 *
+	 * <p>For the preconfigured value, the password is "small" in the local data.
+	 * When the "Test Domain" button is clicked, the page should display an error message
+	 * indicating that the password is too short, along with an "angry Jenkins" error message.</p>
+	 *
+	 */
+	@LocalData
+	@Test
+	public void testActiveDirectoryDomainTestDomainButtonClickWithShortPassword() throws Exception {
+		JenkinsRule.WebClient webClient = jenkins.createWebClient();
+		// Navigate to the configuration page
+		HtmlPage configPage = webClient.goTo("configureSecurity");
+		HtmlForm form = configPage.getFormByName("config");
+
+		//Check that the password is too short message is present
+		assertTrue(form.asNormalizedText().contains(Messages.passwordTooShortFIPS()));
+
+		// Click the "Test Domain" button
+		HtmlPage resultPage = getButtonByText(form, "Test Domain").click();
+
+		webClient.waitForBackgroundJavaScript(2000); // Wait for up to 5 seconds
+
+		String responseContent = resultPage.asNormalizedText();
+		// Assert that the error message is present in the page content
+		assertTrue(responseContent.contains("A problem occurred while processing the request"));
+
+		//Check that the password is too short message is present
+		assertTrue(responseContent.contains(Messages.passwordTooShortFIPS()));
 	}
 
 	private HtmlButton getButtonByText(HtmlForm form, String text) throws Exception {
