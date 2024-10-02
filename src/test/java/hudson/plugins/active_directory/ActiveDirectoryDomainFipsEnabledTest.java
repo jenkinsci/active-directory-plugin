@@ -8,7 +8,6 @@ import java.util.logging.Level;
 import hudson.ExtensionList;
 import hudson.util.FormValidation;
 import org.htmlunit.FailingHttpStatusCodeException;
-import org.htmlunit.WebResponse;
 import org.htmlunit.html.HtmlForm;
 import org.htmlunit.html.HtmlPage;
 import org.jetbrains.annotations.NotNull;
@@ -22,9 +21,15 @@ import org.jvnet.hudson.test.LoggerRule;
 import io.jenkins.plugins.casc.ConfigurationAsCode;
 import io.jenkins.plugins.casc.ConfiguratorException;
 import org.jvnet.hudson.test.recipes.LocalData;
+import static hudson.Functions.isWindows;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
-import static org.junit.Assert.*;
+import static org.hamcrest.Matchers.any;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasProperty;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeFalse;
 import static org.jvnet.hudson.test.LoggerRule.recorded;
 
 public class ActiveDirectoryDomainFipsEnabledTest {
@@ -83,6 +88,8 @@ public class ActiveDirectoryDomainFipsEnabledTest {
 
     @Test(expected = FailingHttpStatusCodeException.class)
     public void testSaveButton() throws Exception {
+        assumeFalse("JENKINS-73847", isWindows());
+
         ActiveDirectorySecurityRealm activeDirectorySecurityRealm = getActiveDirectorySecurityRealm();
         jenkinsRule.getInstance().setSecurityRealm(activeDirectorySecurityRealm);
         JenkinsRule.WebClient webClient = jenkinsRule.createWebClient();
