@@ -32,6 +32,7 @@ import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
+import jenkins.security.FIPS140;
 import org.acegisecurity.BadCredentialsException;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.accmod.Restricted;
@@ -56,6 +57,7 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.io.ObjectStreamException;
 
 import static hudson.plugins.active_directory.ActiveDirectoryUnixAuthenticationProvider.toDC;
 
@@ -148,6 +150,11 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
 
     @DataBoundConstructor
     public ActiveDirectoryDomain(String name, String servers, String site, String bindName, String bindPassword, TlsConfiguration tlsConfiguration) {
+        // Gives exception if an insecure certificate is used in FIPS mode.
+        if (isFipsNonCompliant(ActiveDirectorySecurityRealm.DescriptorImpl.isTrustAllCertificatesEnabled(tlsConfiguration))) {
+            throw new IllegalArgumentException(Messages.TlsConfiguration_CertificateError());
+        }
+
         this.name = name;
         // Append default port if not specified
         servers = fixEmpty(servers);
@@ -195,6 +202,13 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
     @Restricted(NoExternalUse.class)
     public TlsConfiguration getTlsConfiguration() {
         return tlsConfiguration;
+    }
+
+    protected Object readResolve() {
+        if (isFipsNonCompliant(ActiveDirectorySecurityRealm.DescriptorImpl.isTrustAllCertificatesEnabled(tlsConfiguration))) {
+            throw new IllegalStateException(Messages.TlsConfiguration_CertificateError());
+        }
+        return this;
     }
 
     /**
@@ -267,19 +281,37 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
         }
 
         @RequirePOST
+        public FormValidation doCheckTlsConfiguration(@QueryParameter TlsConfiguration tlsConfiguration) {
+            Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+            if (isFipsNonCompliant(ActiveDirectorySecurityRealm.DescriptorImpl.isTrustAllCertificatesEnabled(tlsConfiguration))) {
+                return FormValidation.error(Messages.TlsConfiguration_CertificateError());
+            }
+            return FormValidation.ok();
+        }
+
+        @RequirePOST
         public FormValidation doValidateTest(@QueryParameter(fixEmpty = true) String name, @QueryParameter(fixEmpty = true) String servers, @QueryParameter(fixEmpty = true) String site, @QueryParameter(fixEmpty = true) String bindName,
                                              @QueryParameter(fixEmpty = true) String bindPassword, @QueryParameter(fixEmpty = true) TlsConfiguration tlsConfiguration, @QueryParameter GroupLookupStrategy groupLookupStrategy,
                                              @QueryParameter(fixEmpty = false) boolean removeIrrelevantGroups, @QueryParameter(fixEmpty = true) boolean startTls, @QueryParameter(fixEmpty = true) boolean requireTLS) throws NamingException {
             Jenkins.get().checkPermission(Jenkins.ADMINISTER);
-            ActiveDirectoryDomain domain = new ActiveDirectoryDomain(name, servers, site, bindName, bindPassword, tlsConfiguration);
-            List<ActiveDirectoryDomain> domains = new ArrayList<>(1);
-            domains.add(domain);
 
-            ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(name, domains, site, bindName,
-                    bindPassword, null, groupLookupStrategy, removeIrrelevantGroups, true, null, startTls, null, requireTLS);
+            final ActiveDirectoryDomain domain;
+            final ActiveDirectorySecurityRealm activeDirectorySecurityRealm;
+            try {
+                domain = new ActiveDirectoryDomain(name, servers, site, bindName, bindPassword, tlsConfiguration);
+                List<ActiveDirectoryDomain> domains = new ArrayList<>(1);
+                domains.add(domain);
 
+                activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(name, domains, site, bindName, bindPassword, null,
+                                                                                groupLookupStrategy, removeIrrelevantGroups, true, null,
+                                                                                startTls, null, requireTLS);
+            } catch (IllegalArgumentException e) {
+                // Thrown in FIPS mode with invalid configuration
+                return FormValidation.error(e.getMessage());
+            }
             ClassLoader ccl = Thread.currentThread().getContextClassLoader();
             Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
+
             try {
                 // In case we can do native authentication
                 if (activeDirectorySecurityRealm.getDescriptor().canDoNativeAuth() && name==null) {
@@ -378,6 +410,17 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
                 Thread.currentThread().setContextClassLoader(ccl);
             }
         }
+    }
+
+    /**
+     * Checks whether Jenkins is running in FIPS mode and if the TLS configuration is safe.
+     *
+     * @return true if the application is in FIPS mode, and the TLS configuration is insecure.
+     *         <br>
+     *         false if either the application is not in FIPS mode or any certificate is used.
+     */
+    private static boolean isFipsNonCompliant(boolean insecureTlsConfiguration) {
+        return FIPS140.useCompliantAlgorithms() && insecureTlsConfiguration;
     }
 
     private static final Logger LOGGER = Logger.getLogger(ActiveDirectoryUnixAuthenticationProvider.class.getName());
