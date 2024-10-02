@@ -204,7 +204,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
         return tlsConfiguration;
     }
 
-    private Object readResolve() throws ObjectStreamException {
+    protected Object readResolve() {
         if (isFipsNonCompliant(tlsConfiguration != null && TlsConfiguration.TRUST_ALL_CERTIFICATES.name().equals(tlsConfiguration.name()))) {
             throw new IllegalStateException(Messages.TlsConfiguration_CertificateError());
         }
