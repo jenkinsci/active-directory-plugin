@@ -245,7 +245,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
     public ActiveDirectorySecurityRealm(String domain, List<ActiveDirectoryDomain> domains, String site, String bindName,
                                         String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache, Boolean startTls) {
-        this(domain, domains, site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups, customDomain, cache, startTls, TlsConfiguration.TRUST_ALL_CERTIFICATES);
+        this(domain, domains, site, bindName, bindPassword, server, groupLookupStrategy, removeIrrelevantGroups, customDomain, cache, startTls, TlsConfiguration.JDK_TRUSTSTORE);
     }
 
     public ActiveDirectorySecurityRealm(String domain, List<ActiveDirectoryDomain> domains, String site, String bindName,
@@ -599,7 +599,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
         @Deprecated
         public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers, Hashtable<String, String> props) throws NamingException {
-            return bind(principalName, password, ldapServers, props, TlsConfiguration.TRUST_ALL_CERTIFICATES);
+            return bind(principalName, password, ldapServers, props, TlsConfiguration.JDK_TRUSTSTORE);
         }
 
         @Deprecated
