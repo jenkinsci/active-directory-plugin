@@ -145,7 +145,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
 
     @Deprecated
     public ActiveDirectoryDomain(String name, String servers, String site, String bindName, String bindPassword) {
-        this(name, servers, site, bindName, bindPassword, TlsConfiguration.JDK_TRUSTSTORE);
+        this(name, servers, site, bindName, bindPassword, TlsConfiguration.TRUST_ALL_CERTIFICATES);
     }
 
     @DataBoundConstructor

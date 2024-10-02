@@ -33,8 +33,15 @@ public class ActiveDirectoryLoginInFIPSModeTest {
 
 	@Before
 	public void setUp() throws NoSuchMethodException, NoSuchFieldException, IllegalAccessException {
-		securityRealm = new ActiveDirectorySecurityRealm("domain", "site"
-				, "bindName", "bindPassword", "server");
+		ActiveDirectoryDomain activeDirectoryDomain = new ActiveDirectoryDomain("name", "server"
+				, "site", "name", "password", TlsConfiguration.JDK_TRUSTSTORE);
+		List<ActiveDirectoryDomain> domains = new ArrayList<>(1);
+		domains.add(activeDirectoryDomain);
+		ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, null, null, null
+				, null, GroupLookupStrategy.RECURSIVE, false, true, null, true, null, true);
+
+		securityRealm = new ActiveDirectorySecurityRealm(null, domains, null, null, null
+				, null, GroupLookupStrategy.RECURSIVE, false, true, null, true, null, true);
 
 		// Create a mock instance of AbstractActiveDirectoryAuthenticationProvider
 		authenticationProvider = Mockito.mock(AbstractActiveDirectoryAuthenticationProvider.class);
