@@ -205,7 +205,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
     }
 
     protected Object readResolve() {
-        if (isFipsNonCompliant(tlsConfiguration != null && TlsConfiguration.TRUST_ALL_CERTIFICATES.name().equals(tlsConfiguration.name()))) {
+        if (isFipsNonCompliant(tlsConfiguration != null && TlsConfiguration.TRUST_ALL_CERTIFICATES.equals(tlsConfiguration))) {
             throw new IllegalStateException(Messages.TlsConfiguration_CertificateError());
         }
         return this;
