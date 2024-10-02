@@ -210,6 +210,12 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
         if (isFipsNonCompliant(ActiveDirectorySecurityRealm.DescriptorImpl.isTrustAllCertificatesEnabled(tlsConfiguration))) {
             throw new IllegalStateException(Messages.TlsConfiguration_CertificateError());
         }
+
+        String bindPassword_ = Secret.toString(bindPassword);
+        if(FIPS140.useCompliantAlgorithms() && StringUtils.length(bindPassword_) < 14) {
+            throw new IllegalArgumentException(Messages.passwordTooShortFIPS());
+        }
+
         return this;
     }
 

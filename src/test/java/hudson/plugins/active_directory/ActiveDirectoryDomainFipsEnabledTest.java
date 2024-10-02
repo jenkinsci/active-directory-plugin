@@ -61,7 +61,7 @@ public class ActiveDirectoryDomainFipsEnabledTest {
 
         try {
             new ActiveDirectoryDomain("name", "the_server", "site", "bindName",
-                                                                     "bindPassword", TlsConfiguration.JDK_TRUSTSTORE);
+                                                                     "bindPasswordFIPS", TlsConfiguration.JDK_TRUSTSTORE);
         } catch (Exception e) {
             fail("Secure TLS configuration should be allowed");
         }
@@ -104,7 +104,7 @@ public class ActiveDirectoryDomainFipsEnabledTest {
 
     private static @NotNull ActiveDirectorySecurityRealm getActiveDirectorySecurityRealm() {
         ActiveDirectoryDomain activeDirectoryDomain = new ActiveDirectoryDomain("name", "server"
-                , "site", "name", "password", TlsConfiguration.JDK_TRUSTSTORE);
+                , "site", "name", "passwordforFIPS", TlsConfiguration.JDK_TRUSTSTORE);
         List<ActiveDirectoryDomain> domains = new ArrayList<>(1);
         domains.add(activeDirectoryDomain);
         ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, null, null, null

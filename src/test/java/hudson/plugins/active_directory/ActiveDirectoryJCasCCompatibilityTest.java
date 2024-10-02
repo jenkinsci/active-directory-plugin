@@ -26,7 +26,7 @@ public class ActiveDirectoryJCasCCompatibilityTest extends RoundTripAbstractTest
         assertEquals("admin", domain.bindName);
         assertEquals("ad1.acme.com:123,ad2.acme.com:456", domain.servers);
         assertEquals("site", domain.getSite());
-        assertEquals("PASSW1", domain.getBindPassword().getPlainText());
+        assertEquals("VALIDPASSWORD1", domain.getBindPassword().getPlainText());
         assertEquals(TlsConfiguration.JDK_TRUSTSTORE, domain.getTlsConfiguration());
         // Second domain
         domain = realm.domains.get(1);
@@ -34,7 +34,7 @@ public class ActiveDirectoryJCasCCompatibilityTest extends RoundTripAbstractTest
         assertEquals("admin", domain.bindName);
         assertEquals("ad1.acme2.com:123,ad2.acme2.com:456", domain.servers);
         assertEquals("site2", domain.getSite());
-        assertEquals("PASSW2", domain.getBindPassword().getPlainText());
+        assertEquals("VALIDPASSWORD2", domain.getBindPassword().getPlainText());
         assertEquals(TlsConfiguration.TRUST_ALL_CERTIFICATES, domain.getTlsConfiguration());
 
         assertEquals(2, realm.getEnvironmentProperties().size());
@@ -68,9 +68,9 @@ public class ActiveDirectoryJCasCCompatibilityTest extends RoundTripAbstractTest
         public Optional<String> reveal(String secret) throws IOException {
             switch (secret) {
                 case "BIND_PASSWORD_1":
-                    return Optional.of("PASSW1");
+                    return Optional.of("VALIDPASSWORD1");
                 case "BIND_PASSWORD_2" :
-                    return Optional.of("PASSW2");
+                    return Optional.of("VALIDPASSWORD2");
                 default:
                     return Optional.empty();
             }

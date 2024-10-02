@@ -21,7 +21,7 @@ public class ActiveDirectoryLoginInFIPSModeIntegrationTest {
 	@Test(expected = FailingHttpStatusCodeException.class)
 	public void testLoginFailureWithShortPasswordInFIPSmode() throws Exception {
 		ActiveDirectoryDomain activeDirectoryDomain = new ActiveDirectoryDomain("samdom.example.com", "localhost:3268"
-				, "site", "Administrator", "verlargebindpassword");
+				, "site", "Administrator", "verlargebindpassword", TlsConfiguration.JDK_TRUSTSTORE);
 		List<ActiveDirectoryDomain> domains = new ArrayList<>(1);
 		domains.add(activeDirectoryDomain);
 		ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, null, null, null
