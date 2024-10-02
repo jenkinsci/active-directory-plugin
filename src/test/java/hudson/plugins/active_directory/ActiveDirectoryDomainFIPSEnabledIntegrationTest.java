@@ -29,7 +29,7 @@ import static org.jvnet.hudson.test.LoggerRule.recorded;
 
 import static hudson.Functions.isWindows;
 
-public class ActiveDirectoryDomainIntegrationTest {
+public class ActiveDirectoryDomainFIPSEnabledIntegrationTest {
 	@Rule
 	public JenkinsRule jenkins = new JenkinsRule();
 
