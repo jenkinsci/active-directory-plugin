@@ -1,10 +1,17 @@
 package hudson.plugins.active_directory;
 
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.logging.Level;
 
 import hudson.ExtensionList;
 import hudson.util.FormValidation;
+import org.htmlunit.FailingHttpStatusCodeException;
+import org.htmlunit.WebResponse;
+import org.htmlunit.html.HtmlForm;
+import org.htmlunit.html.HtmlPage;
+import org.jetbrains.annotations.NotNull;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -17,9 +24,7 @@ import io.jenkins.plugins.casc.ConfiguratorException;
 import org.jvnet.hudson.test.recipes.LocalData;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 import static org.jvnet.hudson.test.LoggerRule.recorded;
 
 public class ActiveDirectoryDomainFipsEnabledTest {
@@ -74,5 +79,29 @@ public class ActiveDirectoryDomainFipsEnabledTest {
 
         assertThat(loggerRule, recorded(any(String.class), hasProperty("message", containsString("Choosing an insecure TLS configuration in FIPS mode is not allowed"))));
 
+    }
+
+    @Test(expected = FailingHttpStatusCodeException.class)
+    public void testSaveButton() throws Exception {
+        ActiveDirectorySecurityRealm activeDirectorySecurityRealm = getActiveDirectorySecurityRealm();
+        jenkinsRule.getInstance().setSecurityRealm(activeDirectorySecurityRealm);
+        JenkinsRule.WebClient webClient = jenkinsRule.createWebClient();
+        HtmlPage htmlPage = webClient.goTo("configureSecurity");
+        HtmlForm htmlForm = htmlPage.getFormByName("config");
+        htmlForm.getSelectByName("_.tlsConfiguration").setSelectedAttribute("TRUST_ALL_CERTIFICATES", true);
+        webClient.waitForBackgroundJavaScript(1000);
+        assertThat(htmlForm.getTextContent(), containsString(Messages.TlsConfiguration_CertificateError()));
+
+        assertEquals(500, jenkinsRule.submit(htmlForm).getWebResponse().getStatusCode());
+    }
+
+    private static @NotNull ActiveDirectorySecurityRealm getActiveDirectorySecurityRealm() {
+        ActiveDirectoryDomain activeDirectoryDomain = new ActiveDirectoryDomain("name", "server"
+                , "site", "name", "password", TlsConfiguration.JDK_TRUSTSTORE);
+        List<ActiveDirectoryDomain> domains = new ArrayList<>(1);
+        domains.add(activeDirectoryDomain);
+        ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, null, null, null
+                , null, GroupLookupStrategy.RECURSIVE, false, true, null, true, null, true);
+        return activeDirectorySecurityRealm;
     }
 }
