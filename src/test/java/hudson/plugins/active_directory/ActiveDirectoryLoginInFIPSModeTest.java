@@ -1,6 +1,7 @@
 package hudson.plugins.active_directory;
 
 import java.lang.reflect.Field;
+import java.util.Arrays;
 
 import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
 import org.acegisecurity.userdetails.UserDetails;
@@ -27,9 +28,10 @@ public class ActiveDirectoryLoginInFIPSModeTest {
 			FlagRule.systemProperty("jenkins.security.FIPS140.COMPLIANCE", "true");
 
 	@Before
-	public void setUp() throws NoSuchMethodException, NoSuchFieldException, IllegalAccessException {
-		securityRealm = new ActiveDirectorySecurityRealm("domain", "site"
-				, "bindName", "bindPassword", "server");
+	public void setUp() throws NoSuchFieldException, IllegalAccessException {
+		securityRealm = new ActiveDirectorySecurityRealm("domain", Arrays.asList(new ActiveDirectoryDomain("name", "servers", "site", "bindName", "bindPasswordFIPS", TlsConfiguration.JDK_TRUSTSTORE)),
+		                                                 "site", "bindName", "bindPassword", "server", GroupLookupStrategy.AUTO, true, true,
+		                                                 null, true, null, true);
 
 		// Create a mock instance of AbstractActiveDirectoryAuthenticationProvider
 		authenticationProvider = Mockito.mock(AbstractActiveDirectoryAuthenticationProvider.class);

@@ -17,6 +17,9 @@ import org.jvnet.hudson.test.recipes.LocalData;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assume.assumeFalse;
+
+import static hudson.Functions.isWindows;
 
 public class ActiveDirectoryDomainIntegrationTest {
 	@Rule
@@ -126,6 +129,10 @@ public class ActiveDirectoryDomainIntegrationTest {
 	@LocalData
 	@Test
 	public void testActiveDirectoryDomainTestDomainButtonClickWithShortPassword() throws Exception {
+
+		assumeFalse("JENKINS-73847", isWindows());
+
+
 		JenkinsRule.WebClient webClient = jenkins.createWebClient();
 		// Navigate to the configuration page
 		HtmlPage configPage = webClient.goTo("configureSecurity");
@@ -152,7 +159,7 @@ public class ActiveDirectoryDomainIntegrationTest {
 		assertTrue(responseContent.contains(Messages.passwordTooShortFIPS()));
 	}
 
-	private HtmlButton getButtonByText(HtmlForm form, String text) throws Exception {
+	private HtmlButton getButtonByText(HtmlForm form, String text) {
 		for (HtmlElement e : form.getElementsByTagName("button")) {
 			if (e.getTextContent().contains(text)) {
 				return ((HtmlButton) e);
