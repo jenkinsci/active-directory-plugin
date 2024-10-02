@@ -590,7 +590,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             return FormValidation.ok();
         }
 
-        private boolean isTrustAllCertificatesEnabled(TlsConfiguration tlsConfiguration) {
+        protected static boolean isTrustAllCertificatesEnabled(TlsConfiguration tlsConfiguration) {
             return (tlsConfiguration == null || TlsConfiguration.TRUST_ALL_CERTIFICATES.equals(tlsConfiguration));
         }
 
