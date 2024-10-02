@@ -44,11 +44,11 @@ public class ActiveDirectoryDomainFipsEnabledTest {
         ActiveDirectoryDomain.DescriptorImpl adDescriptor = ExtensionList.lookupSingleton(ActiveDirectoryDomain.DescriptorImpl.class);
 
         // error message should be displayed if a FIPS non-compliant option is chosen
-        FormValidation resultError = adDescriptor.doCheckTlsConfiguration(TlsConfiguration.TRUST_ALL_CERTIFICATES.name());
+        FormValidation resultError = adDescriptor.doCheckTlsConfiguration(TlsConfiguration.TRUST_ALL_CERTIFICATES);
         assertEquals("Insecure TLS configuration should not be allowed", FormValidation.Kind.ERROR, resultError.kind);
 
         // if a FIPS compliant option is chosen, no error message should be displayed
-        FormValidation resultOk = adDescriptor.doCheckTlsConfiguration(TlsConfiguration.JDK_TRUSTSTORE.name());
+        FormValidation resultOk = adDescriptor.doCheckTlsConfiguration(TlsConfiguration.JDK_TRUSTSTORE);
         assertEquals("Secure TLS configuration should be allowed", FormValidation.Kind.OK, resultOk.kind);
 
         assertThrows("Insecure TLS configuration should not be allowed", IllegalArgumentException.class,
