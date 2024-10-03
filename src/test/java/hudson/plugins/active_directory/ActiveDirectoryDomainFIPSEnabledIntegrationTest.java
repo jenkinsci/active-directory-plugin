@@ -69,7 +69,9 @@ public class ActiveDirectoryDomainFIPSEnabledIntegrationTest {
 		HtmlForm form = configPage.getFormByName("config");
 
 		form.getInputByName("_.bindPassword").setValue("short");
-		form.getSelectByName("_.tlsConfiguration").setSelectedAttribute("JDK_TRUSTSTORE", true);
+		if(!isWindows()) {
+			form.getSelectByName("_.tlsConfiguration").setSelectedAttribute("JDK_TRUSTSTORE", true);
+		}
 
 		// Expect FailingHttpStatusCodeException when finding the "Submit" button and clicking it
 		assertThrows(FailingHttpStatusCodeException.class, () -> getButtonByText(form, button).click());
@@ -108,7 +110,9 @@ public class ActiveDirectoryDomainFIPSEnabledIntegrationTest {
 		webClient.waitForBackgroundJavaScript(5000);
 
 		form.getInputByName("_.bindPassword").setValue("short");
-		form.getSelectByName("_.tlsConfiguration").setSelectedAttribute("JDK_TRUSTSTORE", true);
+		if(!isWindows()) {
+			form.getSelectByName("_.tlsConfiguration").setSelectedAttribute("JDK_TRUSTSTORE", true);
+		}
 
 		// Click the "Test Domain" button
 		HtmlPage resultPage = getButtonByText(form, "Test Domain").click();
