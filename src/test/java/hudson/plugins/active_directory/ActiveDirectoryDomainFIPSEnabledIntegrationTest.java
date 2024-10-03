@@ -41,14 +41,24 @@ public class ActiveDirectoryDomainFIPSEnabledIntegrationTest {
 			FlagRule.systemProperty("jenkins.security.FIPS140.COMPLIANCE", "true");
 
 	/**
-	 * Tests the readResolve method when a previous invalid configuration is in place
+	 * Tests the readResolve method when a previous invalid TLS configuration is in place
 	 *
 	 * <p>NB: This is not a supported use case according to JEP definition. Checking anyway</p>
 	 */
 	@LocalData
 	@Test
-	public void testInvalidPreviousConfiguration() {
+	public void testInvalidPreviousTLSConfiguration() {
 		assertThat(loggerRule, recorded(any(String.class), hasProperty("message", containsString("Choosing an insecure TLS configuration in FIPS mode is not allowed"))));
+	}
+
+	/**
+	 * Tests the readResolve method when a previous invalid bind password configuration is in place
+	 *
+	 */
+	@LocalData
+	@Test
+	public void testInvalidPreviousBindPasswordConfiguration() {
+		assertThat(loggerRule, recorded(any(String.class), hasProperty("message", containsString(Messages.passwordTooShortFIPS()))));
 	}
 
 	/**
