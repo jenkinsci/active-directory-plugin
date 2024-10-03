@@ -42,14 +42,11 @@ import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
 import javax.naming.CommunicationException;
-import javax.naming.Context;
 import javax.naming.NamingException;
 import javax.naming.ServiceUnavailableException;
 import javax.naming.directory.Attribute;
 import javax.naming.directory.Attributes;
 import javax.naming.directory.DirContext;
-import javax.naming.directory.InitialDirContext;
-import javax.servlet.ServletException;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -156,6 +153,11 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
         }
 
         this.name = name;
+        // Gives exception if Password is set lees than 14 chars long in FIPS mode.
+        if(FIPS140.useCompliantAlgorithms() && StringUtils.length(bindPassword) < 14) {
+            throw new IllegalArgumentException(Messages.passwordTooShortFIPS());
+        }
+
         // Append default port if not specified
         servers = fixEmpty(servers);
         if (servers != null) {
@@ -208,6 +210,12 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
         if (isFipsNonCompliant(ActiveDirectorySecurityRealm.DescriptorImpl.isTrustAllCertificatesEnabled(tlsConfiguration))) {
             throw new IllegalStateException(Messages.TlsConfiguration_CertificateError());
         }
+
+        String bindPassword_ = Secret.toString(bindPassword);
+        if(FIPS140.useCompliantAlgorithms() && StringUtils.length(bindPassword_) < 14) {
+            throw new IllegalArgumentException(Messages.passwordTooShortFIPS());
+        }
+
         return this;
     }
 
@@ -278,6 +286,18 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
                 model.add(tlsConfiguration.getDisplayName(),tlsConfiguration.name());
             }
             return model;
+        }
+
+        /**
+         * Displays an error message if the provided password is less than 14 characters
+         * while in FIPS mode. This message is triggered when the bindPassword field loses focus.
+         */
+        @RequirePOST
+        public FormValidation doCheckBindPassword(@QueryParameter String bindPassword) {
+            if(FIPS140.useCompliantAlgorithms() && StringUtils.length(bindPassword) < 14) {
+                return FormValidation.error(Messages.passwordTooShortFIPS());
+            }
+            return FormValidation.ok();
         }
 
         @RequirePOST

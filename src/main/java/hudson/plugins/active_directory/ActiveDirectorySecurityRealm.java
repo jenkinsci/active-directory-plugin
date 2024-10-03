@@ -25,7 +25,6 @@ package hudson.plugins.active_directory;
 
 import com4j.typelibs.ado20.ClassFactory;
 
-
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;

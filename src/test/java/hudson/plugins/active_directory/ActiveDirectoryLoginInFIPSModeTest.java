@@ -1,18 +1,14 @@
 package hudson.plugins.active_directory;
 
 import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Arrays;
 
 import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
 import org.acegisecurity.userdetails.UserDetails;
-import org.htmlunit.FailingHttpStatusCodeException;
 import org.junit.Before;
 import org.junit.ClassRule;
-import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.FlagRule;
-import org.jvnet.hudson.test.JenkinsRule;
 import org.mockito.Mockito;
 import org.springframework.security.authentication.AuthenticationServiceException;
 
@@ -32,17 +28,10 @@ public class ActiveDirectoryLoginInFIPSModeTest {
 			FlagRule.systemProperty("jenkins.security.FIPS140.COMPLIANCE", "true");
 
 	@Before
-	public void setUp() throws NoSuchMethodException, NoSuchFieldException, IllegalAccessException {
-		ActiveDirectoryDomain activeDirectoryDomain = new ActiveDirectoryDomain("name", "server"
-				, "site", "name", "password", TlsConfiguration.JDK_TRUSTSTORE);
-		List<ActiveDirectoryDomain> domains = new ArrayList<>(1);
-		domains.add(activeDirectoryDomain);
-		ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, null, null, null
-				, null, GroupLookupStrategy.RECURSIVE, false, true, null, true, null, true);
-
-		securityRealm = new ActiveDirectorySecurityRealm(null, domains, null, null, null
-				, null, GroupLookupStrategy.RECURSIVE, false, true, null, true, null, true);
-
+	public void setUp() throws NoSuchFieldException, IllegalAccessException {
+		securityRealm = new ActiveDirectorySecurityRealm("domain", Arrays.asList(new ActiveDirectoryDomain("name", "servers", "site", "bindName", "bindPasswordFIPS", TlsConfiguration.JDK_TRUSTSTORE)),
+		                                                 "site", "bindName", "bindPassword", "server", GroupLookupStrategy.AUTO, true, true,
+		                                                 null, true, null, true);
 		// Create a mock instance of AbstractActiveDirectoryAuthenticationProvider
 		authenticationProvider = Mockito.mock(AbstractActiveDirectoryAuthenticationProvider.class);
 
