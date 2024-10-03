@@ -70,7 +70,8 @@ public class ActiveDirectoryDomainFIPSEnabledIntegrationTest {
 
 		form.getInputByName("_.bindPassword").setValue("short");
 		if(!isWindows()) {
-			form.getSelectByName("_.tlsConfiguration").setSelectedAttribute("JDK_TRUSTSTORE", true);
+		    // JENKINS-73847
+		    form.getSelectByName("_.tlsConfiguration").setSelectedAttribute("JDK_TRUSTSTORE", true);
 		}
 
 		// Expect FailingHttpStatusCodeException when finding the "Submit" button and clicking it
