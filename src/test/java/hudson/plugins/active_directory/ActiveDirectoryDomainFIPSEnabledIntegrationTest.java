@@ -110,10 +110,6 @@ public class ActiveDirectoryDomainFIPSEnabledIntegrationTest {
 		webClient.waitForBackgroundJavaScript(5000);
 
 		form.getInputByName("_.bindPassword").setValue("short");
-		if(!isWindows()) {
-			form.getSelectByName("_.tlsConfiguration").setSelectedAttribute("JDK_TRUSTSTORE", true);
-		}
-
 		// Click the "Test Domain" button
 		HtmlPage resultPage = getButtonByText(form, "Test Domain").click();
 
