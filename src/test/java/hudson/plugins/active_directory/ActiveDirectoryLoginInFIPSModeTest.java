@@ -32,7 +32,6 @@ public class ActiveDirectoryLoginInFIPSModeTest {
 		securityRealm = new ActiveDirectorySecurityRealm("domain", Arrays.asList(new ActiveDirectoryDomain("name", "servers", "site", "bindName", "bindPasswordFIPS", TlsConfiguration.JDK_TRUSTSTORE)),
 		                                                 "site", "bindName", "bindPassword", "server", GroupLookupStrategy.AUTO, true, true,
 		                                                 null, true, null, true);
-
 		// Create a mock instance of AbstractActiveDirectoryAuthenticationProvider
 		authenticationProvider = Mockito.mock(AbstractActiveDirectoryAuthenticationProvider.class);
 
