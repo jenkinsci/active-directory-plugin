@@ -19,10 +19,5 @@
       <f:repeatableProperty field="environmentProperties" />
     </f:entry>
   </f:advanced>
-	<script type="text/javascript" >
-		document.addEventListener("DOMContentLoaded", function(event) {
-		   document.getElementsByName("_.bindPassword")[0].autocomplete = "off";
-		   document.getElementsByName("_.bindName")[0].autocomplete = "off";
-		});
-	</script>
+  <st:adjunct includes="hudson.plugins.active_directory.ActiveDirectorySecurityRealm.ad-turn-off-autocomplete"/>
 </j:jelly>
