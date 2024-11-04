@@ -21,9 +21,9 @@ ADD named.conf.options /etc/bind/named.conf.options
 
 # Install samba and dependencies to make it an Active Directory Domain Controller
 RUN apt-get install -y curl build-essential libacl1-dev libattr1-dev \
-      libblkid-dev libgnutls-dev libreadline-dev python-dev libpam0g-dev \
-      python-dnspython gdb pkg-config libpopt-dev libldap2-dev \
-      dnsutils libbsd-dev attr krb5-user docbook-xsl libcups2-dev acl python-xattr
+      libblkid-dev libgnutls28-dev libreadline-dev python3-dev libpam0g-dev \
+      python3-dnspython gdb pkg-config libpopt-dev libldap2-dev \
+      dnsutils libbsd-dev attr krb5-user docbook-xsl libcups2-dev acl python3-xattr
 
 RUN apt-get install -y samba smbclient krb5-kdc
 
