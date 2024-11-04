@@ -8,3 +8,7 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+  - package-ecosystem: "docker"
+    directory: "src/test/resources/hudson/plugins/active_directory/docker/TheFlintstonesTest/TheFlintstones"
+    schedule:
+      interval: "weekly"
