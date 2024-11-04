@@ -1,4 +1,4 @@
-FROM ubuntu:trusty
+FROM ubuntu:noble
 
 ENV DEBIAN_FRONTEND noninteractive
 
