@@ -42,16 +42,7 @@ import com4j.util.ComObjectCollector;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.security.GroupDetails;
 import hudson.security.SecurityRealm;
-import hudson.security.UserMayOrMayNotExistException;
-import org.acegisecurity.AuthenticationException;
-import org.acegisecurity.BadCredentialsException;
-import org.acegisecurity.GrantedAuthority;
-import org.acegisecurity.GrantedAuthorityImpl;
-import org.acegisecurity.providers.AuthenticationProvider;
-import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
-import org.acegisecurity.userdetails.UserDetails;
-import org.acegisecurity.userdetails.UserDetailsService;
-import org.acegisecurity.userdetails.UsernameNotFoundException;
+import hudson.security.UserMayOrMayNotExistException2;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -65,8 +56,16 @@ import org.apache.commons.lang.StringUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
-import org.springframework.dao.DataAccessException;
-import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.authentication.AuthenticationServiceException;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
 /**
  * {@link AuthenticationProvider} with Active Directory, plus {@link UserDetailsService}
@@ -116,7 +115,7 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
         this(null);
     }
 
-    public ActiveDirectoryAuthenticationProvider(ActiveDirectorySecurityRealm realm) throws DataAccessException {
+    public ActiveDirectoryAuthenticationProvider(ActiveDirectorySecurityRealm realm) throws AuthenticationException {
         final Integer adsi_override_flags = Integer.getInteger(ADSI_FLAGS_SYSTEM_PROPERTY_NAME);
         if (adsi_override_flags != null) {
             LOGGER.log(Level.INFO, () -> String.format(Locale.ROOT, "ADSI_FLAGS_OVERRIDE set, use the following as the flags for ADSI: 0x%1$04X", adsi_override_flags));
@@ -174,7 +173,7 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
             this.userCache = cache.getUserCache();
             this.groupCache = cache.getGroupCache();
         } catch (ExecutionException e) {
-            throw new DataAccessResourceFailureException("Failed to connect to Active Directory. Does this machine belong to Active Directory?", e);
+            throw new AuthenticationServiceException("Failed to connect to Active Directory. Does this machine belong to Active Directory?", e);
         }
     }
 
@@ -246,9 +245,9 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
                             }
                             IADsGroup grp = g.queryInterface(IADsGroup.class);
                             // cut "CN=" and make that the role name
-                            groups.add(new GrantedAuthorityImpl(grp.name().substring(3)));
+                            groups.add(new SimpleGrantedAuthority(grp.name().substring(3)));
                         }
-                        groups.add(SecurityRealm.AUTHENTICATED_AUTHORITY);
+                        groups.add(SecurityRealm.AUTHENTICATED_AUTHORITY2);
 
                         LOGGER.log(Level.FINE, "Login successful: {0} dn={1}", new Object[] {username, dn});
 
@@ -256,7 +255,7 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
                             username, "redacted",
                             !isAccountDisabled(usr),
                             true, true, true,
-                            groups.toArray(new GrantedAuthority[0]),
+                            groups,
                             getFullName(usr), getEmailAddress(usr), getTelephoneNumber(usr)
                         ).updateUserInfo();
                     } finally {
@@ -355,7 +354,7 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
 
                     // If not a group will throw UserMayOrMayNotExistException
                     if (group == null) {
-                        throw new UserMayOrMayNotExistException(groupname);
+                        throw new UserMayOrMayNotExistException2(groupname);
                     }
                     return new ActiveDirectoryGroupDetails(groupname);
                 } catch (UsernameNotFoundException e) {
@@ -364,7 +363,7 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
                 } catch (ComException e) {
                     // recover gracefully since AD might behave in a way we haven't anticipated
                     LOGGER.log(Level.WARNING, String.format("Failed to figure out details of AD group: %s", groupname), e);
-                    throw new UserMayOrMayNotExistException(groupname);
+                    throw new UserMayOrMayNotExistException2(groupname);
                 } finally {
                     col.disposeAll();
                     COM4J.removeListener(col);

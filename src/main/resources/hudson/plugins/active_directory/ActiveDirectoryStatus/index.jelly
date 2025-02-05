@@ -56,7 +56,7 @@
             <h2>${%ActiveDirectoryStatus.ServersHealth}</h2>
             <em>${%ActiveDirectoryStatus.ServersHealthNote}</em>
             <br/><br/>
-            <j:set var="domain" value="${request.getParameter('domain')}"/>
+            <j:set var="domain" value="${request2.getParameter('domain')}"/>
             <form method="POST" action=".">
                 ${%ActiveDirectoryStatus.ServerHealthDomain}
                 <select name="domain">

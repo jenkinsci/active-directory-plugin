@@ -3,14 +3,14 @@ package hudson.plugins.active_directory;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 
-import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
-import org.acegisecurity.userdetails.UserDetails;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.jvnet.hudson.test.FlagRule;
 import org.mockito.Mockito;
 import org.springframework.security.authentication.AuthenticationServiceException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
@@ -48,7 +48,7 @@ public class ActiveDirectoryLoginInFIPSModeTest {
 		String password = "short";
 
 		Exception exception = assertThrows(AuthenticationServiceException.class, () -> {
-			securityRealm.authenticate(username, password);
+			securityRealm.authenticate2(username, password);
 		});
 
 		assertEquals(Messages.passwordTooShortFIPS(),exception.getMessage() );
@@ -65,7 +65,7 @@ public class ActiveDirectoryLoginInFIPSModeTest {
 		when(authenticationProvider.retrieveUser(anyString(), any(UsernamePasswordAuthenticationToken.class)))
 				.thenReturn(mockUserDetails);
 
-		UserDetails userDetails = securityRealm.authenticate(username, password);
+		UserDetails userDetails = securityRealm.authenticate2(username, password);
 
 		assertEquals("user",userDetails.getUsername() );
 	}

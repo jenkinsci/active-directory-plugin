@@ -36,10 +36,10 @@ import jenkins.util.ProgressiveRendering;
 import net.sf.json.JSON;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
-import org.acegisecurity.userdetails.UserDetails;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.StaplerProxy;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -205,7 +205,7 @@ public class ActiveDirectoryStatus extends ManagementLink implements StaplerProx
         private long computeLoginExecutionTime() {
             String username = Jenkins.getAuthentication().getName();
             long t0 = System.currentTimeMillis();
-            UserDetails userDetails = Jenkins.getActiveInstance().getSecurityRealm().loadUserByUsername(username);
+            UserDetails userDetails = Jenkins.getActiveInstance().getSecurityRealm().loadUserByUsername2(username);
             long t1 = System.currentTimeMillis();
             return  (userDetails!=null) ? (t1 - t0) : -1;
         }

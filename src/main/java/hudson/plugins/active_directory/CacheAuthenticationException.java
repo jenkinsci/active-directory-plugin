@@ -1,6 +1,6 @@
 package hudson.plugins.active_directory;
 
-import org.acegisecurity.AuthenticationException;
+import org.springframework.security.core.AuthenticationException;
 
 /**
  * To throw AuthenticationException when the login failed due a cache issue

@@ -30,23 +30,23 @@ import hudson.model.User;
 import hudson.security.GroupDetails;
 import hudson.security.HudsonPrivateSecurityRealm;
 import hudson.security.SecurityRealm;
-import hudson.security.UserMayOrMayNotExistException;
+import hudson.security.UserMayOrMayNotExistException2;
 import hudson.util.DaemonThreadFactory;
 import hudson.util.NamingThreadFactory;
 import hudson.util.Secret;
 
 import javax.naming.NameNotFoundException;
 
-import org.acegisecurity.AuthenticationException;
-import org.acegisecurity.AuthenticationServiceException;
-import org.acegisecurity.BadCredentialsException;
-import org.acegisecurity.GrantedAuthority;
-import org.acegisecurity.GrantedAuthorityImpl;
-import org.acegisecurity.providers.AuthenticationProvider;
-import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
-import org.acegisecurity.userdetails.UserDetails;
-import org.acegisecurity.userdetails.UsernameNotFoundException;
 import org.apache.commons.lang.StringUtils;
+import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.authentication.AuthenticationServiceException;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
 import javax.naming.NamingEnumeration;
 import javax.naming.NamingException;
@@ -232,7 +232,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                         }
                         if (hudsonPrivateSecurityRealm.isPasswordCorrect(password)) {
                             LOGGER.log(Level.INFO, String.format("Falling back into the internal user %s", username));
-                            return new ActiveDirectoryUserDetail(username, "redacted", true, true, true, true, hudsonPrivateSecurityRealm.getAuthorities(), internalUser.getDisplayName(), "", "");
+                            return new ActiveDirectoryUserDetail(username, "redacted", true, true, true, true, hudsonPrivateSecurityRealm.getAuthorities2(), internalUser.getDisplayName(), "", "");
                         } else {
                             LOGGER.log(Level.WARNING, String.format("Credential exception trying to authenticate against %s domain", domain.getName()), ne);
                             errors.add(new MultiCauseUserMayOrMayNotExistException("We can't tell if the user exists or not: " + username, notFound));
@@ -262,7 +262,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                 throw notFound.get(0);  // preserve the original exception
             }
 
-            if (!Util.filter(notFound,UserMayOrMayNotExistException.class).isEmpty()) {
+            if (!Util.filter(notFound, UserMayOrMayNotExistException2.class).isEmpty()) {
                 // if one domain responds with UserMayOrMayNotExistException, then it might actually exist there,
                 // so our response will be "can't tell"
                 throw new MultiCauseUserMayOrMayNotExistException("We can't tell if the user exists or not: " + username, notFound);
@@ -375,7 +375,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                                 // in my observation, if we attempt an anonymous bind and AD doesn't allow it, it still passes the bind method
                                 // and only fail later when we actually do a query. So perhaps this is a dead path, but I'm leaving it here
                                 // anyway as a precaution.
-                                throw new UserMayOrMayNotExistException("Unable to retrieve the user information without bind DN/password configured");
+                                throw new UserMayOrMayNotExistException2("Unable to retrieve the user information without bind DN/password configured");
                             throw e;
                         }
                     }
@@ -420,9 +420,9 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                         }
 
                         Set<GrantedAuthority> groups = resolveGroups(domainDN, dnFormatted, context);
-                        groups.add(SecurityRealm.AUTHENTICATED_AUTHORITY);
+                        groups.add(SecurityRealm.AUTHENTICATED_AUTHORITY2);
 
-                        cacheMiss[0] = new ActiveDirectoryUserDetail(username, "redacted", true, true, true, true, groups.toArray(new GrantedAuthority[0]),
+                        cacheMiss[0] = new ActiveDirectoryUserDetail(username, "redacted", true, true, true, true, groups,
                                 getStringAttribute(user, "displayName"),
                                 getStringAttribute(user, "mail"),
                                 getStringAttribute(user, "telephoneNumber")
@@ -435,14 +435,14 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                         if (anonymousBind && e.getMessage().contains("successful bind must be completed") && e.getMessage().contains("000004DC")) {
                             // sometimes (or always?) anonymous bind itself will succeed but the actual query will fail.
                             // see JENKINS-12619. On my AD the error code is DSID-0C0906DC
-                            throw new UserMayOrMayNotExistException("Unable to retrieve the user information without bind DN/password configured");
+                            throw new UserMayOrMayNotExistException2("Unable to retrieve the user information without bind DN/password configured");
                         }
                         if (anonymousBind && e.getMessage().contains("Operation unavailable without authentication") && e.getMessage().contains("00002020")) {
                             // sometimes (or always?) anonymous bind itself will succeed but the actual query will fail.
                             // see JENKINS-47133
                             String msg = String.format("Server doesn't allow to retrieve the information for user `%s` without bind DN/password configured", username);
                             LOGGER.log(Level.WARNING, msg);
-                            throw new UserMayOrMayNotExistException(msg);
+                            throw new UserMayOrMayNotExistException2(msg);
                         }
 
                         LOGGER.log(Level.WARNING, String.format("Failed to retrieve user information for %s", username), e);
@@ -514,7 +514,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
             return groupCache.get(groupname, s ->  {
                             for (ActiveDirectoryDomain domain : domains) {
                                 if (domain==null) {
-                                    throw new UserMayOrMayNotExistException("Unable to retrieve group information without bind DN/password configured");
+                                    throw new UserMayOrMayNotExistException2("Unable to retrieve group information without bind DN/password configured");
                                 }
                                 // when we use custom socket factory below, every LDAP operations result
                                 // in a classloading via context classloader, so we need it to resolve.
@@ -567,7 +567,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                                 }
                             }
                             LOGGER.log(Level.WARNING, "Exhausted all configured domains and could not authenticate against any");
-                            throw new UserMayOrMayNotExistException(groupname);
+                            throw new UserMayOrMayNotExistException2(groupname);
                     });
         } catch (Exception e) {
             if (e instanceof AuthenticationException) {
@@ -779,7 +779,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                     if (LOGGER.isLoggable(Level.FINE))
                         LOGGER.fine(cn.get() + " is a member of " + memberOf.get(i));
 
-                    if (groups.add(new GrantedAuthorityImpl(cn.get().toString()))) {
+                    if (groups.add(new SimpleGrantedAuthority(cn.get().toString()))) {
                         q.add(group); // recursively look for groups that this group is a member of.
                     }
                 } catch (NameNotFoundException e) {
@@ -796,7 +796,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                 Attribute cn = a.get("cn");
                 if (LOGGER.isLoggable(Level.FINE))
                     LOGGER.fine(userDN + " is a member of " + cn);
-                groups.add(new GrantedAuthorityImpl(cn.get().toString()));
+                groups.add(new SimpleGrantedAuthority(cn.get().toString()));
             }
         } catch (PartialResultException e) {
             // See JENKINS-42687. Just log the exception. Sometimes all the groups are correctly

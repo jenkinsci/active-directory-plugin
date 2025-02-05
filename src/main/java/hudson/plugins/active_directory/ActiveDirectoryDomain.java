@@ -33,13 +33,13 @@ import hudson.util.ListBoxModel;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
 import jenkins.security.FIPS140;
-import org.acegisecurity.BadCredentialsException;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.interceptor.RequirePOST;
+import org.springframework.security.authentication.BadCredentialsException;
 
 import javax.naming.CommunicationException;
 import javax.naming.NamingException;

@@ -7,8 +7,6 @@ import hudson.plugins.active_directory.ActiveDirectorySecurityRealm;
 import hudson.plugins.active_directory.CacheConfiguration;
 import hudson.plugins.active_directory.CacheUtil;
 import hudson.plugins.active_directory.GroupLookupStrategy;
-import org.acegisecurity.AuthenticationServiceException;
-import org.acegisecurity.userdetails.UserDetails;
 import org.junit.AfterClass;
 import org.junit.Assume;
 import org.junit.Before;
@@ -17,6 +15,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.LoggerRule;
+import org.springframework.security.authentication.AuthenticationServiceException;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.GenericContainer;
 
@@ -84,7 +84,7 @@ public class EntoEndUserCacheLookupEnabledTest {
         int i = 0;
         while (i < MAX_RETRIES && userDetails == null) {
             try {
-                userDetails = j.jenkins.getSecurityRealm().loadUserByUsername("Fred");
+                userDetails = j.jenkins.getSecurityRealm().loadUserByUsername2("Fred");
             } catch (AuthenticationServiceException e) {
                 Thread.sleep(1000);
             }

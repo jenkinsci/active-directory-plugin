@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -38,9 +39,9 @@ import hudson.security.SecurityRealm;
 import hudson.tasks.Mailer;
 import hudson.tasks.Mailer.UserProperty;
 import jenkins.model.Jenkins;
-import org.acegisecurity.GrantedAuthority;
-import org.acegisecurity.userdetails.User;
-import org.acegisecurity.userdetails.UserDetails;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
@@ -51,23 +52,24 @@ public class ActiveDirectoryUserDetail extends User {
     // additional attributes from Active Directory
     private final String displayName, mail, telephoneNumber;
 
-    private String toStringValue;
+    private final String toStringValue;
 
     // TODO Remove 'password' argument from constructor
 	public ActiveDirectoryUserDetail(String username, String password,
 			boolean enabled, boolean accountNonExpired,
 			boolean credentialsNonExpired, boolean accountNonLocked,
-			GrantedAuthority[] authorities,
+			Collection<? extends GrantedAuthority> authorities,
 			String displayName, String mail, String telephoneNumber)
 			throws IllegalArgumentException {
 		// We cannot just set a null password, so we need to set some dummy. See JENKINS-1229
 		super(username, "redacted", enabled,
 				accountNonExpired, credentialsNonExpired, accountNonLocked,
-				authorities);
+				getAuthorities(authorities));
 
         this.displayName = displayName;
         this.mail = mail;
         this.telephoneNumber = telephoneNumber;
+        this.toStringValue = getToStringValue();
 	}
 
     public String getDisplayName() {
@@ -118,9 +120,7 @@ public class ActiveDirectoryUserDetail extends User {
         return result;
     }
 
-    @Override 
-    @SuppressFBWarnings(value="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE", justification="https://github.com/jenkinsci/jenkins/pull/2094")
-    protected void setAuthorities(GrantedAuthority[] authorities) {
+    private static Collection<? extends GrantedAuthority> getAuthorities(Collection<? extends GrantedAuthority> authorities) {
         final Jenkins jenkins = Jenkins.getActiveInstance();
 	    SecurityRealm realm = jenkins.getSecurityRealm();
         if ((realm instanceof ActiveDirectorySecurityRealm)) {
@@ -140,12 +140,14 @@ public class ActiveDirectoryUserDetail extends User {
                             relevantGroups.add(group);
                         }
                     }
-                    authorities = relevantGroups.toArray(new GrantedAuthority[0]);
+                    authorities = relevantGroups;
                 }
             }
         }
+        return authorities;
+    }
 
-        super.setAuthorities(authorities);
+    private String getToStringValue() {
         StringBuilder sb = new StringBuilder();
         sb.append(super.toString()).append(": ");
         sb.append("Username: ").append(getUsername()).append("; ");
@@ -158,17 +160,20 @@ public class ActiveDirectoryUserDetail extends User {
         if (this.getAuthorities() != null) {
             sb.append("Granted Authorities: ");
 
-            for (int i = 0; i < this.getAuthorities().length; i++) {
+            int i = 0;
+            for (GrantedAuthority authority : this.getAuthorities()) {
                 if (i > 0) {
                     sb.append(", ");
                 }
 
-                sb.append(this.getAuthorities()[i].toString());
+                sb.append(authority.toString());
+
+                i++;
             }
         } else {
             sb.append("Not granted any authorities");
         }
-        toStringValue = sb.toString();
+        return sb.toString();
     }
 
     public static long getSerialVersionUID() {
