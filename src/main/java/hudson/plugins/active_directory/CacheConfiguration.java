@@ -3,8 +3,8 @@ package hudson.plugins.active_directory;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
-import org.acegisecurity.userdetails.UserDetails;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.concurrent.TimeUnit;
 

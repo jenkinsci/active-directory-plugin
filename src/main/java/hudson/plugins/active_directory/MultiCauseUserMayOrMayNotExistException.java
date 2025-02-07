@@ -24,7 +24,7 @@
 package hudson.plugins.active_directory;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import hudson.security.UserMayOrMayNotExistException;
+import hudson.security.UserMayOrMayNotExistException2;
 import hudson.util.FlushProofOutputStream;
 
 import java.io.PrintStream;
@@ -37,7 +37,7 @@ import java.util.List;
 /**
  * @author Kohsuke Kawaguchi
  */
-public class MultiCauseUserMayOrMayNotExistException extends UserMayOrMayNotExistException {
+public class MultiCauseUserMayOrMayNotExistException extends UserMayOrMayNotExistException2 {
     private final List<Throwable> causes;
 
     public MultiCauseUserMayOrMayNotExistException(String msg, Collection<? extends Throwable> causes) {

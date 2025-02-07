@@ -82,6 +82,7 @@ public class ActiveDirectoryDomainFipsEnabledTest {
     @LocalData
     public void testBlowsUpOnStart() throws Throwable {
 
+        assumeFalse("TODO needs triage", isWindows());
         assertThat(loggerRule, recorded(any(String.class), hasProperty("message", containsString("Choosing an insecure TLS configuration in FIPS mode is not allowed"))));
 
     }

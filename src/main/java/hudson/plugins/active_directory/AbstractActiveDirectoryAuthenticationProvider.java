@@ -23,14 +23,13 @@
  */
 package hudson.plugins.active_directory;
 
-import org.acegisecurity.AuthenticationException;
-import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
-import org.acegisecurity.userdetails.UserDetails;
-import org.acegisecurity.userdetails.UserDetailsService;
-import org.acegisecurity.userdetails.UsernameNotFoundException;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
-import org.springframework.dao.DataAccessException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
 /**
  * @author Kohsuke Kawaguchi
@@ -43,7 +42,7 @@ public abstract class AbstractActiveDirectoryAuthenticationProvider implements U
     protected abstract UserDetails retrieveUser(String username, UsernamePasswordAuthenticationToken authentication) throws AuthenticationException;
 
     @Override
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException, DataAccessException {
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         return retrieveUser(username,null);
     }
 

@@ -26,6 +26,7 @@ package hudson.plugins.active_directory.docker;
 
 import static org.junit.Assert.assertEquals;
 
+import jakarta.servlet.ServletException;
 import java.io.IOException;
 import java.net.Inet6Address;
 import java.net.InetAddress;
@@ -36,11 +37,8 @@ import java.util.List;
 import java.util.Map;
 
 import javax.naming.NamingException;
-import javax.servlet.ServletException;
 
 import hudson.plugins.active_directory.TlsConfiguration;
-import org.acegisecurity.AuthenticationServiceException;
-import org.acegisecurity.userdetails.UserDetails;
 import org.burningwave.tools.net.DNSClientHostResolver;
 import org.burningwave.tools.net.DefaultHostResolver;
 import org.burningwave.tools.net.HostResolutionRequestInterceptor;
@@ -52,6 +50,8 @@ import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.LoggerRule;
+import org.springframework.security.authentication.AuthenticationServiceException;
+import org.springframework.security.core.userdetails.UserDetails;
 import hudson.plugins.active_directory.ActiveDirectoryDomain;
 import hudson.plugins.active_directory.ActiveDirectorySecurityRealm;
 import hudson.plugins.active_directory.DNSUtils;
@@ -135,7 +135,7 @@ public class TheFlintstonesIT {
         int i = 0;
         while (i < MAX_RETRIES && userDetails == null) {
             try {
-                userDetails = j.jenkins.getSecurityRealm().loadUserByUsername("Fred");
+                userDetails = j.jenkins.getSecurityRealm().loadUserByUsername2("Fred");
             } catch (AuthenticationServiceException e) {
                 Thread.sleep(1000);
             }

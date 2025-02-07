@@ -38,29 +38,29 @@ import hudson.security.SecurityRealm;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import hudson.util.Secret;
+import jakarta.servlet.ServletException;
 import jenkins.model.Jenkins;
 import jenkins.security.FIPS140;
 import jenkins.security.SecurityListener;
 import jenkins.util.SystemProperties;
 
-import org.acegisecurity.AuthenticationException;
-import org.acegisecurity.BadCredentialsException;
-import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
-import org.acegisecurity.userdetails.UserDetails;
-import org.acegisecurity.userdetails.UsernameNotFoundException;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.StaplerRequest;
-import org.kohsuke.stapler.StaplerResponse;
+import org.kohsuke.stapler.StaplerRequest2;
+import org.kohsuke.stapler.StaplerResponse2;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 import org.kohsuke.stapler.verb.GET;
 import org.kohsuke.stapler.verb.POST;
-import org.springframework.dao.DataAccessException;
 import org.springframework.security.authentication.AuthenticationServiceException;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
 import javax.naming.Context;
 import javax.naming.NamingEnumeration;
@@ -74,7 +74,6 @@ import javax.naming.ldap.LdapContext;
 import javax.naming.ldap.StartTlsRequest;
 import javax.naming.ldap.StartTlsResponse;
 import javax.net.ssl.SSLSocketFactory;
-import javax.servlet.ServletException;
 import java.io.IOException;
 import java.io.ObjectStreamException;
 import java.io.PrintWriter;
@@ -412,7 +411,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
      * Authentication test.
      */
     @RequirePOST
-    public void doAuthTest(StaplerRequest req, StaplerResponse rsp, @QueryParameter String username, @QueryParameter String password) throws IOException, ServletException {
+    public void doAuthTest(StaplerRequest2 req, StaplerResponse2 rsp, @QueryParameter String username, @QueryParameter String password) throws IOException, ServletException {
         // require the administrator permission since this is full of debug info.
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
 
@@ -912,7 +911,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     }
 
     @Override
-    public GroupDetails loadGroupByGroupname(String groupname) throws UsernameNotFoundException, DataAccessException {
+    public GroupDetails loadGroupByGroupname2(String groupname, boolean fetchMembers) throws UsernameNotFoundException {
         return getAuthenticationProvider().loadGroupByGroupname(groupname);
     }
 
@@ -936,20 +935,20 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     }
 
     @Override
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException, DataAccessException {
+    public UserDetails loadUserByUsername2(String username) throws UsernameNotFoundException {
         // delegate to one of our ActiveDirectory(Unix)?AuthenticationProvider
         return getAuthenticationProvider().loadUserByUsername(username);
     }
 
     @Override
-    protected UserDetails authenticate(String username, String password) throws AuthenticationException {
+    protected UserDetails authenticate2(String username, String password) throws AuthenticationException {
         // Check if the password length is less than 14 characters
         if(FIPS140.useCompliantAlgorithms() && StringUtils.length(password) < 14) {
             LOGGER.log(Level.SEVERE, String.format(Messages.passwordTooShortFIPS()));
             throw new AuthenticationServiceException(Messages.passwordTooShortFIPS());
         }
         UserDetails userDetails = getAuthenticationProvider().retrieveUser(username,new UsernamePasswordAuthenticationToken(username,password));
-        SecurityListener.fireAuthenticated(userDetails);
+        SecurityListener.fireAuthenticated2(userDetails);
         return userDetails;
     }
 

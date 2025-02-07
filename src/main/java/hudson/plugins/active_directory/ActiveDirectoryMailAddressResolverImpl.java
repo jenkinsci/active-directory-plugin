@@ -28,10 +28,10 @@ import hudson.model.User;
 import hudson.security.SecurityRealm;
 import hudson.tasks.MailAddressResolver;
 import jenkins.model.Jenkins;
-import org.acegisecurity.AcegiSecurityException;
-import org.acegisecurity.userdetails.UserDetails;
-import org.acegisecurity.userdetails.UserDetailsService;
-import org.springframework.dao.DataAccessException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
 
 import java.util.logging.Logger;
 
@@ -53,7 +53,7 @@ public class ActiveDirectoryMailAddressResolverImpl extends
 			return null;
 		}   
 		try {
-			UserDetailsService uds = realm.getSecurityComponents().userDetails;
+			UserDetailsService uds = realm.getSecurityComponents().userDetails2;
 			UserDetails userDetails = uds.loadUserByUsername(u.getId());
 			//uds could be a proxy, rememberMe etc. and return something different from what we expected.
 			if (userDetails instanceof ActiveDirectoryUserDetail) {
@@ -66,9 +66,9 @@ public class ActiveDirectoryMailAddressResolverImpl extends
 				LOGGER.log(FINER, () -> "Unexpected UserDetails type from AD: "
 						+ userDetails.getClass().getName() + " uds: " + uds.getClass().getName());
 			}
-		} catch (DataAccessException e) {
+		} catch (AccessDeniedException e) {
 			LOGGER.log(FINE, "Failed to look Active Directory for e-mail address", e);
-		} catch (AcegiSecurityException e) {
+		} catch (AuthenticationException e) {
 			LOGGER.log(FINE, "Failed to look up Active Directory for e-mail address", e);
 		}
 		return null;
