@@ -62,7 +62,7 @@ public class ActiveDirectoryStatus extends ManagementLink implements StaplerProx
 
     @Override
     public String getIconFileName() {
-        return "/plugin/active-directory/images/icon.png";
+        return "symbol-medkit-outline plugin-ionicons-api";
     }
 
     @Override
