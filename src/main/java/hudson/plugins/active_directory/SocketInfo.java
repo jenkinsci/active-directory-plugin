@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -87,6 +88,22 @@ public class SocketInfo {
             LOGGER.log(Level.FINE, String.format("The Ip address for the host %s could not be retrieved", host), e);
         }
         return null;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof SocketInfo that)) {
+            return false;
+        }
+        return port == that.port && Objects.equals(host, that.host);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(host, port);
     }
 
     private static final Logger LOGGER = Logger.getLogger(SocketInfo.class.getName());

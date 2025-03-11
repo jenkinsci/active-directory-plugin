@@ -24,7 +24,6 @@
 package hudson.plugins.active_directory;
 
 import com.github.benmanes.caffeine.cache.Cache;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Util;
 import hudson.model.User;
 import hudson.security.GroupDetails;
@@ -323,7 +322,6 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
      *      The user didn't exist.
      * @return never null
      */
-    @SuppressFBWarnings(value = "ES_COMPARING_PARAMETER_STRING_WITH_EQ", justification = "Intentional instance check.")
     public UserDetails retrieveUser(final String username, final Password password, final ActiveDirectoryDomain domain, final List<SocketInfo> ldapServers) throws NamingException {
         Objects.requireNonNull(password);
         UserDetails userDetails;
