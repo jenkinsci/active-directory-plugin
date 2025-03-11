@@ -25,7 +25,6 @@ package hudson.plugins.active_directory;
  */
 
 import edu.umd.cs.findbugs.annotations.NonNull;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Extension;
 import hudson.model.ManagementLink;
 import hudson.security.Permission;
@@ -45,6 +44,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * ManagementLink to provide an Active Directory health status
@@ -159,7 +159,6 @@ public class ActiveDirectoryStatus extends ManagementLink implements StaplerProx
     /**
      * ServerHealth of a SocketInfo
      */
-    @SuppressFBWarnings("UUF_UNUSED_FIELD")
     public static class ServerHealth extends SocketInfo {
         /**
          * true if able to retrieve the user details from Jenkins
@@ -224,6 +223,25 @@ public class ActiveDirectoryStatus extends ManagementLink implements StaplerProx
             } catch (IOException e) {
             }
             return -1;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof ServerHealth that)) {
+                return false;
+            }
+            if (!super.equals(o)) {
+                return false;
+            }
+            return canLogin == that.canLogin && pingExecutionTime == that.pingExecutionTime && loginExecutionTime == that.loginExecutionTime;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(super.hashCode(), canLogin, pingExecutionTime, loginExecutionTime);
         }
     }
 

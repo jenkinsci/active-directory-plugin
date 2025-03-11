@@ -23,6 +23,7 @@
  */
 package hudson.plugins.active_directory;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import javax.net.SocketFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
@@ -41,6 +42,7 @@ import static java.util.logging.Level.FINE;
  * @author Kohsuke Kawaguchi
  */
 public abstract class TrustAllSocketFactory extends SocketFactory {
+    @SuppressFBWarnings(value = "HSM_HIDING_METHOD", justification = "TODO needs triage")
     public static SocketFactory getDefault() {
         try {
             SSLContext context = SSLContext.getInstance("SSL");

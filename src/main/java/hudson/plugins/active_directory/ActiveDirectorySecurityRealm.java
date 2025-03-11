@@ -86,6 +86,7 @@ import java.util.Hashtable;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -698,7 +699,6 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             return bind(principalName, password, server, props, null, isRequireTLS());
         }
 
-        @SuppressFBWarnings(value = "UPM_UNCALLED_PRIVATE_METHOD", justification = "Deprecated method.It will removed at some point")
         @Deprecated
         private LdapContext bind(String principalName, String password, SocketInfo server, Hashtable<String, String> props, TlsConfiguration tlsConfiguration, boolean requireTLS) throws NamingException {
             return bind(principalName, password, server, props, tlsConfiguration, requireTLS, isStartTLS());
@@ -845,9 +845,25 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                         this.priority = priority;
                     }
 
-                    @SuppressFBWarnings(value = "EQ_COMPARETO_USE_OBJECT_EQUALS", justification = "Weird and unpredictable behaviour intentional for load balancing.")
+                    @Override
                     public int compareTo(PrioritizedSocketInfo that) {
                         return that.priority - this.priority; // sort them so that bigger priority comes first
+                    }
+
+                    @Override
+                    public boolean equals(Object o) {
+                        if (this == o) {
+                            return true;
+                        }
+                        if (!(o instanceof PrioritizedSocketInfo that)) {
+                            return false;
+                        }
+                        return priority == that.priority && Objects.equals(socket, that.socket);
+                    }
+
+                    @Override
+                    public int hashCode() {
+                        return Objects.hash(socket, priority);
                     }
                 }
                 List<PrioritizedSocketInfo> plist = new ArrayList<>();
