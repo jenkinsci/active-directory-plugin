@@ -495,7 +495,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                 throw (AuthenticationException)t;
             }
             if (e.getCause() instanceof NamingException) {
-                throw new NamingException(); // TODO why not re-throw e.getCause() ?
+                throw (NamingException)e.getCause();
             }
             LOGGER.log(Level.SEVERE, "There was a problem caching user "+ username, e);
             throw new CacheAuthenticationException("Authentication failed because there was a problem caching user " +  username, e);
