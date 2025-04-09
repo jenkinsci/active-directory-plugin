@@ -1,52 +1,42 @@
 package hudson.plugins.active_directory;
 
+import static org.junit.Assert.assertThrows;
+
+import io.jenkins.plugins.casc.ConfigurationAsCode;
+import io.jenkins.plugins.casc.ConfiguratorException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
-
-import org.apache.commons.io.IOUtils;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.rules.TestRule;
 import org.jvnet.hudson.test.FlagRule;
-import org.jvnet.hudson.test.RestartableJenkinsRule;
-import io.jenkins.plugins.casc.ConfigurationAsCode;
-import io.jenkins.plugins.casc.ConfiguratorException;
+import org.jvnet.hudson.test.JenkinsSessionRule;
 
 public class ActiveDirectoryJCasCCompatibilityFIPSModeShortPasswordTest {
 
     @Rule
-    public RestartableJenkinsRule r = new RestartableJenkinsRule();
+    public JenkinsSessionRule r = new JenkinsSessionRule();
 
     @ClassRule
     public static TestRule fip140Prop = FlagRule.systemProperty("jenkins.security.FIPS140.COMPLIANCE", "true");
 
-    @Rule
-    public ExpectedException thrown = ExpectedException.none();
-
     @Test
-    public void checkOfIncorrectConfigurationsWithShortPasswordInFIPSMode() throws IOException {
-        thrown.expect(IllegalStateException.class);
-
+    public void checkOfIncorrectConfigurationsWithShortPasswordInFIPSMode() throws Throwable {
         String resourcePath = "configuration-as-code-fips-short-password.yaml";
-        String resourceContent = this.getResourceContent(resourcePath);
+        String resourceContent = getResourceContent(resourcePath);
         Assert.assertNotNull(resourcePath);
         Assert.assertNotNull(resourceContent);
-        this.r.then((step) -> {
-            this.configureWithResource(resourcePath);
-        });
+        r.then(step -> assertThrows(IllegalStateException.class, () -> configureWithResource(resourcePath)));
     }
 
     private String getResourceContent(String resourcePath) throws IOException {
-        return IOUtils.toString(Objects.requireNonNull(this.getClass().getResourceAsStream(resourcePath))
-                , StandardCharsets.UTF_8);
+        return new String(Objects.requireNonNull(getClass().getResourceAsStream(resourcePath)).readAllBytes(), StandardCharsets.UTF_8);
     }
 
     private void configureWithResource(String config) throws ConfiguratorException {
-        ConfigurationAsCode.get().configure(new String[]{ this.getClass().getResource(config).toExternalForm()});
+        ConfigurationAsCode.get().configure(Objects.requireNonNull(getClass().getResource(config)).toExternalForm());
     }
-
 }
