@@ -2,7 +2,7 @@
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
     <l:layout title="${it.displayName}">
         <l:main-panel>
-            <h1><l:icon src="symbol-medkit-outline plugin-ionicons-api" class="icon-xlg" /> ${it.displayName}</h1>
+            <h1>${it.displayName}</h1>
             <h2>${%ActiveDirectoryStatus.DomainHealth}</h2>
             <j:set var="domains" value="${it.domains}"/>
             <table class="bigtable pane">
