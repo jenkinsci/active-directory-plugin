@@ -1,9 +1,11 @@
 package hudson.plugins.active_directory;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
-import org.mindrot.jbcrypt.BCrypt;
+import org.springframework.security.crypto.bcrypt.BCrypt;
 
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -13,6 +15,7 @@ import java.util.Set;
 
 @Restricted(NoExternalUse.class)
 public final class CacheUtil {
+    private static final int BCRYPT_MAX_LENGTH = 72;
     @SuppressFBWarnings("MS_SHOULD_BE_FINAL")
     public static /* non-final for Groovy */ boolean NO_CACHE_AUTH = Boolean.getBoolean(CacheUtil.class.getName() + ".noCacheAuth"); // Groovy console: hudson.plugins.active_directory.CacheUtil.NO_CACHE_AUTH = true
     @SuppressFBWarnings("MS_SHOULD_BE_FINAL")
@@ -62,8 +65,14 @@ public final class CacheUtil {
             if (!Objects.equals(key.getUsername(), username)) {
                 continue;
             }
-            // username matches
-            if (BCrypt.checkpw(password, key.getPasswordHash())) {
+            // At this point, username matches.
+            // Next, truncate the password to 72 bytes due to the length limit of BCrypt, otherwise Spring's impl would throw.
+            // TODO We should use an unlimited length password hash here, but realistically this is unlikely to be a problem
+            byte[] passwordBytes = password.getBytes(StandardCharsets.UTF_8);
+            if (passwordBytes.length > BCRYPT_MAX_LENGTH) {
+                passwordBytes = Arrays.copyOfRange(passwordBytes, 0, BCRYPT_MAX_LENGTH);
+            }
+            if (BCrypt.checkpw(passwordBytes, key.getPasswordHash())) {
                 return key;
             }
         }

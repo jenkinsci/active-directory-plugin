@@ -25,7 +25,7 @@ package hudson.plugins.active_directory;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.util.FlushProofOutputStream;
-import org.acegisecurity.userdetails.UsernameNotFoundException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
 import java.io.PrintStream;
 import java.io.PrintWriter;

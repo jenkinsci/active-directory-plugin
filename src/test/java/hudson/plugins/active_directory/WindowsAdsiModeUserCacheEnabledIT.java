@@ -1,6 +1,6 @@
 package hudson.plugins.active_directory;
 
-import com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException;
+import org.htmlunit.FailingHttpStatusCodeException;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -22,7 +22,7 @@ import static org.junit.Assume.assumeTrue;
 /**
  * This tests requires a very specific windows environment to run, the windows machine
  * needs to be joined to a function domain that has the user fred with the password ia4uV1EeKait.
- * It is enabled in the ITs profile, but will skip on I as that profile is enabled only on the special Linux environment.
+ * It is enabled in the windowsITs profile, but will skip on I as that profile is enabled only on the special Linux environment.
  */
 public class WindowsAdsiModeUserCacheEnabledIT {
 
@@ -58,14 +58,14 @@ public class WindowsAdsiModeUserCacheEnabledIT {
     public void dynamicCacheEnableSetUp() throws Exception {
         CacheConfiguration cacheConfiguration = new CacheConfiguration(500,30);
         ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, null, null, null,
-                null, null, null, false, null, cacheConfiguration, null, (ActiveDirectoryInternalUsersDatabase) null);
+                null, null, null, false, null, cacheConfiguration, null, (ActiveDirectoryInternalUsersDatabase) null, false);
         j.jenkins.setSecurityRealm(activeDirectorySecurityRealm);
     }
 
 
     public void dynamicCacheDisabledSetUp() throws Exception {
         ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, null, null, null,
-                null, null, null, false, null, null, null, (ActiveDirectoryInternalUsersDatabase) null);
+                null, null, null, false, null, null, null, (ActiveDirectoryInternalUsersDatabase) null, false);
         j.jenkins.setSecurityRealm(activeDirectorySecurityRealm);
     }
 

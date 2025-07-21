@@ -28,8 +28,10 @@ import hudson.model.User;
 import hudson.security.SecurityRealm;
 import hudson.tasks.MailAddressResolver;
 import jenkins.model.Jenkins;
-import org.acegisecurity.AcegiSecurityException;
-import org.springframework.dao.DataAccessException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
 
 import java.util.logging.Logger;
 
@@ -51,18 +53,25 @@ public class ActiveDirectoryMailAddressResolverImpl extends
 			return null;
 		}   
 		try {
-			ActiveDirectoryUserDetail details = (ActiveDirectoryUserDetail) realm
-					.getSecurityComponents().userDetails.loadUserByUsername(u
-					.getId());
-			LOGGER.log(FINE, "Email address = '"+ details.getMail() + "'");
-				return details.getMail();
-		} catch (DataAccessException e) {
+			UserDetailsService uds = realm.getSecurityComponents().userDetails2;
+			UserDetails userDetails = uds.loadUserByUsername(u.getId());
+			//uds could be a proxy, rememberMe etc. and return something different from what we expected.
+			if (userDetails instanceof ActiveDirectoryUserDetail) {
+				final String mail = ((ActiveDirectoryUserDetail) userDetails).getMail();
+				LOGGER.log(FINE, () -> "Email address = '"+ mail + "'");
+				return mail;
+			} else if (userDetails == null){
+				return null;
+			} else {
+				LOGGER.log(FINER, () -> "Unexpected UserDetails type from AD: "
+						+ userDetails.getClass().getName() + " uds: " + uds.getClass().getName());
+			}
+		} catch (AccessDeniedException e) {
 			LOGGER.log(FINE, "Failed to look Active Directory for e-mail address", e);
-			return null;
-		} catch (AcegiSecurityException e) {
+		} catch (AuthenticationException e) {
 			LOGGER.log(FINE, "Failed to look up Active Directory for e-mail address", e);
-			return null;
 		}
+		return null;
 	}
 
 	private static final Logger LOGGER = Logger

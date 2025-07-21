@@ -7,7 +7,6 @@
   <useSecurity>true</useSecurity>
   <authorizationStrategy class="hudson.security.AuthorizationStrategy$Unsecured"/>
   <securityRealm class="hudson.plugins.active_directory.ActiveDirectorySecurityRealm">
-    <startTls>true</startTls>
     <groupLookupStrategy>AUTO</groupLookupStrategy>
     <removeIrrelevantGroups>false</removeIrrelevantGroups>
   </securityRealm>

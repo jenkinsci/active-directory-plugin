@@ -1,11 +1,11 @@
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
   <f:advanced>
-    <f:entry field="startTls" title="${%Enable StartTls}">
-      <f:checkbox name="startTls" default="true" />
-    </f:entry>
     <f:entry field="groupLookupStrategy" title="${%Group Membership Lookup Strategy}">
       <f:select default="TOKENGROUPS"/>
+    </f:entry>
+    <f:entry field="startTls" title="${%Enable StartTls}">
+      <f:checkbox name="startTls" default="true" />
     </f:entry>
     <f:optionalBlock field="internalUsersDatabase" title="${%Use Jenkins Internal Database}" checked="${instance.internalUsersDatabase != null}">
       <f:entry field="jenkinsInternalUser" title="${%Jenkins Internal Database User}">
@@ -19,10 +19,5 @@
       <f:repeatableProperty field="environmentProperties" />
     </f:entry>
   </f:advanced>
-	<script type="text/javascript" >
-		document.addEventListener("DOMContentLoaded", function(event) {
-		   document.getElementsByName("_.bindPassword")[0].autocomplete = "off";
-		   document.getElementsByName("_.bindName")[0].autocomplete = "off";
-		});
-	</script>
+  <st:adjunct includes="hudson.plugins.active_directory.ActiveDirectorySecurityRealm.ad-turn-off-autocomplete"/>
 </j:jelly>

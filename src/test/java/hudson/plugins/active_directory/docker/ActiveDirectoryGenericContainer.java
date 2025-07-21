@@ -3,6 +3,8 @@ package hudson.plugins.active_directory.docker;
 import java.io.IOException;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.InternetProtocol;
+import org.testcontainers.containers.wait.strategy.LogMessageWaitStrategy;
+import org.testcontainers.containers.wait.strategy.WaitStrategy;
 import org.testcontainers.images.builder.ImageFromDockerfile;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerCmd;
@@ -25,7 +27,8 @@ public class ActiveDirectoryGenericContainer<SELF extends ActiveDirectoryGeneric
                 .withFileFromClasspath("named.conf.options", "hudson/plugins/active_directory/docker/TheFlintstonesTest/TheFlintstones/named.conf.options")
                 .withFileFromClasspath("sssd.conf", "hudson/plugins/active_directory/docker/TheFlintstonesTest/TheFlintstones/sssd.conf")
                 .withFileFromClasspath("supervisord.conf", "hudson/plugins/active_directory/docker/TheFlintstonesTest/TheFlintstones/supervisord.conf"));
-        setWaitStrategy(null);
+        // wait for the custom.sh script to complete successfully
+        setWaitStrategy(new LogMessageWaitStrategy().withRegEx(".*\\Qexited: custom (exit status 0; expected)\\E.*"));
     }
 
     /*
@@ -34,8 +37,9 @@ public class ActiveDirectoryGenericContainer<SELF extends ActiveDirectoryGeneric
      */
     public ActiveDirectoryGenericContainer<SELF> withStaticPorts() {
         addFixedExposedPort(3268, 3268); // global catalog
-        addFixedExposedPort(53, 53, InternetProtocol.TCP); // DNS over TCP
-        addFixedExposedPort(53, 53, InternetProtocol.UDP); // DNS over UDP
+        addFixedExposedPort(3269, 3269); // global catalog over tls
+        addFixedExposedPort(553, 53, InternetProtocol.TCP); // DNS over TCP
+        addFixedExposedPort(553, 53, InternetProtocol.UDP); // DNS over UDP
         return this;
     }
 

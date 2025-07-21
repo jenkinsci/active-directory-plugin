@@ -4,7 +4,7 @@
   <parent>
     <groupId>org.jenkins-ci.plugins</groupId>
     <artifactId>plugin</artifactId>
-    <version>4.50</version>
+    <version>5.18</version>
     <relativePath />
   </parent>
 
@@ -13,13 +13,13 @@
   <version>${revision}${changelist}</version>
   <name>Jenkins Active Directory plugin</name>
   <description>Enables authentication through Active Directory</description>
-  <url>https://github.com/jenkinsci/active-directory-plugin</url>
+  <url>https://github.com/jenkinsci/${project.artifactId}-plugin</url>
 
   <scm>
    <connection>scm:git:https://github.com/${gitHubRepo}.git</connection>
    <developerConnection>scm:git:git@github.com:${gitHubRepo}.git</developerConnection>
    <url>https://github.com/${gitHubRepo}</url>
-   <tag>HEAD</tag>
+   <tag>${scmTag}</tag>
   </scm>
 
   <developers>
@@ -34,18 +34,19 @@
   </developers>
 
   <properties>
-    <revision>2.31</revision>
+    <revision>2.41</revision>
     <changelist>-SNAPSHOT</changelist>
     <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
-    <jenkins.version>2.332.4</jenkins.version>
+    <jenkins.baseline>2.479</jenkins.baseline>
+    <jenkins.version>${jenkins.baseline}.3</jenkins.version>
   </properties>
 
   <dependencyManagement>
     <dependencies>
       <dependency>
         <groupId>io.jenkins.tools.bom</groupId>
-        <artifactId>bom-2.332.x</artifactId>
-        <version>1678.vc1feb_6a_3c0f1</version>
+        <artifactId>bom-${jenkins.baseline}.x</artifactId>
+        <version>5015.vb_52d36583443</version>
         <scope>import</scope>
         <type>pom</type>
       </dependency>
@@ -89,6 +90,10 @@
       <artifactId>caffeine-api</artifactId>
     </dependency>
     <dependency>
+      <groupId>io.jenkins.plugins</groupId>
+      <artifactId>ionicons-api</artifactId>
+    </dependency>
+    <dependency>
       <groupId>com.github.spotbugs</groupId>
       <artifactId>spotbugs-annotations</artifactId>
       <optional>true</optional>
@@ -108,7 +113,7 @@
     <dependency>
       <groupId>org.testcontainers</groupId>
       <artifactId>testcontainers</artifactId>
-      <version>1.17.6</version>
+      <version>1.21.3</version>
       <scope>test</scope>
     </dependency>
     <!-- JCasC compatibility -->
@@ -126,6 +131,13 @@
       <groupId>com.github.stefanbirkner</groupId>
       <artifactId>system-rules</artifactId>
       <version>1.19.0</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <!-- to manipulate DNS servers for testing -->
+      <groupId>org.burningwave</groupId>
+      <artifactId>tools</artifactId>
+      <version>0.27.2</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -155,6 +167,7 @@
   <profiles>
     <profile>
       <id>onlyITs</id>
+      <!-- configure surefire to only run the regular ITs when run with mvn test -->
       <build>
         <plugins>
           <plugin>
@@ -164,13 +177,20 @@
               <includes>
                 <include>**/*IT.java</include>
               </includes>
+              <excludes>
+                <exclude>**/Windows*IT.java</exclude>
+              </excludes>
             </configuration>
           </plugin>
         </plugins>
       </build>
     </profile>
     <profile>
+      <!-- configure surefire to run the regular ITs in addition to the regular tests when run with mvn test -->
       <id>ITs</id>
+        <activation>
+          <activeByDefault>true</activeByDefault>
+      </activation>
       <build>
         <plugins>
           <plugin>
@@ -186,6 +206,9 @@
                   <includes>
                     <include>**/*IT.java</include>
                   </includes>
+                  <excludes>
+                    <exclude>**/Windows*IT.java</exclude>
+                  </excludes>
                  </configuration>
               </execution>
             </executions>
@@ -193,6 +216,49 @@
         </plugins>
       </build>
     </profile>
+    <profile>
+      <!-- configure surefire to only run the special windows ITs when run with mvn test -->
+      <id>onlyWindowsITs</id>
+      <build>
+        <plugins>
+          <plugin>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <configuration>
+              <forkCount>1</forkCount> <!-- using static ports can not be parallized -->
+              <includes>
+                <include>**/Windows*IT.java</include>
+              </includes>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
+      <!-- configure surefire to run the special windows ITs in addition to the regular tests when run with mvn test -->
+      <id>WindowsITs</id>
+      <build>
+        <plugins>
+          <plugin>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>WindowsITs</id>
+                <goals>
+                  <goal>test</goal>
+                </goals>
+                <configuration>
+                  <forkCount>1</forkCount> <!-- using static ports can not be parallized -->
+                  <includes>
+                    <include>**/Windows*IT.java</include>
+                  </includes>
+                 </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+
   </profiles>
 
   <repositories>

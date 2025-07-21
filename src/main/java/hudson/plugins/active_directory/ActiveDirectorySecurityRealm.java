@@ -38,25 +38,29 @@ import hudson.security.SecurityRealm;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import hudson.util.Secret;
+import jakarta.servlet.ServletException;
 import jenkins.model.Jenkins;
+import jenkins.security.FIPS140;
 import jenkins.security.SecurityListener;
-import org.acegisecurity.AuthenticationException;
-import org.acegisecurity.BadCredentialsException;
-import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
-import org.acegisecurity.userdetails.UserDetails;
-import org.acegisecurity.userdetails.UsernameNotFoundException;
-import org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement;
+import jenkins.util.SystemProperties;
+
+import org.apache.commons.lang.StringUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.StaplerRequest;
-import org.kohsuke.stapler.StaplerResponse;
+import org.kohsuke.stapler.StaplerRequest2;
+import org.kohsuke.stapler.StaplerResponse2;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 import org.kohsuke.stapler.verb.GET;
 import org.kohsuke.stapler.verb.POST;
-import org.springframework.dao.DataAccessException;
+import org.springframework.security.authentication.AuthenticationServiceException;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
 import javax.naming.Context;
 import javax.naming.NamingEnumeration;
@@ -70,7 +74,6 @@ import javax.naming.ldap.LdapContext;
 import javax.naming.ldap.StartTlsRequest;
 import javax.naming.ldap.StartTlsResponse;
 import javax.net.ssl.SSLSocketFactory;
-import javax.servlet.ServletException;
 import java.io.IOException;
 import java.io.ObjectStreamException;
 import java.io.PrintWriter;
@@ -83,6 +86,7 @@ import java.util.Hashtable;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -261,10 +265,11 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     }
 
     @DataBoundConstructor
+    @SuppressFBWarnings(value = "PA_PUBLIC_PRIMITIVE_ATTRIBUTE", justification = "TODO needs triage")
     // as Java signature, this binding doesn't make sense, so please don't use this constructor
     public ActiveDirectorySecurityRealm(String domain, List<ActiveDirectoryDomain> domains, String site, String bindName,
                                         String bindPassword, String server, GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain, CacheConfiguration cache, Boolean startTls, ActiveDirectoryInternalUsersDatabase internalUsersDatabase, boolean requireTLS) {
-        if (customDomain!=null && !customDomain)
+        if (customDomain != null && !customDomain)
             domains = null;
         this.domain = fixEmpty(domain);
         this.server = fixEmpty(server);
@@ -275,9 +280,14 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         this.groupLookupStrategy = groupLookupStrategy;
         this.removeIrrelevantGroups = removeIrrelevantGroups;
         this.cache = cache;
-        this.startTls = startTls;
         this.internalUsersDatabase = internalUsersDatabase;
-        this.requireTLS = Boolean.valueOf(requireTLS);
+
+        // Gives exception if TLS is not used in FIPS mode.
+        if (isFipsNonCompliant(requireTLS, startTls)) {
+            throw new IllegalArgumentException(Messages.TlsConfiguration_ErrorMessage());
+        }
+        this.startTls = startTls;
+        this.requireTLS = requireTLS;
     }
 
     @DataBoundSetter
@@ -382,43 +392,15 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         return null;
     }
 
-    public Object readResolve() throws ObjectStreamException {
-        if (domain != null) {
-            this.domains = new ArrayList<>();
-            domain = domain.trim();
-            String[] oldDomains = domain.split(",");
-            for (String oldDomain : oldDomains) {
-                oldDomain = oldDomain.trim();
-                this.domains.add(new ActiveDirectoryDomain(oldDomain, server));
-            }
-        }
-        List <ActiveDirectoryDomain> activeDirectoryDomains = this.getDomains();
-        // JENKINS-14281 On Windows domain can be indeed null
-        if (activeDirectoryDomains!= null) {
-            // JENKINS-39375 Support a different bindUser per domain
-            if (bindName != null && bindPassword != null) {
-                for (ActiveDirectoryDomain activeDirectoryDomain : activeDirectoryDomains) {
-                    activeDirectoryDomain.bindName = bindName;
-                    activeDirectoryDomain.bindPassword = bindPassword;
-                }
-            }
-            // JENKINS-39423 Make site independent of each domain
-            if (site != null) {
-                for (ActiveDirectoryDomain activeDirectoryDomain : activeDirectoryDomains) {
-                    activeDirectoryDomain.site = site;
-                }
-            }
-            // SECURITY-859 Make tlsConfiguration independent of each domain
-            if (tlsConfiguration != null) {
-                for (ActiveDirectoryDomain activeDirectoryDomain : activeDirectoryDomains) {
-                    activeDirectoryDomain.tlsConfiguration = tlsConfiguration;
-                }
-            }
-        }
-        if (startTls == null) {
-            this.startTls = true;
-        }
-        return this;
+    /**
+     * Checks whether Jenkins is running in FIPS mode and TLS is not enabled for communication.
+     *
+     * @return true if the application is in FIPS mode, requireTls and startTls are false.
+     *         <br>
+     *         false if either the application is not in FIPS mode or any of requireTls, startTls is true.
+     */
+    private static boolean isFipsNonCompliant(boolean requireTls, boolean startTls) {
+        return FIPS140.useCompliantAlgorithms() && !requireTls && !startTls;
     }
 
     @Override
@@ -430,7 +412,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
      * Authentication test.
      */
     @RequirePOST
-    public void doAuthTest(StaplerRequest req, StaplerResponse rsp, @QueryParameter String username, @QueryParameter String password) throws IOException, ServletException {
+    public void doAuthTest(StaplerRequest2 req, StaplerResponse2 rsp, @QueryParameter String username, @QueryParameter String password) throws IOException, ServletException {
         // require the administrator permission since this is full of debug info.
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
 
@@ -476,6 +458,53 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
         req.setAttribute("output", out.toString());
         req.getView(this, "test.jelly").forward(req, rsp);
+    }
+
+    public Object readResolve() throws ObjectStreamException {
+        if (domain != null) {
+            this.domains = new ArrayList<>();
+            domain = domain.trim();
+            String[] oldDomains = domain.split(",");
+            for (String oldDomain : oldDomains) {
+                oldDomain = oldDomain.trim();
+                this.domains.add(new ActiveDirectoryDomain(oldDomain, server));
+            }
+        }
+        List<ActiveDirectoryDomain> activeDirectoryDomains = this.getDomains();
+        // JENKINS-14281 On Windows domain can be indeed null
+        if (activeDirectoryDomains != null) {
+            // JENKINS-39375 Support a different bindUser per domain
+            if (bindName != null && bindPassword != null) {
+                for (ActiveDirectoryDomain activeDirectoryDomain : activeDirectoryDomains) {
+                    activeDirectoryDomain.bindName = bindName;
+                    activeDirectoryDomain.bindPassword = bindPassword;
+                }
+            }
+            // JENKINS-39423 Make site independent of each domain
+            if (site != null) {
+                for (ActiveDirectoryDomain activeDirectoryDomain : activeDirectoryDomains) {
+                    activeDirectoryDomain.site = site;
+                }
+            }
+            // SECURITY-859 Make tlsConfiguration independent of each domain
+            if (tlsConfiguration != null) {
+                for (ActiveDirectoryDomain activeDirectoryDomain : activeDirectoryDomains) {
+                    activeDirectoryDomain.tlsConfiguration = tlsConfiguration;
+                }
+            }
+        }
+
+        if (startTls == null) {
+            this.startTls = true;
+        }
+
+        //requireTls can be  null, to avoid null-pointer exception, set flag as false.
+        boolean requireTlsFlag = requireTLS == null ? false : requireTLS;
+
+        // Gives exception if TLS is not used in FIPS mode.
+        if (isFipsNonCompliant(requireTlsFlag, startTls))
+            throw new IllegalArgumentException(Messages.TlsConfiguration_ErrorMessage());
+        return this;
     }
 
     @Extension
@@ -543,7 +572,10 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             return model;
         }
 
-        public FormValidation doCheckRequireTLS() {
+        public FormValidation doCheckRequireTLS(@QueryParameter boolean requireTLS, @QueryParameter boolean startTls) {
+            if (isFipsNonCompliant(requireTLS, startTls)) {
+                return FormValidation.error(Messages.TlsConfiguration_ErrorMessage());
+            }
             Jenkins.get().checkPermission(Jenkins.ADMINISTER);
             if (System.getProperty(ActiveDirectoryAuthenticationProvider.ADSI_FLAGS_SYSTEM_PROPERTY_NAME) != null) {
                 return FormValidation.warning("This setting is overridden by the ADSI mode system property");
@@ -551,7 +583,14 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             return FormValidation.ok();
         }
 
-        private boolean isTrustAllCertificatesEnabled(TlsConfiguration tlsConfiguration) {
+        public FormValidation doCheckStartTls(@QueryParameter boolean requireTLS, @QueryParameter boolean startTls) {
+            if (isFipsNonCompliant(requireTLS, startTls)) {
+                return FormValidation.error(Messages.TlsConfiguration_ErrorMessage());
+            }
+            return FormValidation.ok();
+        }
+
+        protected static boolean isTrustAllCertificatesEnabled(TlsConfiguration tlsConfiguration) {
             return (tlsConfiguration == null || TlsConfiguration.TRUST_ALL_CERTIFICATES.equals(tlsConfiguration));
         }
 
@@ -567,13 +606,18 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             return bind(principalName, password, ldapServers, props, tlsConfiguration, isRequireTLS());
         }
 
-        /**
-         * Binds to the server using the specified username/password.
-         * <p>
-         * In a real deployment, often there are servers that don't respond or
-         * otherwise broken, so try all the servers.
-         */
+        @Deprecated
         public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers, Hashtable<String, String> props, TlsConfiguration tlsConfiguration, boolean requireTLS) throws NamingException {
+            return bind(principalName, password, ldapServers, props, tlsConfiguration, requireTLS, isStartTLS());
+        }
+
+            /**
+             * Binds to the server using the specified username/password.
+             * <p>
+             * In a real deployment, often there are servers that don't respond or
+             * otherwise broken, so try all the servers.
+             */
+        public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers, Hashtable<String, String> props, TlsConfiguration tlsConfiguration, boolean requireTLS, boolean startTls) throws NamingException {
             // in a AD forest, it'd be mighty nice to be able to login as "joe"
             // as opposed to "joe@europe",
             // but the bind operation doesn't appear to allow me to do so.
@@ -599,7 +643,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
             for (SocketInfo ldapServer : ldapServers) {
                 try {
-                    LdapContext context = bind(principalName, password, ldapServer, newProps, tlsConfiguration, requireTLS);
+                    LdapContext context = bind(principalName, password, ldapServer, newProps, tlsConfiguration, requireTLS, startTls);
                     LOGGER.fine("Bound to " + ldapServer);
                     return context;
                 } catch (javax.naming.AuthenticationException e) {
@@ -642,7 +686,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                 props.put(propName, prop);
             }
         }
-        
+
         /** Lookups for hardcoded LDAP properties if they are specified as System properties and uses them */
         private void customizeLdapProperties(Hashtable<String, String> props) {
              customizeLdapProperty(props, "com.sun.jndi.ldap.connect.timeout");
@@ -650,14 +694,17 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
         }
 
         @SuppressFBWarnings(value = "UPM_UNCALLED_PRIVATE_METHOD", justification = "Deprecated method.It will removed at some point")
-        @IgnoreJRERequirement
         @Deprecated
         private LdapContext bind(String principalName, String password, SocketInfo server, Hashtable<String, String> props) throws NamingException {
             return bind(principalName, password, server, props, null, isRequireTLS());
         }
 
-        @IgnoreJRERequirement
+        @Deprecated
         private LdapContext bind(String principalName, String password, SocketInfo server, Hashtable<String, String> props, TlsConfiguration tlsConfiguration, boolean requireTLS) throws NamingException {
+            return bind(principalName, password, server, props, tlsConfiguration, requireTLS, isStartTLS());
+        }
+
+        private LdapContext bind(String principalName, String password, SocketInfo server, Hashtable<String, String> props, TlsConfiguration tlsConfiguration, boolean requireTLS, boolean startTLS) throws NamingException {
             String ldapUrl = (requireTLS?"ldaps://":"ldap://") + server + '/';
             String oldName = Thread.currentThread().getName();
             Thread.currentThread().setName("Connecting to "+ldapUrl+" : "+oldName);
@@ -667,17 +714,10 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                 props.put(Context.PROVIDER_URL, ldapUrl);
                 props.put("java.naming.ldap.version", "3");
                 customizeLdapProperties(props);
-                
+
                 LdapContext context = new InitialLdapContext(props, null);
 
-                boolean isStartTls = true;
-                SecurityRealm securityRealm = Jenkins.getActiveInstance().getSecurityRealm();
-                if (securityRealm instanceof ActiveDirectorySecurityRealm) {
-                    ActiveDirectorySecurityRealm activeDirectorySecurityRealm = (ActiveDirectorySecurityRealm) securityRealm;
-                     isStartTls= activeDirectorySecurityRealm.isStartTls();
-                }
-
-                if (!requireTLS && isStartTls) {
+                if (!requireTLS && startTLS) {
                     // try to upgrade to TLS if we can, but failing to do so isn't fatal
                     // see http://download.oracle.com/javase/jndi/tutorial/ldap/ext/starttls.html
                     StartTlsResponse rsp = null;
@@ -758,7 +798,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
          *      an authentication attempt with every listed server, which can lock the user out!) This also
          *      puts this feature in alignment with {@link #DOMAIN_CONTROLLERS}, which seems to indicate that
          *      there are users who prefer this behaviour.
-         * 
+         *
          * @param useTLS {@code true} if we should use ldaps.
          * @return A list with at least one item.
          */
@@ -807,9 +847,25 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                         this.priority = priority;
                     }
 
-                    @SuppressFBWarnings(value = "EQ_COMPARETO_USE_OBJECT_EQUALS", justification = "Weird and unpredictable behaviour intentional for load balancing.")
+                    @Override
                     public int compareTo(PrioritizedSocketInfo that) {
                         return that.priority - this.priority; // sort them so that bigger priority comes first
+                    }
+
+                    @Override
+                    public boolean equals(Object o) {
+                        if (this == o) {
+                            return true;
+                        }
+                        if (!(o instanceof PrioritizedSocketInfo that)) {
+                            return false;
+                        }
+                        return priority == that.priority && Objects.equals(socket, that.socket);
+                    }
+
+                    @Override
+                    public int hashCode() {
+                        return Objects.hash(socket, priority);
                     }
                 }
                 List<PrioritizedSocketInfo> plist = new ArrayList<>();
@@ -860,10 +916,20 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             }
             return requireTLS;
         }
+
+        @Deprecated // this is here purely to ease access to the variable from the descriptor.
+        private boolean isStartTLS() {
+            boolean startTLS = true; // secure by default
+            SecurityRealm securityRealm = Jenkins.get().getSecurityRealm();
+            if (securityRealm instanceof ActiveDirectorySecurityRealm) {
+                startTLS = Boolean.TRUE.equals(((ActiveDirectorySecurityRealm)securityRealm).isStartTls());
+            }
+            return startTLS;
+        }
     }
 
     @Override
-    public GroupDetails loadGroupByGroupname(String groupname) throws UsernameNotFoundException, DataAccessException {
+    public GroupDetails loadGroupByGroupname2(String groupname, boolean fetchMembers) throws UsernameNotFoundException {
         return getAuthenticationProvider().loadGroupByGroupname(groupname);
     }
 
@@ -887,15 +953,20 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     }
 
     @Override
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException, DataAccessException {
+    public UserDetails loadUserByUsername2(String username) throws UsernameNotFoundException {
         // delegate to one of our ActiveDirectory(Unix)?AuthenticationProvider
         return getAuthenticationProvider().loadUserByUsername(username);
     }
 
     @Override
-    protected UserDetails authenticate(String username, String password) throws AuthenticationException {
+    protected UserDetails authenticate2(String username, String password) throws AuthenticationException {
+        // Check if the password length is less than 14 characters
+        if(FIPS140.useCompliantAlgorithms() && StringUtils.length(password) < 14) {
+            LOGGER.log(Level.SEVERE, String.format(Messages.passwordTooShortFIPS()));
+            throw new AuthenticationServiceException(Messages.passwordTooShortFIPS());
+        }
         UserDetails userDetails = getAuthenticationProvider().retrieveUser(username,new UsernamePasswordAuthenticationToken(username,password));
-        SecurityListener.fireAuthenticated(userDetails);
+        SecurityListener.fireAuthenticated2(userDetails);
         return userDetails;
     }
 

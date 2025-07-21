@@ -2,7 +2,7 @@
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
     <l:layout title="${it.displayName}">
         <l:main-panel>
-            <h1><img style="width:32px; height:32px" src="${resURL}/plugin/active-directory/images/icon.png"/> ${it.displayName}</h1>
+            <h1>${it.displayName}</h1>
             <h2>${%ActiveDirectoryStatus.DomainHealth}</h2>
             <j:set var="domains" value="${it.domains}"/>
             <table class="bigtable pane">
@@ -56,7 +56,7 @@
             <h2>${%ActiveDirectoryStatus.ServersHealth}</h2>
             <em>${%ActiveDirectoryStatus.ServersHealthNote}</em>
             <br/><br/>
-            <j:set var="domain" value="${request.getParameter('domain')}"/>
+            <j:set var="domain" value="${request2.getParameter('domain')}"/>
             <form method="POST" action=".">
                 ${%ActiveDirectoryStatus.ServerHealthDomain}
                 <select name="domain">
@@ -71,30 +71,7 @@
             <pre>
             ${it.check}
             </pre>
-            <script>
-                function display(r) {
-                    r.domainHealth.forEach(function(domainHealth) {
-                        var tr = document.createElement('tr');
-                        var td1 = document.createElement('td');
-                        var td2 = document.createElement('td');
-                        var td3 = document.createElement('td');
-                        var td4 = document.createElement('td');
-                        var text1 = document.createTextNode(domainHealth.host + ' / ' + domainHealth.ipAddress);
-                        var text2 = document.createTextNode(domainHealth.canLogin);
-                        var text3 = document.createTextNode(domainHealth.pingExecutionTime + ' ms');
-                        var text4 = document.createTextNode(domainHealth.loginExecutionTime  + ' ms');
-                        td1.appendChild(text1);
-                        td2.appendChild(text2);
-                        td3.appendChild(text3);
-                        td4.appendChild(text4);
-                        tr.appendChild(td1);
-                        tr.appendChild(td2);
-                        tr.appendChild(td3);
-                        tr.appendChild(td4);
-                        $(demo).appendChild(tr);
-                    });
-                }
-            </script>
+            <st:adjunct includes="hudson.plugins.active_directory.ActiveDirectoryStatus.ad-display"/>
             <l:progressiveRendering handler="${it.startDomainHealthChecks(domain)}" callback="display" tooltip="Checking Domain Controllers..."/>
             <table id="demo" class="bigtable pane">
                 <tr>

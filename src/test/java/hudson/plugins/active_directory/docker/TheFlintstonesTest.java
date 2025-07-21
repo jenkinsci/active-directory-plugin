@@ -24,16 +24,13 @@
 
 package hudson.plugins.active_directory.docker;
 
-import com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException;
+import org.htmlunit.FailingHttpStatusCodeException;
 import hudson.plugins.active_directory.ActiveDirectoryDomain;
 import hudson.plugins.active_directory.ActiveDirectorySecurityRealm;
 import hudson.plugins.active_directory.DNSUtils;
 import hudson.plugins.active_directory.GroupLookupStrategy;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
-import org.acegisecurity.AuthenticationServiceException;
-import org.acegisecurity.userdetails.UserDetails;
-import org.acegisecurity.userdetails.UsernameNotFoundException;
 import org.junit.After;
 import org.junit.Assume;
 import org.junit.Before;
@@ -41,11 +38,15 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.springframework.security.authentication.AuthenticationServiceException;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.testcontainers.DockerClientFactory;
 
 import javax.naming.CommunicationException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -98,7 +99,7 @@ public class TheFlintstonesTest {
         // see hudson.plugins.active_directory.ActiveDirectoryDomain.createDNSLookupContext()
         // getHost returns a hostname not IPaddress...
         // use our DNS to resolve that to an IP address.
-        String DNS_URLs = "dns://"+InetAddress.getByName(docker.getHost()).getHostAddress()+":"+docker.getDNSPort();
+        String DNS_URLs = new URI("dns", null, InetAddress.getByName(docker.getHost()).getHostAddress(), Integer.parseInt(docker.getDNSPort()), null, null, null).toASCIIString();
         System.setProperty(DNSUtils.OVERRIDE_DNS_PROPERTY, DNS_URLs);
     }
 
@@ -116,14 +117,11 @@ public class TheFlintstonesTest {
         domains.add(activeDirectoryDomain);
         ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, null, null, null, null, GroupLookupStrategy.RECURSIVE, false, true, null, false, null, false);
         j.getInstance().setSecurityRealm(activeDirectorySecurityRealm);
-        while(!docker.getLogs().contains("custom (exit status 0; expected)")) {
-            Thread.sleep(1000);
-        }
         UserDetails userDetails = null;
         int i = 0;
         while (i < MAX_RETRIES && userDetails == null) {
             try {
-                userDetails = j.jenkins.getSecurityRealm().loadUserByUsername("Fred");
+                userDetails = j.jenkins.getSecurityRealm().loadUserByUsername2("Fred");
             } catch (AuthenticationServiceException e) {
                 Thread.sleep(1000);
             }
@@ -148,7 +146,7 @@ public class TheFlintstonesTest {
         int i = 0;
         while (i < MAX_RETRIES && userDetails == null) {
             try {
-                userDetails = j.jenkins.getSecurityRealm().loadUserByUsername("Fred");
+                userDetails = j.jenkins.getSecurityRealm().loadUserByUsername2("Fred");
             } catch (AuthenticationServiceException e) {
                 Thread.sleep(1000);
             }
@@ -159,7 +157,7 @@ public class TheFlintstonesTest {
     @Test
     public void simpleLoginSuccessful() throws Exception {
         dynamicSetUp();
-        UserDetails userDetails = j.jenkins.getSecurityRealm().loadUserByUsername("Fred");
+        UserDetails userDetails = j.jenkins.getSecurityRealm().loadUserByUsername2("Fred");
         assertThat(userDetails.getUsername(), is("Fred"));
     }
 
@@ -193,7 +191,7 @@ public class TheFlintstonesTest {
     public void simpleLoginFails() throws Exception {
         dynamicSetUp();
         try {
-            j.jenkins.getSecurityRealm().loadUserByUsername("Homer");
+            j.jenkins.getSecurityRealm().loadUserByUsername2("Homer");
         } catch (UsernameNotFoundException e) {
             assertTrue(e.getMessage().contains("Authentication was successful but cannot locate the user information for Homer"));
         }
@@ -204,7 +202,7 @@ public class TheFlintstonesTest {
     public void loadGroupFromGroupname() throws Exception {
         dynamicSetUp();
         String groupname = "The Rubbles";
-        GroupDetails group = j.jenkins.getSecurityRealm().loadGroupByGroupname(groupname);
+        GroupDetails group = j.jenkins.getSecurityRealm().loadGroupByGroupname2(groupname, false);
         assertThat(group.getName(), is("The Rubbles"));
     }
 
@@ -218,7 +216,7 @@ public class TheFlintstonesTest {
         String aliasname = "Rubbles";
         boolean isAlias = false;
         try {
-            j.jenkins.getSecurityRealm().loadGroupByGroupname(aliasname);
+            j.jenkins.getSecurityRealm().loadGroupByGroupname2(aliasname, false);
         } catch (Exception e) {
         } finally {
             Collection<String> filter = logMessages.stream().
@@ -257,7 +255,7 @@ public class TheFlintstonesTest {
     @Test
     public void testSimpleLoginSuccessfulAfterReadResolveTlsConfigurationSingleDomain() throws Exception {
         manualSetUp();
-        UserDetails userDetails = j.jenkins.getSecurityRealm().loadUserByUsername("Fred");
+        UserDetails userDetails = j.jenkins.getSecurityRealm().loadUserByUsername2("Fred");
         assertThat(userDetails.getUsername(), is("Fred"));
     }
 
@@ -266,7 +264,7 @@ public class TheFlintstonesTest {
     public void testSimpleLoginFailsAfterReadResolveTlsConfigurationSingleDomain() throws Exception {
         manualSetUp();
         try {
-            j.jenkins.getSecurityRealm().loadUserByUsername("Homer");
+            j.jenkins.getSecurityRealm().loadUserByUsername2("Homer");
         } catch (UsernameNotFoundException e) {
             assertTrue(e.getMessage().contains("Authentication was successful but cannot locate the user information for Homer"));
         }
@@ -276,7 +274,7 @@ public class TheFlintstonesTest {
     @Test
     public void testSimpleLoginSuccessAfterReadResolveTlsConfigurationMultipleDomainsOneDomain() throws Exception {
         manualSetUp();
-        UserDetails userDetails = j.jenkins.getSecurityRealm().loadUserByUsername("Fred");
+        UserDetails userDetails = j.jenkins.getSecurityRealm().loadUserByUsername2("Fred");
         assertThat(userDetails.getUsername(), is("Fred"));
     }
 
@@ -285,7 +283,7 @@ public class TheFlintstonesTest {
     public void testSimpleLoginFailsAfterReadResolveTlsConfigurationMultipleDomainsOneDomain() throws Exception {
         manualSetUp();
         try {
-            j.jenkins.getSecurityRealm().loadUserByUsername("Homer");
+            j.jenkins.getSecurityRealm().loadUserByUsername2("Homer");
         } catch (UsernameNotFoundException e) {
             assertTrue(e.getMessage().contains("Authentication was successful but cannot locate the user information for Homer"));
         }
@@ -296,7 +294,7 @@ public class TheFlintstonesTest {
     @Test
     public void testSimpleLoginSuccessfulTrustingAllCertificates() throws Exception {
         manualSetUp();
-        UserDetails userDetails = j.jenkins.getSecurityRealm().loadUserByUsername("Fred");
+        UserDetails userDetails = j.jenkins.getSecurityRealm().loadUserByUsername2("Fred");
         assertThat(userDetails.getUsername(), is("Fred"));
     }
 

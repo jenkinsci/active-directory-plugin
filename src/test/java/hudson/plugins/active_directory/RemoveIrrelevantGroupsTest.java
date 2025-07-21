@@ -25,19 +25,19 @@
 package hudson.plugins.active_directory;
 
 import hudson.security.AuthorizationStrategy;
-import org.acegisecurity.GrantedAuthority;
-import org.acegisecurity.GrantedAuthorityImpl;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
-import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -86,16 +86,16 @@ public class RemoveIrrelevantGroupsTest {
     public void testSomeGroupsAreRelevant() {
         setUpJenkinsUsedGroups("UsedGroup-1", "UsedGroup-2");
 
-        GrantedAuthority[] userGroups = {
-                new GrantedAuthorityImpl("UsedGroup-1"),
-                new GrantedAuthorityImpl("UsedGroup-2"),
-                new GrantedAuthorityImpl("UnusedGroup")};
+        List<GrantedAuthority> userGroups = List.of(
+                new SimpleGrantedAuthority("UsedGroup-1"),
+                new SimpleGrantedAuthority("UsedGroup-2"),
+                new SimpleGrantedAuthority("UnusedGroup"));
 
         ActiveDirectoryUserDetail user = new ActiveDirectoryUserDetail("Username", null,
         true, true, true, true, userGroups, null, null, null);
 
-        GrantedAuthority[] relevantUserGroups = Arrays.copyOf(userGroups, 2); //The first two are relevant
-        assertArrayEquals(relevantUserGroups, user.getAuthorities());
+        Collection<GrantedAuthority> relevantUserGroups = Set.of(userGroups.get(0), userGroups.get(1)); //The first two are relevant
+        assertEquals(relevantUserGroups, user.getAuthorities());
     }
 
     /**
@@ -107,13 +107,13 @@ public class RemoveIrrelevantGroupsTest {
     public void testNoGroupsAreRelevant() {
         setUpJenkinsUsedGroups("UsedGroup-1", "UsedGroup-2");
 
-        GrantedAuthority[] userGroups = {
-                new GrantedAuthorityImpl("UnusedGroup")};
+        Collection<GrantedAuthority> userGroups = Set.of(
+                new SimpleGrantedAuthority("UnusedGroup"));
 
         ActiveDirectoryUserDetail user = new ActiveDirectoryUserDetail("Username", null,
                 true, true, true, true, userGroups, null, null, null);
 
-        assertEquals(0, user.getAuthorities().length);
+        assertEquals(0, user.getAuthorities().size());
     }
 
     /**
@@ -124,13 +124,13 @@ public class RemoveIrrelevantGroupsTest {
     public void testNoGroupsAreRegistered() {
         setUpJenkinsUsedGroups(); //No registered groups by the AuthorizationStrategy.
 
-        GrantedAuthority[] userGroups = {
-                new GrantedAuthorityImpl("UnusedGroup")};
+        Collection<GrantedAuthority> userGroups = Set.of(
+                new SimpleGrantedAuthority("UnusedGroup"));
 
         ActiveDirectoryUserDetail user = new ActiveDirectoryUserDetail("Username", null,
                 true, true, true, true, userGroups, null, null, null);
 
-        assertArrayEquals(userGroups, user.getAuthorities());
+        assertEquals(userGroups, user.getAuthorities());
     }
 
 }

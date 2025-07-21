@@ -48,7 +48,7 @@ THE SOFTWARE.
         </f:nested>
       </f:form>
 
-      <pre>${request.getAttribute('output')}</pre>
+      <pre>${request2.getAttribute('output')}</pre>
     </l:main-panel>
   </l:layout>
 </j:jelly>
