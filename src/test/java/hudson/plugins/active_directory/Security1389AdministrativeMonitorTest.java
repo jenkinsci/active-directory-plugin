@@ -1,29 +1,35 @@
 package hudson.plugins.active_directory;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 import org.jvnet.hudson.test.recipes.LocalData;
 import hudson.ExtensionList;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 
-public class Security1389AdministrativeMonitorTest {
+@WithJenkins
+class Security1389AdministrativeMonitorTest {
 
-    @Rule
-    public JenkinsRule jr = new JenkinsRule();
+    private JenkinsRule j;
+
+    @BeforeEach
+    void beforeEach(JenkinsRule rule) {
+        j = rule;
+    }
 
     @Test
     @LocalData
-    public void testMonitorIsShownForExistingInstalls() throws Exception {
-        assertThat(jr.jenkins.getSecurityRealm().getClass(), is(ActiveDirectorySecurityRealm.class));
+    void testMonitorIsShownForExistingInstalls() throws Exception {
+        assertThat(j.jenkins.getSecurityRealm().getClass(), is(ActiveDirectorySecurityRealm.class));
         Security1389AdministrativeMonitor adminMontor = ExtensionList.lookupSingleton(Security1389AdministrativeMonitor.class);
-        assertTrue("Admin monitor should be activated", adminMontor.isActivated());
-        jr.submit(jr.createWebClient().goTo("configureSecurity").getFormByName("config"));
-        assertFalse("Admin monitor should be activated", adminMontor.isActivated());
+        assertTrue(adminMontor.isActivated(), "Admin monitor should be activated");
+        j.submit(j.createWebClient().goTo("configureSecurity").getFormByName("config"));
+        assertFalse(adminMontor.isActivated(), "Admin monitor should be activated");
     }
 
 }

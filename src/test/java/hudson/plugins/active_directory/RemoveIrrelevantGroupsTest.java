@@ -25,20 +25,20 @@
 package hudson.plugins.active_directory;
 
 import hudson.security.AuthorizationStrategy;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -47,19 +47,20 @@ import static org.mockito.Mockito.when;
  *
  * @author Fredrik Persson &lt;fredrik6.persson@sonymobile.com&gt;
  */
-public class RemoveIrrelevantGroupsTest {
+@WithJenkins
+class RemoveIrrelevantGroupsTest {
 
-    @Rule
-    public JenkinsRule jenkinsRule = new JenkinsRule();
+    private JenkinsRule j;
 
     /**
      * Sets up Jenkins with an {@link ActiveDirectorySecurityRealm}.
      */
-    @Before
-    public void setUp() {
+    @BeforeEach
+    void beforeEach(JenkinsRule rule) {
+        j = rule;
         ActiveDirectorySecurityRealm securityRealm = new ActiveDirectorySecurityRealm("domain.com", null, null,
                 null, null, GroupLookupStrategy.AUTO, true);
-        jenkinsRule.getInstance().setSecurityRealm(securityRealm);
+        j.getInstance().setSecurityRealm(securityRealm);
     }
 
     /**
@@ -67,14 +68,11 @@ public class RemoveIrrelevantGroupsTest {
      * return argument groups.
      */
     private void setUpJenkinsUsedGroups(String... groups) {
-        Set<String> usedGroups = new HashSet<>();
-        for (String group : groups) {
-            usedGroups.add(group);
-        }
+        Set<String> usedGroups = new HashSet<>(Arrays.asList(groups));
 
         AuthorizationStrategy authorizationStrategy = mock(AuthorizationStrategy.class);
         when(authorizationStrategy.getGroups()).thenReturn(usedGroups);
-        jenkinsRule.getInstance().setAuthorizationStrategy(authorizationStrategy);
+        j.getInstance().setAuthorizationStrategy(authorizationStrategy);
     }
 
     /**
@@ -83,7 +81,7 @@ public class RemoveIrrelevantGroupsTest {
      * some relevant groups.
      */
     @Test
-    public void testSomeGroupsAreRelevant() {
+    void testSomeGroupsAreRelevant() {
         setUpJenkinsUsedGroups("UsedGroup-1", "UsedGroup-2");
 
         List<GrantedAuthority> userGroups = List.of(
@@ -104,7 +102,7 @@ public class RemoveIrrelevantGroupsTest {
      * relevant groups.
      */
     @Test
-    public void testNoGroupsAreRelevant() {
+    void testNoGroupsAreRelevant() {
         setUpJenkinsUsedGroups("UsedGroup-1", "UsedGroup-2");
 
         Collection<GrantedAuthority> userGroups = Set.of(
@@ -121,7 +119,7 @@ public class RemoveIrrelevantGroupsTest {
      * returns an empty list.
      */
     @Test
-    public void testNoGroupsAreRegistered() {
+    void testNoGroupsAreRegistered() {
         setUpJenkinsUsedGroups(); //No registered groups by the AuthorizationStrategy.
 
         Collection<GrantedAuthority> userGroups = Set.of(

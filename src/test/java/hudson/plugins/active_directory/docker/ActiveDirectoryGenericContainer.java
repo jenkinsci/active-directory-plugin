@@ -1,10 +1,8 @@
 package hudson.plugins.active_directory.docker;
 
-import java.io.IOException;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.InternetProtocol;
 import org.testcontainers.containers.wait.strategy.LogMessageWaitStrategy;
-import org.testcontainers.containers.wait.strategy.WaitStrategy;
 import org.testcontainers.images.builder.ImageFromDockerfile;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerCmd;
@@ -67,14 +65,14 @@ public class ActiveDirectoryGenericContainer<SELF extends ActiveDirectoryGeneric
      * Obtain the port for the UDP DNS server.
      * This method will only work if using withDynamicPorts
      */
-    public String getDNSPort() throws InterruptedException, IOException {
+    public String getDNSPort() throws InterruptedException {
         // NetworkSettings networkSettings = getContainerInfo().getNetworkSettings();
         // whilst the above should work it is returning something that is not matching reality and does not contain the actual ports!
         // this happens even one subsequent calls (appears as though the response is cached)
 
         // resort to the API.
         do {
-            @SuppressWarnings("resource") // the docker client is global
+            // the docker client is global
             DockerClient dockerClient = getDockerClient();
             try (InspectContainerCmd inspectContainerCmd = dockerClient.inspectContainerCmd(getContainerId())) {
                 Binding[] bindings = inspectContainerCmd.exec().getNetworkSettings().getPorts().getBindings().get(ExposedPort.udp(53));

@@ -24,59 +24,64 @@
 
 package hudson.plugins.active_directory.docker;
 
-import static org.junit.Assert.assertEquals;
-
-import jakarta.servlet.ServletException;
-import java.io.IOException;
 import java.net.Inet6Address;
 import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.naming.NamingException;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import hudson.plugins.active_directory.TlsConfiguration;
 import org.burningwave.tools.net.DNSClientHostResolver;
 import org.burningwave.tools.net.DefaultHostResolver;
 import org.burningwave.tools.net.HostResolutionRequestInterceptor;
 import org.burningwave.tools.net.MappedHostResolver;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.Issue;
 import org.jvnet.hudson.test.JenkinsRule;
-import org.jvnet.hudson.test.LoggerRule;
+import org.jvnet.hudson.test.LogRecorder;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.core.userdetails.UserDetails;
 import hudson.plugins.active_directory.ActiveDirectoryDomain;
 import hudson.plugins.active_directory.ActiveDirectorySecurityRealm;
 import hudson.plugins.active_directory.DNSUtils;
 import hudson.plugins.active_directory.GroupLookupStrategy;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 /**
  * Integration tests with Docker and using samba as a DNS server
  */
-public class TheFlintstonesIT {
+@Testcontainers(disabledWithoutDocker = true)
+@WithJenkins
+class TheFlintstonesIT {
 
+    @Container
+    private final ActiveDirectoryGenericContainer<?> docker = new ActiveDirectoryGenericContainer<>().withStaticPorts();
 
-    @Rule(order = 0)
-    public RequireDockerRule rdr = new RequireDockerRule();
+    private JenkinsRule j;
 
-    @Rule(order = 1)
-    public ActiveDirectoryGenericContainer<?> docker = new ActiveDirectoryGenericContainer<>().withStaticPorts();
+    @SuppressWarnings("unused")
+    private final LogRecorder l = new LogRecorder();
 
-    @Rule(order = 2) // start Jenkins after the container so that timeouts do not apply to container building.
-    public JenkinsRule j = new JenkinsRule();
+    private static final String AD_DOMAIN = "samdom.example.com";
+    private static final String AD_MANAGER_DN = "CN=Administrator,CN=Users,DC=SAMDOM,DC=EXAMPLE,DC=COM";
+    private static final String AD_MANAGER_DN_PASSWORD = "ia4uV1EeKait";
+    private static final int MAX_RETRIES = 30;
+    private static final int GLOBAL_CATALOG_PLAIN_TEXT = 3268;
+    private static final int GLOBAL_CATALOG_TLS = 3269;
 
-    @Rule
-    public LoggerRule l = new LoggerRule();
+    private String dockerIp;
+    private int dockerPort;
 
-    @Before
-    public void overrideDNSServers() throws UnknownHostException {
+    @BeforeEach
+    void beforeEach(JenkinsRule rule) throws Exception {
+        j = rule;
         // we need to pint the JVMs DNS resolver at the AD (samba) server
         // for AD to work correctly it needs to be able to resolve hosts and do SRV lookups on the domain
 
@@ -104,26 +109,17 @@ public class TheFlintstonesIT {
         }
     }
 
-    @After
-    public void restoreDNS() {
+    @AfterEach
+    void afterEach() {
         HostResolutionRequestInterceptor.INSTANCE.install(DefaultHostResolver.INSTANCE);
         System.clearProperty(DNSUtils.OVERRIDE_DNS_PROPERTY);
     }
 
-    public final static String AD_DOMAIN = "samdom.example.com";
-    public final static String AD_MANAGER_DN = "CN=Administrator,CN=Users,DC=SAMDOM,DC=EXAMPLE,DC=COM";
-    public final static String AD_MANAGER_DN_PASSWORD = "ia4uV1EeKait";
-    public final static int MAX_RETRIES = 30;
-    public final static int GLOBAL_CATALOG_PLAIN_TEXT = 3268;
-    public final static int GLOBAL_CATALOG_TLS = 3269;
-    public String dockerIp;
-    public int dockerPort;
-
-    public void dynamicSetUp() throws Exception {
+    private void dynamicSetUp() throws Exception {
         dynamicSetUp(false);
     }
 
-    public void dynamicSetUp(boolean requireTLS) throws Exception {
+    private void dynamicSetUp(boolean requireTLS) throws Exception {
         dockerIp = "dc1.samdom.example.com";
         dockerPort = docker.getMappedPort(requireTLS ? GLOBAL_CATALOG_TLS : GLOBAL_CATALOG_PLAIN_TEXT);
         ActiveDirectoryDomain activeDirectoryDomain = new ActiveDirectoryDomain(AD_DOMAIN, dockerIp + ":" +  dockerPort , null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD);
@@ -145,7 +141,7 @@ public class TheFlintstonesIT {
 
     @Issue("JENKINS-36148")
     @Test
-    public void validateCustomDomainController() throws ServletException, NamingException, IOException, Exception {
+    void validateCustomDomainController() throws Exception {
         dynamicSetUp();
         ActiveDirectoryDomain.DescriptorImpl adDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
         assertEquals("OK: Success", adDescriptor.doValidateTest(AD_DOMAIN, dockerIp + ":" + dockerPort, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD, null, null, false, false, false).toString().trim());
@@ -153,7 +149,7 @@ public class TheFlintstonesIT {
 
     @Issue("JENKINS-36148")
     @Test
-    public void validateDomain() throws ServletException, NamingException, IOException, Exception {
+    void validateDomain() throws Exception {
         dynamicSetUp();
         ActiveDirectoryDomain.DescriptorImpl adDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
         assertEquals("OK: Success", adDescriptor.doValidateTest(AD_DOMAIN, null, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD, null, null, false, false, false).toString().trim());
@@ -162,7 +158,7 @@ public class TheFlintstonesIT {
 
     @Issue("JENKINS-69683")
     @Test
-    public void validateTestDomainRequireTLSDisabled() throws Exception {
+    void validateTestDomainRequireTLSDisabled() throws Exception {
         dynamicSetUp();
         ActiveDirectoryDomain.DescriptorImpl adDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
         assertEquals("OK: Success", adDescriptor.doValidateTest(AD_DOMAIN, null, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD, null, null, false, false, false).toString().trim());
@@ -170,7 +166,7 @@ public class TheFlintstonesIT {
 
     @Issue("JENKINS-69683")
     @Test
-    public void validateTestDomainServerRequireTLSDisabled() throws Exception {
+    void validateTestDomainServerRequireTLSDisabled() throws Exception {
         dynamicSetUp();
         ActiveDirectoryDomain.DescriptorImpl adDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
         assertEquals("OK: Success", adDescriptor.doValidateTest(AD_DOMAIN, dockerIp + ":" +  dockerPort, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD, null, null, false, false, false).toString().trim());
@@ -178,7 +174,7 @@ public class TheFlintstonesIT {
 
     @Issue("SECURITY-3059")
     @Test
-    public void validateTestDomainServerRequireTLSEnabled() throws Exception {
+    void validateTestDomainServerRequireTLSEnabled() throws Exception {
         dynamicSetUp(true);
         ActiveDirectoryDomain.DescriptorImpl adDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
         assertEquals("OK: Success", adDescriptor.doValidateTest(AD_DOMAIN, "dc1.samdom.example.com" + ":" +  dockerPort, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD, TlsConfiguration.TRUST_ALL_CERTIFICATES, GroupLookupStrategy.TOKENGROUPS, false, false, true).toString().trim());
@@ -186,7 +182,7 @@ public class TheFlintstonesIT {
 
     @Issue("SECURITY-3059")
     @Test
-    public void validateTestDomainServerRequireStartTLSEnabled() throws Exception {
+    void validateTestDomainServerRequireStartTLSEnabled() throws Exception {
         dynamicSetUp();
         ActiveDirectoryDomain.DescriptorImpl adDescriptor = new ActiveDirectoryDomain.DescriptorImpl();
         assertEquals("OK: Success", adDescriptor.doValidateTest(AD_DOMAIN, "dc1.samdom.example.com" + ":" +  dockerPort, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD, TlsConfiguration.TRUST_ALL_CERTIFICATES, GroupLookupStrategy.TOKENGROUPS, false, true, false).toString().trim());

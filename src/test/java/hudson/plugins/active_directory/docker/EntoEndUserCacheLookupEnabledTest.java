@@ -7,68 +7,68 @@ import hudson.plugins.active_directory.ActiveDirectorySecurityRealm;
 import hudson.plugins.active_directory.CacheConfiguration;
 import hudson.plugins.active_directory.CacheUtil;
 import hudson.plugins.active_directory.GroupLookupStrategy;
-import org.junit.AfterClass;
-import org.junit.Assume;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.JenkinsRule;
-import org.jvnet.hudson.test.LoggerRule;
+import org.jvnet.hudson.test.LogRecorder;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.testcontainers.DockerClientFactory;
-import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 
 import static org.hamcrest.Matchers.containsString;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class EntoEndUserCacheLookupEnabledTest {
+@Testcontainers(disabledWithoutDocker = true)
+@WithJenkins
+class EntoEndUserCacheLookupEnabledTest {
 
-    @Rule(order = 0)
-    public RequireDockerRule rdr = new RequireDockerRule();
+    @Container
+    private final ActiveDirectoryGenericContainer<?> docker = new ActiveDirectoryGenericContainer<>().withDynamicPorts();
 
-    @Rule(order = 1)
-    public ActiveDirectoryGenericContainer<?> docker = new ActiveDirectoryGenericContainer<>().withDynamicPorts();
+    private JenkinsRule j;
 
-    @Rule(order = 2) // start Jenkins after the container so that timeouts do not apply to container building.
-    public JenkinsRule j = new JenkinsRule();
+    private final LogRecorder l = new LogRecorder();
 
-    @Rule
-    public LoggerRule l = new LoggerRule();
-
-    private final static String AD_DOMAIN = "samdom.example.com";
-    private final static String AD_MANAGER_DN = "CN=Administrator,CN=Users,DC=SAMDOM,DC=EXAMPLE,DC=COM";
-    private final static String AD_MANAGER_DN_PASSWORD = "ia4uV1EeKait";
-    private final static int MAX_RETRIES = 30;
+    private static final String AD_DOMAIN = "samdom.example.com";
+    private static final String AD_MANAGER_DN = "CN=Administrator,CN=Users,DC=SAMDOM,DC=EXAMPLE,DC=COM";
+    private static final String AD_MANAGER_DN_PASSWORD = "ia4uV1EeKait";
+    private static final int MAX_RETRIES = 30;
     private String dockerIp;
     private int dockerPort;
 
-    private static String CACHE_AUTH;
+    private static String cacheAuth;
 
-    @BeforeClass
-    public static void enableHealthMetrics() {
-        CACHE_AUTH = System.getProperty(CacheUtil.class.getName() + ".cacheAuth");
-        System.setProperty(CacheUtil.class.getName() + ".cacheAuth", "true");
+    @BeforeAll
+    static void beforeAll() {
+        cacheAuth = System.setProperty(CacheUtil.class.getName() + ".cacheAuth", "true");
     }
 
-    @AfterClass
-    public static void disableHealthMetrics() {
+    @BeforeEach
+    void beforeEach(JenkinsRule rule) {
+        j = rule;
+    }
+
+    @AfterAll
+    static void afterAll() {
         // Put back the previous value before the test was executed
-        if (CACHE_AUTH != null) {
-            System.setProperty(CacheUtil.class.getName() + ".cacheAuth", CACHE_AUTH);
+        if (cacheAuth != null) {
+            System.setProperty(CacheUtil.class.getName() + ".cacheAuth", cacheAuth);
         } else {
             System.clearProperty(CacheUtil.class.getName() + ".cacheAuth");
         }
     }
 
-    public void customSingleADSetup(ActiveDirectoryDomain activeDirectoryDomain, String site, String bindName, String bindPassword,
+    private void customSingleADSetup(ActiveDirectoryDomain activeDirectoryDomain, String site, String bindName, String bindPassword,
                                     GroupLookupStrategy groupLookupStrategy, boolean removeIrrelevantGroups, Boolean customDomain,
                                     CacheConfiguration cache, Boolean startTls, ActiveDirectoryInternalUsersDatabase internalUsersDatabase) throws Exception {
         dockerIp = docker.getHost();
@@ -93,7 +93,7 @@ public class EntoEndUserCacheLookupEnabledTest {
     }
 
     @Test
-    public void testEndtoEndManagerDnCacheEnabled() throws Exception {
+    void testEndtoEndManagerDnCacheEnabled() throws Exception {
         List<String> messages;
         l.record(hudson.plugins.active_directory.ActiveDirectoryUnixAuthenticationProvider.class, Level.FINE).capture(20);
         // Configure AD servers with Manager DN and the Cache enabled
@@ -108,19 +108,11 @@ public class EntoEndUserCacheLookupEnabledTest {
         //Logout
         j.createWebClient().goTo("logout");
         // Try to login as Fred with blank password
-        try {
-            wc.login("Fred", "");
-            fail();
-        } catch (FailingHttpStatusCodeException ex) {
-        }
+        assertThrows(FailingHttpStatusCodeException.class, () -> wc.login("Fred", ""));
         messages = l.getMessages();
         assertTrue(messages.stream().anyMatch(s -> s.contains("Failed to retrieve user Fred")));
         // Try to login as Fred with incorrect password
-        try {
-            wc.login("Fred", "Fred");
-            fail();
-        } catch (FailingHttpStatusCodeException ex) {
-        }
+        assertThrows(FailingHttpStatusCodeException.class, () -> wc.login("Fred", "Fred"));
         messages = l.getMessages();
         assertTrue(messages.stream().anyMatch(s -> s.contains("Failed to retrieve user Fred")));
         // Try to login as Fred with correct password
@@ -129,7 +121,7 @@ public class EntoEndUserCacheLookupEnabledTest {
     }
 
     @Test
-    public void testEndtoEndManagerDnCacheDisabled() throws Exception {
+    void testEndtoEndManagerDnCacheDisabled() throws Exception {
         List<String> messages;
         l.record(hudson.plugins.active_directory.ActiveDirectoryUnixAuthenticationProvider.class, Level.FINE).capture(20);
         ActiveDirectoryDomain activeDirectoryDomain = new ActiveDirectoryDomain(AD_DOMAIN, null, null, AD_MANAGER_DN, AD_MANAGER_DN_PASSWORD, null);
@@ -142,19 +134,11 @@ public class EntoEndUserCacheLookupEnabledTest {
         //Logout
         j.createWebClient().goTo("logout");
         // Try to login as Fred with blank password
-        try {
-            wc.login("Fred", "");
-            fail();
-        } catch (FailingHttpStatusCodeException ex) {
-        }
+        assertThrows(FailingHttpStatusCodeException.class, () -> wc.login("Fred", ""));
         messages = l.getMessages();
         assertTrue(messages.stream().anyMatch(s -> s.contains("Failed to retrieve user Fred")));
         // Try to login as Fred with incorrect password
-        try {
-            wc.login("Fred", "Fred");
-            fail();
-        } catch (FailingHttpStatusCodeException ex) {
-        }
+        assertThrows(FailingHttpStatusCodeException.class, () -> wc.login("Fred", "Fred"));
         messages = l.getMessages();
         assertTrue(messages.stream().anyMatch(s -> s.contains("Failed to retrieve user Fred")));
         // Try to login as Fred with correct password

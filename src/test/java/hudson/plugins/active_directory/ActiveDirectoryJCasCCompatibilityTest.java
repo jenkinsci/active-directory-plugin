@@ -2,21 +2,22 @@ package hudson.plugins.active_directory;
 
 import hudson.Extension;
 import io.jenkins.plugins.casc.SecretSource;
-import io.jenkins.plugins.casc.misc.RoundTripAbstractTest;
-import java.io.IOException;
+
 import java.util.Optional;
+
+import io.jenkins.plugins.casc.misc.junit.jupiter.AbstractRoundTripTest;
 import jenkins.model.Jenkins;
-import org.jvnet.hudson.test.RestartableJenkinsRule;
+import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
-public class ActiveDirectoryJCasCCompatibilityTest extends RoundTripAbstractTest {
+@WithJenkins
+class ActiveDirectoryJCasCCompatibilityTest extends AbstractRoundTripTest {
 
     @Override
-    protected void assertConfiguredAsExpected(RestartableJenkinsRule restartableJenkinsRule, String s) {
-        final Jenkins jenkins = Jenkins.getInstance();
+    protected void assertConfiguredAsExpected(JenkinsRule rule, String s) {
+        final Jenkins jenkins = Jenkins.get();
         final ActiveDirectorySecurityRealm realm = (ActiveDirectorySecurityRealm) jenkins.getSecurityRealm();
 
         assertEquals(2, realm.domains.size());
@@ -62,18 +63,16 @@ public class ActiveDirectoryJCasCCompatibilityTest extends RoundTripAbstractTest
         return "Setting class hudson.plugins.active_directory.ActiveDirectorySecurityRealm.groupLookupStrategy = RECURSIVE";
     }
 
+    @SuppressWarnings("unused")
     @Extension
     public static class TheSource extends SecretSource {
         @Override
-        public Optional<String> reveal(String secret) throws IOException {
-            switch (secret) {
-                case "BIND_PASSWORD_1":
-                    return Optional.of("VALIDPASSWORD1");
-                case "BIND_PASSWORD_2" :
-                    return Optional.of("VALIDPASSWORD2");
-                default:
-                    return Optional.empty();
-            }
+        public Optional<String> reveal(String secret) {
+            return switch (secret) {
+                case "BIND_PASSWORD_1" -> Optional.of("VALIDPASSWORD1");
+                case "BIND_PASSWORD_2" -> Optional.of("VALIDPASSWORD2");
+                default -> Optional.empty();
+            };
         }
     }
 }

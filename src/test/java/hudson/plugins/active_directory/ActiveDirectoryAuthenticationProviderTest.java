@@ -1,16 +1,17 @@
 package hudson.plugins.active_directory;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static hudson.plugins.active_directory.ActiveDirectoryAuthenticationProvider.*;
-import static junit.framework.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * @author Kohsuke Kawaguchi
  */
-public class ActiveDirectoryAuthenticationProviderTest {
+class ActiveDirectoryAuthenticationProviderTest {
+
     @Test
-    public void testEscape() {
+    void testEscape() {
         assertEquals("LDAP://it\\/ops", dnToLdapUrl("it/ops"));
         assertEquals("LDAP://foo\\#\\,bar", dnToLdapUrl("foo\\#\\,bar"));
     }
