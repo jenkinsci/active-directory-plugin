@@ -1,25 +1,37 @@
 package hudson.plugins.active_directory;
 
-import org.junit.ClassRule;
-import org.junit.rules.TestRule;
-import org.jvnet.hudson.test.FlagRule;
-import org.jvnet.hudson.test.RestartableJenkinsRule;
-import io.jenkins.plugins.casc.misc.RoundTripAbstractTest;
+import io.jenkins.plugins.casc.misc.junit.jupiter.AbstractRoundTripTest;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.jvnet.hudson.test.JenkinsRule;
 
 import jenkins.model.Jenkins;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
-public class ActiveDirectoryJCasCCompatibilityFIPSModeValidPasswordTest extends RoundTripAbstractTest {
+@WithJenkins
+class ActiveDirectoryJCasCCompatibilityFIPSModeValidPasswordTest extends AbstractRoundTripTest {
 
-    @ClassRule
-    public static TestRule fip140Prop = FlagRule.systemProperty("jenkins.security.FIPS140.COMPLIANCE", "true");
+    private static String fipsSystemProperty;
+
+    @BeforeAll
+    static void beforeAll() {
+        fipsSystemProperty = System.setProperty("jenkins.security.FIPS140.COMPLIANCE", "true");
+    }
+
+    @AfterAll
+    static void afterAll() {
+        if (fipsSystemProperty != null) {
+            System.setProperty("jenkins.security.FIPS140.COMPLIANCE", fipsSystemProperty);
+        } else {
+            System.clearProperty("jenkins.security.FIPS140.COMPLIANCE");
+        }
+    }
 
     @Override
-    protected void assertConfiguredAsExpected(RestartableJenkinsRule restartableJenkinsRule, String s) {
-        final Jenkins jenkins = Jenkins.getInstance();
+    protected void assertConfiguredAsExpected(JenkinsRule rule, String s) {
+        final Jenkins jenkins = Jenkins.get();
         final ActiveDirectorySecurityRealm realm = (ActiveDirectorySecurityRealm) jenkins.getSecurityRealm();
 
         assertEquals(1, realm.domains.size());

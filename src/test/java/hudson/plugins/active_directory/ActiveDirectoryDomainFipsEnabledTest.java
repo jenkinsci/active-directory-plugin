@@ -11,111 +11,116 @@ import org.htmlunit.FailingHttpStatusCodeException;
 import org.htmlunit.html.HtmlForm;
 import org.htmlunit.html.HtmlPage;
 import org.jetbrains.annotations.NotNull;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TestRule;
-import org.jvnet.hudson.test.FlagRule;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.JenkinsRule;
-import org.jvnet.hudson.test.LoggerRule;
+import org.jvnet.hudson.test.LogRecorder;
 import io.jenkins.plugins.casc.ConfigurationAsCode;
 import io.jenkins.plugins.casc.ConfiguratorException;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 import org.jvnet.hudson.test.recipes.LocalData;
 import static hudson.Functions.isWindows;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.any;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasProperty;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.fail;
-import static org.junit.Assume.assumeFalse;
-import static org.jvnet.hudson.test.LoggerRule.recorded;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.jvnet.hudson.test.LogRecorder.recorded;
 
-public class ActiveDirectoryDomainFipsEnabledTest {
+@WithJenkins
+class ActiveDirectoryDomainFipsEnabledTest {
 
-    @Rule
-    public JenkinsRule jenkinsRule = new JenkinsRule();
+    private final LogRecorder l = new LogRecorder().record("hudson.diagnosis.OldDataMonitor", Level.INFO).capture(1000);
 
-    @Rule
-    public LoggerRule loggerRule = new LoggerRule().record("hudson.diagnosis.OldDataMonitor", Level.INFO).capture(1000);
+    private static String fipsSystemProperty;
 
-    @ClassRule
-    public static TestRule fip140Prop = FlagRule.systemProperty("jenkins.security.FIPS140.COMPLIANCE", "true");
+    private JenkinsRule j;
+
+    @BeforeAll
+    static void beforeAll() {
+        fipsSystemProperty = System.setProperty("jenkins.security.FIPS140.COMPLIANCE", "true");
+    }
+
+    @BeforeEach
+    void beforeEach(JenkinsRule rule) {
+        j = rule;
+    }
+
+    @AfterAll
+    static void afterAll() {
+        if (fipsSystemProperty != null) {
+            System.setProperty("jenkins.security.FIPS140.COMPLIANCE", fipsSystemProperty);
+        } else {
+            System.clearProperty("jenkins.security.FIPS140.COMPLIANCE");
+        }
+    }
 
     @Test
-    public void smokeTests() {
-
+    void smokeTests() {
         ActiveDirectoryDomain.DescriptorImpl adDescriptor = ExtensionList.lookupSingleton(ActiveDirectoryDomain.DescriptorImpl.class);
 
         // error message should be displayed if a FIPS non-compliant option is chosen
         FormValidation resultError = adDescriptor.doCheckTlsConfiguration(TlsConfiguration.TRUST_ALL_CERTIFICATES);
-        assertEquals("Insecure TLS configuration should not be allowed", FormValidation.Kind.ERROR, resultError.kind);
+        assertEquals(FormValidation.Kind.ERROR, resultError.kind, "Insecure TLS configuration should not be allowed");
 
         // if a FIPS compliant option is chosen, no error message should be displayed
         FormValidation resultOk = adDescriptor.doCheckTlsConfiguration(TlsConfiguration.JDK_TRUSTSTORE);
-        assertEquals("Secure TLS configuration should be allowed", FormValidation.Kind.OK, resultOk.kind);
+        assertEquals(FormValidation.Kind.OK, resultOk.kind, "Secure TLS configuration should be allowed");
 
-        assertThrows("Insecure TLS configuration should not be allowed", IllegalArgumentException.class,
-                     () -> new ActiveDirectoryDomain("name", "the_server", "site", "bindName", "bindPassword", TlsConfiguration.TRUST_ALL_CERTIFICATES));
+        assertThrows(IllegalArgumentException.class,
+                     () -> new ActiveDirectoryDomain("name", "the_server", "site", "bindName", "bindPassword", TlsConfiguration.TRUST_ALL_CERTIFICATES),
+                     "Insecure TLS configuration should not be allowed");
 
-        try {
+        assertDoesNotThrow(() -> {
             new ActiveDirectoryDomain("name", "the_server", "site", "bindName",
-                                                                     "bindPasswordFIPS", TlsConfiguration.JDK_TRUSTSTORE);
-        } catch (Exception e) {
-            fail("Secure TLS configuration should be allowed");
-        }
+                    "bindPasswordFIPS", TlsConfiguration.JDK_TRUSTSTORE);
+        }, "Secure TLS configuration should be allowed");
     }
 
     @Test
-    public void cascTest() {
-        assertThrows("Insecure TLS configuration should not be allowed", ConfiguratorException.class,
-                     () -> ConfigurationAsCode.get().configure(Paths.get("src/test/resources/hudson/plugins/active_directory/ActiveDirectoryDomainFipsEnabledTest/configuration-as-code-insecure.yaml").toString()));
-        try {
-            ConfigurationAsCode.get().configure(Paths.get("src/test/resources/hudson/plugins/active_directory/ActiveDirectoryDomainFipsEnabledTest/configuration-as-code-secure.yaml").toString());
-        } catch (Exception e) {
-            fail("Secure TLS configuration should be allowed");
-        }
+    void cascTest() {
+        assertThrows(ConfiguratorException.class,
+                     () -> ConfigurationAsCode.get().configure(Paths.get("src/test/resources/hudson/plugins/active_directory/ActiveDirectoryDomainFipsEnabledTest/configuration-as-code-insecure.yaml").toString()),
+                     "Insecure TLS configuration should not be allowed");
+        assertDoesNotThrow(() -> ConfigurationAsCode.get().configure(Paths.get("src/test/resources/hudson/plugins/active_directory/ActiveDirectoryDomainFipsEnabledTest/configuration-as-code-secure.yaml").toString()), "Secure TLS configuration should be allowed");
     }
 
     @Test
     @LocalData
-    public void testBlowsUpOnStart() throws Throwable {
-
-        assumeFalse("TODO needs triage", isWindows());
-        assertThat(loggerRule, recorded(any(String.class), hasProperty("message", containsString("Choosing an insecure TLS configuration in FIPS mode is not allowed"))));
-
+    void testBlowsUpOnStart() {
+        assumeFalse(isWindows(), "TODO needs triage");
+        assertThat(l, recorded(any(String.class), hasProperty("message", containsString("Choosing an insecure TLS configuration in FIPS mode is not allowed"))));
     }
 
-    @Test(expected = FailingHttpStatusCodeException.class)
-    public void testInvalidTlsConfiguration() throws Exception {
-        assumeFalse("JENKINS-73847", isWindows());
-
+    @Test
+    void testInvalidTlsConfiguration() throws Exception {
+        assumeFalse(isWindows(), "JENKINS-73847");
         ActiveDirectorySecurityRealm activeDirectorySecurityRealm = getActiveDirectorySecurityRealm();
-        jenkinsRule.getInstance().setSecurityRealm(activeDirectorySecurityRealm);
-        JenkinsRule.WebClient webClient = jenkinsRule.createWebClient();
+        j.getInstance().setSecurityRealm(activeDirectorySecurityRealm);
+        JenkinsRule.WebClient webClient = j.createWebClient();
         HtmlPage htmlPage = webClient.goTo("configureSecurity");
         HtmlForm htmlForm = htmlPage.getFormByName("config");
         htmlForm.getSelectByName("_.tlsConfiguration").setSelectedAttribute("TRUST_ALL_CERTIFICATES", true);
         webClient.waitForBackgroundJavaScript(1000);
         assertThat(htmlForm.getTextContent(), containsString(Messages.TlsConfiguration_CertificateError()));
-
-        assertEquals(500, jenkinsRule.submit(htmlForm).getWebResponse().getStatusCode());
+        FailingHttpStatusCodeException e = assertThrows(FailingHttpStatusCodeException.class, () -> j.submit(htmlForm));
+        assertEquals(500, e.getStatusCode());
     }
 
     @Test
-    public void testPasswordTooShortInFIPSMode() {
+    void testPasswordTooShortInFIPSMode() {
         // Create an instance of ActiveDirectoryDomain with a short password and assert exception
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
-            new ActiveDirectoryDomain("example.com", "server", "site", "bindName", "short", TlsConfiguration.JDK_TRUSTSTORE);
-        });
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> new ActiveDirectoryDomain("example.com", "server", "site", "bindName", "short", TlsConfiguration.JDK_TRUSTSTORE));
 
         // Verify the exception message
         assertEquals(Messages.passwordTooShortFIPS(), exception.getMessage());
     }
 
     @Test
-    public void testPasswordValidInFIPSMode() {
+    void testPasswordValidInFIPSMode() {
         // Create an instance of ActiveDirectoryDomain with a valid password
         ActiveDirectoryDomain domain = new ActiveDirectoryDomain("example.com", "server", "site", "bindName", "validPassword123", TlsConfiguration.JDK_TRUSTSTORE);
 
@@ -128,7 +133,7 @@ public class ActiveDirectoryDomainFipsEnabledTest {
     }
 
     @Test
-    public void testDoCheckBindPasswordFIPSModeShortPassword() {
+    void testDoCheckBindPasswordFIPSModeShortPassword() {
         // Create an instance of the DescriptorImpl class
         ActiveDirectoryDomain.DescriptorImpl descriptor = new ActiveDirectoryDomain.DescriptorImpl();
 
@@ -138,7 +143,7 @@ public class ActiveDirectoryDomainFipsEnabledTest {
     }
 
     @Test
-    public void testDoCheckBindPasswordFIPSModeValidPassword() {
+    void testDoCheckBindPasswordFIPSModeValidPassword() {
         // Create an instance of the DescriptorImpl class
         ActiveDirectoryDomain.DescriptorImpl descriptor = new ActiveDirectoryDomain.DescriptorImpl();
 
@@ -152,8 +157,7 @@ public class ActiveDirectoryDomainFipsEnabledTest {
                 , "site", "name", "passwordforFIPS", TlsConfiguration.JDK_TRUSTSTORE);
         List<ActiveDirectoryDomain> domains = new ArrayList<>(1);
         domains.add(activeDirectoryDomain);
-        ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, domains, null, null, null
+        return new ActiveDirectorySecurityRealm(null, domains, null, null, null
                 , null, GroupLookupStrategy.RECURSIVE, false, true, null, true, null, true);
-        return activeDirectorySecurityRealm;
     }
 }

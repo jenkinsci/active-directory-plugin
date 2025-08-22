@@ -1,22 +1,23 @@
 package hudson.plugins.active_directory;
 
 import org.htmlunit.FailingHttpStatusCodeException;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.JenkinsRule;
-import org.jvnet.hudson.test.LoggerRule;
+import org.jvnet.hudson.test.LogRecorder;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 
-import java.io.File;
 import java.util.List;
 import java.util.logging.Level;
 
+import static hudson.Functions.isWindows;
 import static org.hamcrest.Matchers.containsString;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.junit.Assume.assumeTrue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 
 /**
@@ -24,60 +25,59 @@ import static org.junit.Assume.assumeTrue;
  * needs to be joined to a function domain that has the user fred with the password ia4uV1EeKait.
  * It is enabled in the windowsITs profile, but will skip on I as that profile is enabled only on the special Linux environment.
  */
-public class WindowsAdsiModeUserCacheEnabledIT {
+@WithJenkins
+class WindowsAdsiModeUserCacheEnabledIT {
 
-    @BeforeClass
-    public static void setUp() {
+    private final LogRecorder l = new LogRecorder();
+
+    private static String cacheAuth;
+
+    private JenkinsRule j;
+
+    @BeforeAll
+    static void beforeAll() {
         assumeTrue(isWindows());
+        cacheAuth = System.setProperty(CacheUtil.class.getName() + ".cacheAuth", "true");
     }
 
-    @Rule
-    public JenkinsRule j = new JenkinsRule();
-
-    @Rule
-    public LoggerRule l = new LoggerRule();
-
-    private static String CACHE_AUTH;
-
-    @BeforeClass
-    public static void enableHealthMetrics() {
-        CACHE_AUTH = System.getProperty(CacheUtil.class.getName() + ".cacheAuth");
-        System.setProperty(CacheUtil.class.getName() + ".cacheAuth", "true");
+    @BeforeEach
+    void beforeEach(JenkinsRule rule) {
+        j = rule;
     }
 
-    @AfterClass
-    public static void disableHealthMetrics() {
+    @AfterAll
+    static void afterAll() {
         // Put back the previous value before the test was executed
-        if (CACHE_AUTH != null) {
-            System.setProperty(CacheUtil.class.getName() + ".cacheAuth", CACHE_AUTH);
+        if (cacheAuth != null) {
+            System.setProperty(CacheUtil.class.getName() + ".cacheAuth", cacheAuth);
         } else {
             System.clearProperty(CacheUtil.class.getName() + ".cacheAuth");
         }
     }
 
-    public void dynamicCacheEnableSetUp() throws Exception {
+    private void dynamicCacheEnableSetUp() {
         CacheConfiguration cacheConfiguration = new CacheConfiguration(500,30);
         ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, null, null, null,
-                null, null, null, false, null, cacheConfiguration, null, (ActiveDirectoryInternalUsersDatabase) null, false);
+                null, null, null, false, null, cacheConfiguration, null, null, false);
         j.jenkins.setSecurityRealm(activeDirectorySecurityRealm);
     }
 
 
-    public void dynamicCacheDisabledSetUp() throws Exception {
+    private void dynamicCacheDisabledSetUp() {
         ActiveDirectorySecurityRealm activeDirectorySecurityRealm = new ActiveDirectorySecurityRealm(null, null, null, null,
-                null, null, null, false, null, null, null, (ActiveDirectoryInternalUsersDatabase) null, false);
+                null, null, null, false, null, null, null, null, false);
         j.jenkins.setSecurityRealm(activeDirectorySecurityRealm);
     }
 
     @Test
-    public void actualLogin() throws Exception {
+    void actualLogin() throws Exception {
         dynamicCacheDisabledSetUp();
         JenkinsRule.WebClient wc = j.createWebClient().login("fred", "ia4uV1EeKait");
         assertThat(wc.goToXml("whoAmI/api/xml").asXml().replaceAll("\\s+", ""), containsString("<name>fred</name>"));
     }
 
     @Test
-    public void testEndtoEndCacheEnabled() throws Exception {
+    void testEndtoEndCacheEnabled() throws Exception {
         dynamicCacheEnableSetUp();
         List<String> messages;
         l.record(hudson.plugins.active_directory.ActiveDirectoryAuthenticationProvider.class, Level.FINE).capture(20);
@@ -89,19 +89,11 @@ public class WindowsAdsiModeUserCacheEnabledIT {
         //Logout
         j.createWebClient().goTo("logout");
         // Try to login as fred with blank password
-        try {
-            wc.login("fred", "");
-            fail();
-        } catch (FailingHttpStatusCodeException ex) {
-        }
+        assertThrows(FailingHttpStatusCodeException.class, () -> wc.login("fred", ""));
         messages = l.getMessages();
         assertTrue(messages.stream().anyMatch(s -> s.contains("Empty password not allowed was tried by user fred")));
         // Try to login as fred with incorrect password
-        try {
-            wc.login("fred", "fred");
-            fail();
-        } catch (FailingHttpStatusCodeException ex) {
-        }
+        assertThrows(FailingHttpStatusCodeException.class, () -> wc.login("fred", "fred"));
         messages = l.getMessages();
         assertTrue(messages.stream().anyMatch(s -> s.contains("Login failure: Incorrect password for fred")));
         // Try to login as fred with correct password
@@ -110,7 +102,7 @@ public class WindowsAdsiModeUserCacheEnabledIT {
     }
 
     @Test
-    public void testEndtoEndCacheDisabled() throws Exception {
+    void testEndtoEndCacheDisabled() throws Exception {
         dynamicCacheDisabledSetUp();
         List<String> messages;
         l.record(hudson.plugins.active_directory.ActiveDirectoryAuthenticationProvider.class, Level.FINE).capture(20);
@@ -122,32 +114,16 @@ public class WindowsAdsiModeUserCacheEnabledIT {
         //Logout
         j.createWebClient().goTo("logout");
         // Try to login as Fred with blank password
-        try {
-            wc.login("fred", "");
-            fail();
-        } catch (FailingHttpStatusCodeException ex) {
-        }
+        assertThrows(FailingHttpStatusCodeException.class, () -> wc.login("fred", ""));
         messages = l.getMessages();
         assertTrue(messages.stream().anyMatch(s -> s.contains("Empty password not allowed was tried by user fred")));
         // Try to login as fred with incorrect password
-        try {
-            wc.login("fred", "fred");
-            fail();
-        } catch (FailingHttpStatusCodeException ex) {
-        }
+        assertThrows(FailingHttpStatusCodeException.class, () -> wc.login("fred", "fred"));
         messages = l.getMessages();
         assertTrue(messages.stream().anyMatch(s -> s.contains("Login failure: Incorrect password for fred")));
         // Try to login as fred with correct password
         wc.login("fred", "ia4uV1EeKait");
         assertThat(wc.goToXml("whoAmI/api/xml").asXml().replaceAll("\\s+", ""), containsString("<name>fred</name>"));
-
     }
 
-    /**
-     * inline ${@link hudson.Functions#isWindows()} to prevent a transient
-     * remote classloader issue
-     */
-    private static boolean isWindows() {
-        return File.pathSeparatorChar == ';';
-    }
 }
