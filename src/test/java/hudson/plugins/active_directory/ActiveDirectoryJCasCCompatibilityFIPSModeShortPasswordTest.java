@@ -29,7 +29,7 @@ public class ActiveDirectoryJCasCCompatibilityFIPSModeShortPasswordTest {
         String resourceContent = getResourceContent(resourcePath);
         Assert.assertNotNull(resourcePath);
         Assert.assertNotNull(resourceContent);
-        r.then(step -> assertThrows(IllegalStateException.class, () -> configureWithResource(resourcePath)));
+        r.then(step -> assertThrows(ConfiguratorException.class, () -> configureWithResource(resourcePath)));
     }
 
     private String getResourceContent(String resourcePath) throws IOException {
