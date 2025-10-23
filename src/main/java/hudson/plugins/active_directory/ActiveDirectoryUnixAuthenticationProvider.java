@@ -236,7 +236,9 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                             LOGGER.log(Level.INFO, String.format("Falling back into the internal user %s", username));
                             return new ActiveDirectoryUserDetail(username, "redacted", true, true, true, true, hudsonPrivateSecurityRealm.getAuthorities2(), internalUser.getDisplayName(), "", "");
                         } else {
-                            LOGGER.log(Level.WARNING, String.format("Credential exception trying to authenticate against %s domain%s", domain.getName(), getSourceInfo()), ne);                        }
+                            LOGGER.log(Level.WARNING, String.format("Credential exception trying to authenticate against %s domain%s", domain.getName(), getSourceInfo()), ne);                        
+                            errors.add(new MultiCauseUserMayOrMayNotExistException("We can't tell if the user exists or not: " + username, notFound));
+                        }
                     } else {
                         LOGGER.log(Level.WARNING, String.format("Communications issues when trying to authenticate against %s domain for user %s", domain.getName(), (username == null ? "<null>" : username)), ne);
                         errors.add(new MultiCauseUserMayOrMayNotExistException("We can't tell if the user exists or not: " + username, notFound));
