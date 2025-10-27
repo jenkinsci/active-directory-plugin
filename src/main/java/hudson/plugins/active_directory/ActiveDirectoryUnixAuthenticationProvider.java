@@ -810,10 +810,10 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
 
 
     /**
-     * Safely extracts the source IP address and hostname from the current HTTP request.
+     * Safely extracts the source IP address from the current HTTP request.
      * Returns an empty string if the request context is not available.
      * 
-     * @return A formatted string with source information (e.g., " from 192.168.1.100 (hostname.domain.com)")
+     * @return A formatted string with source IP (e.g., " from 192.168.1.100")
      *         or an empty string if request information is unavailable
      */
     private String getSourceInfo() {
@@ -824,13 +824,9 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
             if (attributes != null) {
                 HttpServletRequest request = attributes.getRequest();
                 String remoteAddr = request.getRemoteAddr();
-                String remoteHost = request.getRemoteHost();
                 
                 if (remoteAddr != null) {
-                    return " from " + remoteAddr + 
-                        (remoteHost != null && !remoteHost.equals(remoteAddr) 
-                            ? " (" + remoteHost + ")" 
-                            : "");
+                    return " from " + remoteAddr;
                 }
             }
         } catch (Exception e) {
