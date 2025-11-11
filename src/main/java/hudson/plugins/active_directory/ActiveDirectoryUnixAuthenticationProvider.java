@@ -812,29 +812,29 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
     /**
      * Safely extracts the source IP address from the current HTTP request.
      * Returns an empty string if the request context is not available.
-     * 
+     *
      * @return A formatted string with source IP (e.g., " from 192.168.1.100")
      *         or an empty string if request information is unavailable
      */
     private String getSourceInfo() {
         try {
-            ServletRequestAttributes attributes = 
-                (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-            
-            if (attributes != null) {
-                HttpServletRequest request = attributes.getRequest();
-                String remoteAddr = request.getRemoteAddr();
-                
-                if (remoteAddr != null) {
-                    return " from " + remoteAddr;
-                }
+            // Use fail-fast lookup; throws if no request is bound
+            ServletRequestAttributes attributes =
+                (ServletRequestAttributes) RequestContextHolder.currentRequestAttributes();
+
+            HttpServletRequest request = attributes != null ? attributes.getRequest() : null;
+            String remoteAddr = request != null ? request.getRemoteAddr() : null;
+
+            if (remoteAddr != null && !remoteAddr.isBlank()) {
+                return " from " + remoteAddr;
             }
-        } catch (Exception e) {
+        } catch (IllegalStateException e) {
             // If we can't get request info, just continue without it
             LOGGER.log(Level.FINE, "Could not retrieve request source information", e);
         }
         return "";
     }
+
 
     /*package*/ static String toDC(String domainName) {
         StringBuilder buf = new StringBuilder();
