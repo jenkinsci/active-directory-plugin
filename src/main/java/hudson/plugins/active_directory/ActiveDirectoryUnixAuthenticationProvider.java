@@ -383,6 +383,11 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                         final String domainDN = toDC(domain.getName());
 
                         Attributes user = new LDAPSearchBuilder(context, domainDN).subTreeScope().searchOne("(& (userPrincipalName={0})(objectCategory=user))", userPrincipalName);
+                        try {
+                            user = new LDAPSearchBuilder(context, domainDN).subTreeScope().searchOne("(& (userPrincipalName={0})(objectCategory=user))", userPrincipalName);
+                        } catch (NamingException e) {
+                            LOGGER.log(Level.FINE, "Failed to find {0} in userPrincipalName", userPrincipalName);
+                        }
                         if (user == null) {
                             // failed to find it. Fall back to sAMAccountName.
                             // see http://www.nabble.com/Re%3A-Hudson-AD-plug-in-td21428668.html
