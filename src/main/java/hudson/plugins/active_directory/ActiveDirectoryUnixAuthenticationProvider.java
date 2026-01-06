@@ -35,6 +35,9 @@ import hudson.util.NamingThreadFactory;
 import hudson.util.Secret;
 
 import javax.naming.NameNotFoundException;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import org.apache.commons.lang.StringUtils;
 import org.springframework.security.authentication.AuthenticationProvider;
@@ -233,7 +236,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                             LOGGER.log(Level.INFO, String.format("Falling back into the internal user %s", username));
                             return new ActiveDirectoryUserDetail(username, "redacted", true, true, true, true, hudsonPrivateSecurityRealm.getAuthorities2(), internalUser.getDisplayName(), "", "");
                         } else {
-                            LOGGER.log(Level.WARNING, String.format("Credential exception trying to authenticate against %s domain", domain.getName()), ne);
+                            LOGGER.log(Level.WARNING, String.format("Credential exception trying to authenticate against %s domain%s", domain.getName(), getSourceInfo()), ne);                        
                             errors.add(new MultiCauseUserMayOrMayNotExistException("We can't tell if the user exists or not: " + username, notFound));
                         }
                     } else {
@@ -243,7 +246,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                 } catch (UsernameNotFoundException e) {
                     notFound.add(e);
                 } catch (BadCredentialsException bce) {
-                    LOGGER.log(Level.WARNING, String.format("Credential exception trying to authenticate against %s domain", domain.getName()), bce);
+                    LOGGER.log(Level.WARNING, String.format("Credential exception trying to authenticate against %s domain%s", domain.getName(), getSourceInfo()), bce);
                     errors.add(bce);
                 }
             }
@@ -804,6 +807,34 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
             LOGGER.log(Level.WARNING, String.format("JENKINS-42687 Might be more members for user  %s", userDN), e);
         }
     }
+
+
+    /**
+     * Safely extracts the source IP address from the current HTTP request.
+     * Returns an empty string if the request context is not available.
+     *
+     * @return A formatted string with source IP (e.g., " from 192.168.1.100")
+     *         or an empty string if request information is unavailable
+     */
+    private String getSourceInfo() {
+        try {
+            // Use fail-fast lookup; throws if no request is bound
+            ServletRequestAttributes attributes =
+                (ServletRequestAttributes) RequestContextHolder.currentRequestAttributes();
+
+            HttpServletRequest request = attributes != null ? attributes.getRequest() : null;
+            String remoteAddr = request != null ? request.getRemoteAddr() : null;
+
+            if (remoteAddr != null && !remoteAddr.isBlank()) {
+                return " from " + remoteAddr;
+            }
+        } catch (IllegalStateException e) {
+            // If we can't get request info, just continue without it
+            LOGGER.log(Level.FINE, "Could not retrieve request source information", e);
+        }
+        return "";
+    }
+
 
     /*package*/ static String toDC(String domainName) {
         StringBuilder buf = new StringBuilder();
