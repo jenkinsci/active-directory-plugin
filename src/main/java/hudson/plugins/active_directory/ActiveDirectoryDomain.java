@@ -25,7 +25,6 @@ package hudson.plugins.active_directory;
  */
 
 import hudson.Extension;
-import hudson.Functions;
 import hudson.model.AbstractDescribableImpl;
 import hudson.model.Descriptor;
 import hudson.util.FormValidation;
@@ -33,7 +32,6 @@ import hudson.util.ListBoxModel;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
 import jenkins.security.FIPS140;
-import org.apache.commons.lang3.StringUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -54,7 +52,6 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.io.ObjectStreamException;
 
 import static hudson.plugins.active_directory.ActiveDirectoryUnixAuthenticationProvider.toDC;
 
@@ -154,7 +151,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
 
         this.name = name;
         // Gives exception if Password is set lees than 14 chars long in FIPS mode.
-        if(FIPS140.useCompliantAlgorithms() && StringUtils.length(bindPassword) < 14) {
+        if(FIPS140.useCompliantAlgorithms() && bindPassword.length() < 14) {
             throw new IllegalArgumentException(Messages.passwordTooShortFIPS());
         }
 
@@ -167,7 +164,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
                     serversArray[i] += ":3268";
                 }
             }
-            servers = StringUtils.join(serversArray, ",");
+            servers = String.join(",", serversArray);
         }
         this.servers = servers;
         this.site = fixEmpty(site);
@@ -212,7 +209,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
         }
 
         String bindPassword_ = Secret.toString(bindPassword);
-        if(FIPS140.useCompliantAlgorithms() && StringUtils.length(bindPassword_) < 14) {
+        if(FIPS140.useCompliantAlgorithms() && bindPassword_.length() < 14) {
             throw new IllegalArgumentException(Messages.passwordTooShortFIPS());
         }
 
@@ -294,7 +291,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
          */
         @RequirePOST
         public FormValidation doCheckBindPassword(@QueryParameter String bindPassword) {
-            if(FIPS140.useCompliantAlgorithms() && StringUtils.length(bindPassword) < 14) {
+            if(FIPS140.useCompliantAlgorithms() && bindPassword.length() < 14) {
                 return FormValidation.error(Messages.passwordTooShortFIPS());
             }
             return FormValidation.ok();
@@ -350,7 +347,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
                     return FormValidation.error("No domain was set");
                 }
 
-                if (StringUtils.isBlank(bindName)) {
+                if (bindName != null && bindName.isBlank()) {
                     return FormValidation.warningWithMarkup("Leaving blank <b>`Bind DN`</b> means that any operation performed will use anonymous binding. Keep in mind that this is not recommended as some servers <a href=\"https://support.microsoft.com/en-us/help/326690/anonymous-ldap-operations-to-active-directory-are-disabled-on-windows\">do not allow it by default.</a>");
                 }
 

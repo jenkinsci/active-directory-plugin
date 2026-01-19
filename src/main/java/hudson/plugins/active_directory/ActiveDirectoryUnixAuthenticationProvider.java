@@ -36,7 +36,6 @@ import hudson.util.Secret;
 
 import javax.naming.NameNotFoundException;
 
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -338,7 +337,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                     boolean anonymousBind = false;    // did we bind anonymously?
 
                     // LDAP treats empty password as anonymous bind, so we need to reject it
-                    if (password instanceof UserPassword && StringUtils.isEmpty(((UserPassword) password).getPassword())) {
+                    if (password instanceof UserPassword userPassword && userPassword.getPassword().isEmpty()) {
                         throw new BadCredentialsException("Empty password");
                     }
 
