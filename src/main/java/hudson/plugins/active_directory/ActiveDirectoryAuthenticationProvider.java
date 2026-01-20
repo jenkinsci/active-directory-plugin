@@ -197,7 +197,7 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
                 password = NoAuthentication.INSTANCE;
             } else {
                 final String userPassword = (String) authentication.getCredentials();
-                if (!ALLOW_EMPTY_PASSWORD && userPassword.isEmpty()) {
+                if (!ALLOW_EMPTY_PASSWORD && userPassword != null && userPassword.isEmpty()) {
                     LOGGER.log(Level.FINE, "Empty password not allowed was tried by user {0}", username);
                     throw new BadCredentialsException("Empty password not allowed");
                 }
