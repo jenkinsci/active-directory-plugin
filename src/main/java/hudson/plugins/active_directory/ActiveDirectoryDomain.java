@@ -151,7 +151,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
 
         this.name = name;
         // Gives exception if Password is set lees than 14 chars long in FIPS mode.
-        if(FIPS140.useCompliantAlgorithms() && bindPassword.length() < 14) {
+        if(FIPS140.useCompliantAlgorithms() && bindName != null && bindPassword.length() < 14) {
             throw new IllegalArgumentException(Messages.passwordTooShortFIPS());
         }
 

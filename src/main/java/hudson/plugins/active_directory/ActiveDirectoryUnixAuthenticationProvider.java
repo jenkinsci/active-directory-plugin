@@ -337,7 +337,7 @@ public class ActiveDirectoryUnixAuthenticationProvider extends AbstractActiveDir
                     boolean anonymousBind = false;    // did we bind anonymously?
 
                     // LDAP treats empty password as anonymous bind, so we need to reject it
-                    if (password instanceof UserPassword userPassword && userPassword.getPassword().isEmpty()) {
+                    if (password instanceof UserPassword userPassword && userPassword.getPassword().isBlank()) {
                         throw new BadCredentialsException("Empty password");
                     }
 
