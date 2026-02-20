@@ -51,7 +51,6 @@ import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.apache.commons.lang.StringUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.DoNotUse;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
@@ -198,7 +197,7 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
                 password = NoAuthentication.INSTANCE;
             } else {
                 final String userPassword = (String) authentication.getCredentials();
-                if (!ALLOW_EMPTY_PASSWORD && StringUtils.isEmpty(userPassword)) {
+                if (!ALLOW_EMPTY_PASSWORD && userPassword != null && userPassword.isEmpty()) {
                     LOGGER.log(Level.FINE, "Empty password not allowed was tried by user {0}", username);
                     throw new BadCredentialsException("Empty password not allowed");
                 }

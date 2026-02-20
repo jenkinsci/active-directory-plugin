@@ -42,9 +42,7 @@ import jakarta.servlet.ServletException;
 import jenkins.model.Jenkins;
 import jenkins.security.FIPS140;
 import jenkins.security.SecurityListener;
-import jenkins.util.SystemProperties;
 
-import org.apache.commons.lang.StringUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -53,8 +51,6 @@ import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest2;
 import org.kohsuke.stapler.StaplerResponse2;
 import org.kohsuke.stapler.interceptor.RequirePOST;
-import org.kohsuke.stapler.verb.GET;
-import org.kohsuke.stapler.verb.POST;
 import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -68,7 +64,6 @@ import javax.naming.NamingException;
 import javax.naming.directory.Attribute;
 import javax.naming.directory.Attributes;
 import javax.naming.directory.DirContext;
-import javax.naming.directory.InitialDirContext;
 import javax.naming.ldap.InitialLdapContext;
 import javax.naming.ldap.LdapContext;
 import javax.naming.ldap.StartTlsRequest;
@@ -959,7 +954,7 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
     @Override
     protected UserDetails authenticate2(String username, String password) throws AuthenticationException {
         // Check if the password length is less than 14 characters
-        if(FIPS140.useCompliantAlgorithms() && StringUtils.length(password) < 14) {
+        if(FIPS140.useCompliantAlgorithms() && password.length() < 14) {
             LOGGER.log(Level.SEVERE, String.format(Messages.passwordTooShortFIPS()));
             throw new AuthenticationServiceException(Messages.passwordTooShortFIPS());
         }

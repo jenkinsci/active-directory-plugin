@@ -42,6 +42,7 @@
     <hpi.bundledArtifacts>active-directory,ado20,com4j</hpi.bundledArtifacts>
     <ban-junit4-imports.skip>false</ban-junit4-imports.skip>
     <hpi.strictBundledArtifacts>true</hpi.strictBundledArtifacts>
+    <ban-commons-lang-2.skip>false</ban-commons-lang-2.skip>
   </properties>
 
   <dependencyManagement>
@@ -116,7 +117,7 @@
     <dependency>
       <groupId>org.testcontainers</groupId>
       <artifactId>junit-jupiter</artifactId>
-      <version>1.21.3</version>
+      <version>1.21.4</version>
       <scope>test</scope>
     </dependency>
     <!-- JCasC compatibility -->
