@@ -709,13 +709,14 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             String oldName = Thread.currentThread().getName();
             Thread.currentThread().setName("Connecting to "+ldapUrl+" : "+oldName);
             LOGGER.fine("Connecting to " + ldapUrl);
+            LdapContext context = null;
             try {
                 props.put(Context.INITIAL_CONTEXT_FACTORY, "com.sun.jndi.ldap.LdapCtxFactory");
                 props.put(Context.PROVIDER_URL, ldapUrl);
                 props.put("java.naming.ldap.version", "3");
                 customizeLdapProperties(props);
 
-                LdapContext context = new InitialLdapContext(props, null);
+                context = new InitialLdapContext(props, null);
 
                 if (!requireTLS && startTLS) {
                     // try to upgrade to TLS if we can, but failing to do so isn't fatal
@@ -764,6 +765,16 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                 context.reconnect(null);
 
                 return context; // worked
+            } catch (Exception e) {
+                // Close the context if reconnect or any other operation failed to prevent LDAP connection leak
+                if (context != null) {
+                    try {
+                        context.close();
+                    } catch (NamingException e1) {
+                        LOGGER.log(Level.FINE, "Failed to close context after bind failure", e1);
+                    }
+                }
+                throw e;
             } finally {
                 Thread.currentThread().setName(oldName);
             }
