@@ -26,7 +26,7 @@ changetype: modify
 replace: sAMAccountName
 sAMAccountName: Rubbles
 EOF
-} && ldapmodify -a -h 127.0.0.1 -p 389 -D "cn=Administrator,cn=Users,dc=samdom,dc=example,dc=com" -w "ia4uV1EeKait" -f file.ldif
+} && ldapmodify -a -H ldap://127.0.0.1:389 -D "cn=Administrator,cn=Users,dc=samdom,dc=example,dc=com" -w "ia4uV1EeKait" -f file.ldif
 
 # add Betty to Rubbles alias
 samba-tool group addmembers Rubbles Betty
