@@ -41,6 +41,7 @@
     <jenkins.version>${jenkins.baseline}.3</jenkins.version>
     <hpi.bundledArtifacts>active-directory,ado20,com4j</hpi.bundledArtifacts>
     <hpi.strictBundledArtifacts>true</hpi.strictBundledArtifacts>
+    <hpi.compatibleSinceVersion>2.41.1</hpi.compatibleSinceVersion>
   </properties>
 
   <dependencyManagement>

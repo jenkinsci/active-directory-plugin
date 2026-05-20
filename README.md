@@ -212,6 +212,16 @@ For historical reasons, the system property "hudson.plugins.active\_directory.Ac
 
 If you have multiple AD domains federated into a forest, be sure to use a [global catalog](https://technet.microsoft.com/en-us/library/cc728188%28v=ws.10%29.aspx), or else you will fail to find group memberships that are defined in other domains.
 
+#### LDAP Referral Following
+
+Starting with version 2.42, LDAP referral following is disabled by default for security reasons (SECURITY-3659). The plugin handles multi-domain environments by iterating over configured domain entries and using the Global Catalog, so referral following is not required for normal operation.
+
+If you have an unusual configuration that requires LDAP referral following, you can re-enable it at your own risk by setting the system property:
+
+    -Dhudson.plugins.active_directory.referral.ignore=false
+
+Using the Global Catalog (port 3268 or 3269 for SSL) is strongly recommended for multi-domain forests, as it provides cross-domain lookups without relying on referrals.
+
 #### Group Names
 
 If you have added a group and it appears in the list with a red stop sign, Jenkins cannot find it. Remove it and investigate why.

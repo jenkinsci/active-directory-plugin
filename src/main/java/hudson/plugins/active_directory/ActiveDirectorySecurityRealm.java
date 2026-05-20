@@ -596,6 +596,17 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
         private static boolean WARNED = false;
 
+        static /* non-final for script console */ boolean IGNORE_REFERRALS = Boolean.parseBoolean(
+                System.getProperty("hudson.plugins.active_directory.referral.ignore", "true"));
+        static {
+            if (!IGNORE_REFERRALS) {
+                Logger.getLogger(ActiveDirectorySecurityRealm.class.getName()).warning(
+                        "LDAP referral following is enabled via system property "
+                                + "hudson.plugins.active_directory.referral.ignore=false. "
+                                + "This exposes Jenkins to potential security risks.");
+            }
+        }
+
         @Deprecated
         public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers, Hashtable<String, String> props) throws NamingException {
             return bind(principalName, password, ldapServers, props, TlsConfiguration.TRUST_ALL_CERTIFICATES);
@@ -623,15 +634,6 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             // but the bind operation doesn't appear to allow me to do so.
             Hashtable<String, String> newProps = new Hashtable<>();
 
-            // Sometimes might be useful to ignore referral. Use this System property is under the user risk
-            Boolean ignoreReferrals = Boolean.valueOf(System.getProperty("hudson.plugins.active_directory.referral.ignore", "false"));
-
-            if (!ignoreReferrals) {
-                newProps.put(Context.REFERRAL, "follow");
-            } else {
-                newProps.put(Context.REFERRAL, "ignore");
-            }
-
             newProps.put("java.naming.ldap.attributes.binary","tokenGroups objectSid");
 
             if (requireTLS && isTrustAllCertificatesEnabled(tlsConfiguration)) {
@@ -639,6 +641,9 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             }
 
             newProps.putAll(props);
+
+            newProps.put(Context.REFERRAL, IGNORE_REFERRALS ? "ignore" : "follow");
+
             NamingException namingException = null;
 
             for (SocketInfo ldapServer : ldapServers) {
