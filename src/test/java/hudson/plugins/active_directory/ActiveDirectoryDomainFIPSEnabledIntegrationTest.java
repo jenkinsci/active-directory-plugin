@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.logging.Level;
 
 import org.htmlunit.FailingHttpStatusCodeException;
+import org.htmlunit.ScriptException;
 import org.htmlunit.html.HtmlButton;
 import org.htmlunit.html.HtmlElement;
 import org.htmlunit.html.HtmlForm;
@@ -21,8 +22,10 @@ import org.jvnet.hudson.test.recipes.LocalData;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.any;
+import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasProperty;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -102,8 +105,11 @@ class ActiveDirectoryDomainFIPSEnabledIntegrationTest {
 		    form.getSelectByName("_.tlsConfiguration").setSelectedAttribute("JDK_TRUSTSTORE", true);
 		}
 
-		// Expect FailingHttpStatusCodeException when finding the "Submit" button and clicking it
-		assertThrows(FailingHttpStatusCodeException.class, () -> getButtonByText(form, button).click());
+		// Expect FailingHttpStatusCodeException (HTMLUnit 4) when finding the "Submit" button and clicking it
+		// Expect ScriptException (HTMLUnit 5) when finding the "Submit" button and clicking it
+		// TODO Remove FailingHttpStatusCodeException.class when plugin pom is newer than 6.2189.x
+		Exception e = assertThrows(Exception.class, () -> getButtonByText(form, button).click());
+		assertThat(e, anyOf(instanceOf(FailingHttpStatusCodeException.class), instanceOf(ScriptException.class)));
 
     }
 
