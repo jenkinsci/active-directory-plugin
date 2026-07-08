@@ -27,9 +27,7 @@ THE SOFTWARE.
 -->
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
-  <l:layout title="${%Active Directory Authentication Diagnosis}">
-    <l:main-panel>
-      <h1>${%Active Directory Authentication Diagnosis}</h1>
+  <l:settings-subpage title="${%Active Directory Authentication Diagnosis}">
       <p>
         Type in a credential and see which domain controllers are responding what.
         This may take some time to run, especially if you have a big domain or
@@ -49,6 +47,5 @@ THE SOFTWARE.
       </f:form>
 
       <pre>${request2.getAttribute('output')}</pre>
-    </l:main-panel>
-  </l:layout>
+  </l:settings-subpage>
 </j:jelly>
