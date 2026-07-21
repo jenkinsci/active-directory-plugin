@@ -1,7 +1,7 @@
 Active Directory plugin for Jenkins
 ===================================
 
-[![Build Status](https://ci.jenkins.io/job/Plugins/job/active-directory-plugin/job/master/badge/icon)](https://ci.jenkins.io/job/Plugins/job/active-directory-plugin/job/master/)
+[![Build Status](https://ci.jenkins.io/buildStatus/icon?job=Plugins%2Factive-directory-plugin%2Fmaster)](https://ci.jenkins.io/job/Plugins/job/active-directory-plugin/job/master/)
 [![Jenkins Plugin](https://img.shields.io/jenkins/plugin/v/active-directory.svg)](https://plugins.jenkins.io/active-directory/)
 [![GitHub release](https://img.shields.io/github/release/jenkinsci/active-directory-plugin.svg?label=changelog)](https://github.com/jenkinsci/active-directory-plugin/releases/latest/)
 [![Jenkins Plugin Installs](https://img.shields.io/jenkins/plugin/i/active-directory.svg?color=blue)](https://plugins.jenkins.io/active-directory/)
@@ -211,6 +211,16 @@ This plugin follows the standard lookup procedure to determine the list of candi
 For historical reasons, the system property "hudson.plugins.active\_directory.ActiveDirectorySecurityRealm.domainControllers" for this purpose is still supported, but starting with 1.28, the configuration in the UI is preferred.
 
 If you have multiple AD domains federated into a forest, be sure to use a [global catalog](https://technet.microsoft.com/en-us/library/cc728188%28v=ws.10%29.aspx), or else you will fail to find group memberships that are defined in other domains.
+
+#### LDAP Referral Following
+
+Starting with version 2.41.1, LDAP referral following is disabled by default for security reasons (SECURITY-3659). The plugin handles multi-domain environments by iterating over configured domain entries and using the Global Catalog, so referral following is not required for normal operation.
+
+If you have an unusual configuration that requires LDAP referral following, you can re-enable it at your own risk by setting the system property:
+
+    -Dhudson.plugins.active_directory.referral.ignore=false
+
+Using the Global Catalog (port 3268 or 3269 for SSL) is strongly recommended for multi-domain forests, as it provides cross-domain lookups without relying on referrals.
 
 #### Group Names
 

@@ -29,7 +29,7 @@ appSetup () {
     # Provision Samba
     rm -f /etc/samba/smb.conf
     rm -rf /var/lib/samba/private/*
-    samba-tool domain provision --use-rfc2307 --use-ntvfs --domain=SAMDOM --realm=SAMDOM.EXAMPLE.COM --host-name=dc1 --server-role=dc\
+    samba-tool domain provision --use-rfc2307 --domain=SAMDOM --realm=SAMDOM.EXAMPLE.COM --host-name=dc1 --server-role=dc\
       --dns-backend=BIND9_DLZ --adminpass=$SAMBA_ADMIN_PASSWORD $SAMBA_HOST_IP
     cp /var/lib/samba/private/krb5.conf /etc/krb5.conf
     if [ "${LDAP_ALLOW_INSECURE,,}" == "true" ]; then

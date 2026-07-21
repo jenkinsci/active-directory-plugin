@@ -328,7 +328,7 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
          */
         _Command cmd = ClassFactory.createCommand();
         cmd.activeConnection(con);
-        cmd.commandText("<LDAP://" +defaultNamingContext+ ">;(sAMAccountName="+userOrGroupname+");distinguishedName;subTree");
+        cmd.commandText("<LDAP://" +defaultNamingContext+ ">;(sAMAccountName="+escapeLdapFilterValue(userOrGroupname)+");distinguishedName;subTree");
         _Recordset rs = cmd.execute(null, Variant.getMissing(), -1/*default*/);
         if(rs.eof()) {
             throw new UsernameNotFoundException("No such user or group: " + userOrGroupname);
@@ -336,6 +336,31 @@ public class ActiveDirectoryAuthenticationProvider extends AbstractActiveDirecto
         String dn = rs.fields().item("distinguishedName").value().toString();
         return dn;
 	}
+
+    /**
+     * Escapes a value for safe inclusion in an LDAP search filter per RFC 4515 §3.
+     * Required because the COM4J/ADO query API has no parameterized form, so user input
+     * must be manually sanitized before concatenation into the filter string.
+     */
+    @Restricted(NoExternalUse.class)
+    static String escapeLdapFilterValue(String value) {
+        if (value == null) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder(value.length());
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            switch (c) {
+                case '\\': sb.append("\\5c"); break;
+                case '*':  sb.append("\\2a"); break;
+                case '(':  sb.append("\\28"); break;
+                case ')':  sb.append("\\29"); break;
+                case '\0': sb.append("\\00"); break;
+                default:   sb.append(c);
+            }
+        }
+        return sb.toString();
+    }
 
 	public GroupDetails loadGroupByGroupname(final String groupname) {
         try {

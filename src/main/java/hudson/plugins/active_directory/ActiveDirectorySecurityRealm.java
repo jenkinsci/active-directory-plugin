@@ -591,6 +591,17 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
 
         private static boolean WARNED = false;
 
+        static /* non-final for script console */ boolean IGNORE_REFERRALS = Boolean.parseBoolean(
+                System.getProperty("hudson.plugins.active_directory.referral.ignore", "true"));
+        static {
+            if (!IGNORE_REFERRALS) {
+                Logger.getLogger(ActiveDirectorySecurityRealm.class.getName()).warning(
+                        "LDAP referral following is enabled via system property "
+                                + "hudson.plugins.active_directory.referral.ignore=false. "
+                                + "This exposes Jenkins to potential security risks.");
+            }
+        }
+
         @Deprecated
         public DirContext bind(String principalName, String password, List<SocketInfo> ldapServers, Hashtable<String, String> props) throws NamingException {
             return bind(principalName, password, ldapServers, props, TlsConfiguration.TRUST_ALL_CERTIFICATES);
@@ -618,15 +629,6 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             // but the bind operation doesn't appear to allow me to do so.
             Hashtable<String, String> newProps = new Hashtable<>();
 
-            // Sometimes might be useful to ignore referral. Use this System property is under the user risk
-            Boolean ignoreReferrals = Boolean.valueOf(System.getProperty("hudson.plugins.active_directory.referral.ignore", "false"));
-
-            if (!ignoreReferrals) {
-                newProps.put(Context.REFERRAL, "follow");
-            } else {
-                newProps.put(Context.REFERRAL, "ignore");
-            }
-
             newProps.put("java.naming.ldap.attributes.binary","tokenGroups objectSid");
 
             if (requireTLS && isTrustAllCertificatesEnabled(tlsConfiguration)) {
@@ -634,6 +636,9 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             }
 
             newProps.putAll(props);
+
+            newProps.put(Context.REFERRAL, IGNORE_REFERRALS ? "ignore" : "follow");
+
             NamingException namingException = null;
 
             for (SocketInfo ldapServer : ldapServers) {
@@ -704,13 +709,14 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
             String oldName = Thread.currentThread().getName();
             Thread.currentThread().setName("Connecting to "+ldapUrl+" : "+oldName);
             LOGGER.fine("Connecting to " + ldapUrl);
+            LdapContext context = null;
             try {
                 props.put(Context.INITIAL_CONTEXT_FACTORY, "com.sun.jndi.ldap.LdapCtxFactory");
                 props.put(Context.PROVIDER_URL, ldapUrl);
                 props.put("java.naming.ldap.version", "3");
                 customizeLdapProperties(props);
 
-                LdapContext context = new InitialLdapContext(props, null);
+                context = new InitialLdapContext(props, null);
 
                 if (!requireTLS && startTLS) {
                     // try to upgrade to TLS if we can, but failing to do so isn't fatal
@@ -759,6 +765,16 @@ public class ActiveDirectorySecurityRealm extends AbstractPasswordBasedSecurityR
                 context.reconnect(null);
 
                 return context; // worked
+            } catch (Exception e) {
+                // Close the context if reconnect or any other operation failed to prevent LDAP connection leak
+                if (context != null) {
+                    try {
+                        context.close();
+                    } catch (NamingException e1) {
+                        LOGGER.log(Level.FINE, "Failed to close context after bind failure", e1);
+                    }
+                }
+                throw e;
             } finally {
                 Thread.currentThread().setName(oldName);
             }

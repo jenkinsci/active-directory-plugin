@@ -1,4 +1,4 @@
-FROM ubuntu:trusty
+FROM ubuntu:jammy
 
 ENV DEBIAN_FRONTEND noninteractive
 
@@ -13,19 +13,12 @@ RUN apt-get upgrade -y
 RUN apt-get install -y openssh-server supervisor
 RUN mkdir -p /var/run/sshd
 RUN mkdir -p /var/log/supervisor
-RUN sed -ri 's/PermitRootLogin without-password/PermitRootLogin Yes/g' /etc/ssh/sshd_config
 
 # Install bind9 dns server
 RUN apt-get install -y bind9 dnsutils
 ADD named.conf.options /etc/bind/named.conf.options
 
-# Install samba and dependencies to make it an Active Directory Domain Controller
-RUN apt-get install -y curl build-essential libacl1-dev libattr1-dev \
-      libblkid-dev libgnutls-dev libreadline-dev python-dev libpam0g-dev \
-      python-dnspython gdb pkg-config libpopt-dev libldap2-dev \
-      dnsutils libbsd-dev attr krb5-user docbook-xsl libcups2-dev acl python-xattr
-
-RUN apt-get install -y samba smbclient krb5-kdc
+RUN apt-get install -y samba winbind smbclient krb5-kdc
 
 # Install utilities needed for setup
 RUN apt-get install -y expect pwgen

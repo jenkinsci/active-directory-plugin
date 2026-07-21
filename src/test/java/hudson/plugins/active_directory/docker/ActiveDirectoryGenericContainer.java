@@ -7,6 +7,7 @@ import org.testcontainers.images.builder.ImageFromDockerfile;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerCmd;
 import com.github.dockerjava.api.command.InspectContainerCmd;
+import com.github.dockerjava.api.model.Capability;
 import com.github.dockerjava.api.model.ExposedPort;
 import com.github.dockerjava.api.model.HostConfig;
 import com.github.dockerjava.api.model.PortBinding;
@@ -27,6 +28,8 @@ public class ActiveDirectoryGenericContainer<SELF extends ActiveDirectoryGeneric
                 .withFileFromClasspath("supervisord.conf", "hudson/plugins/active_directory/docker/TheFlintstonesTest/TheFlintstones/supervisord.conf"));
         // wait for the custom.sh script to complete successfully
         setWaitStrategy(new LogMessageWaitStrategy().withRegEx(".*\\Qexited: custom (exit status 0; expected)\\E.*"));
+        // Samba AD DC provisioning needs SYS_ADMIN to set NT ACLs on sysvol
+        withCreateContainerCmdModifier(cmd -> cmd.getHostConfig().withCapAdd(Capability.SYS_ADMIN));
     }
 
     /*
