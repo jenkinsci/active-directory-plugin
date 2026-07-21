@@ -151,7 +151,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
 
         this.name = name;
         // Gives exception if Password is set lees than 14 chars long in FIPS mode.
-        if(FIPS140.useCompliantAlgorithms() && bindName != null && bindPassword.length() < 14) {
+        if(FIPS140.useCompliantAlgorithms() && (bindName == null || bindPassword.length() < 14)) {
             throw new IllegalArgumentException(Messages.passwordTooShortFIPS());
         }
 
@@ -347,7 +347,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
                     return FormValidation.error("No domain was set");
                 }
 
-                if (bindName != null && bindName.isBlank()) {
+                if (bindName == null || bindName.isBlank()) {
                     return FormValidation.warningWithMarkup("Leaving blank <b>`Bind DN`</b> means that any operation performed will use anonymous binding. Keep in mind that this is not recommended as some servers <a href=\"https://support.microsoft.com/en-us/help/326690/anonymous-ldap-operations-to-active-directory-are-disabled-on-windows\">do not allow it by default.</a>");
                 }
 
