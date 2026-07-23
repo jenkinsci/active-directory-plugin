@@ -45,7 +45,6 @@ import javax.naming.ServiceUnavailableException;
 import javax.naming.directory.Attribute;
 import javax.naming.directory.Attributes;
 import javax.naming.directory.DirContext;
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Hashtable;
@@ -151,7 +150,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
 
         this.name = name;
         // Gives exception if Password is set lees than 14 chars long in FIPS mode.
-        if(FIPS140.useCompliantAlgorithms() && (bindName == null || bindPassword.length() < 14)) {
+        if(FIPS140.useCompliantAlgorithms() && (bindName == null || bindPassword == null || bindPassword.length() < 14)) {
             throw new IllegalArgumentException(Messages.passwordTooShortFIPS());
         }
 
@@ -371,51 +370,31 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
                     return FormValidation.error(e, msg);
                 }
 
-                if (bindName != null) {
-                    // Make sure the bind actually works
+                // Make sure the bind actually works
+                try {
+                    Hashtable<String, String> props = new Hashtable<>(0);
+                    DirContext context = activeDirectorySecurityRealm.getDescriptor().bind(bindName, Secret.toString(password), obtainerServers, props, tlsConfiguration, requireTLS, startTls);
                     try {
-                        Hashtable<String, String> props = new Hashtable<>(0);
-                        DirContext context = activeDirectorySecurityRealm.getDescriptor().bind(bindName, Secret.toString(password), obtainerServers, props, tlsConfiguration, requireTLS, startTls);
-                        try {
-                            // Actually do a search to make sure the credential is valid
-                            Attributes userAttributes = new LDAPSearchBuilder(context, toDC(name)).subTreeScope().searchOne("(objectClass=user)");
-                            if (userAttributes == null) {
-                                return FormValidation.error(Messages.ActiveDirectorySecurityRealm_NoUsers());
-                            }
-                        } finally {
-                            context.close();
+                        // Actually do a search to make sure the credential is valid
+                        Attributes userAttributes = new LDAPSearchBuilder(context, toDC(name)).subTreeScope().searchOne("(objectClass=user)");
+                        if (userAttributes == null) {
+                            return FormValidation.error(Messages.ActiveDirectorySecurityRealm_NoUsers());
                         }
-                    } catch (BadCredentialsException e) {
-                        Throwable t = e.getCause();
-                        if (t instanceof CommunicationException) {
-                            return FormValidation.error(e, "Any Domain Controller is reachable");
-                        }
-                        return FormValidation.error(e, "Bad bind username or password");
-                    } catch (javax.naming.AuthenticationException e) {
-                        return FormValidation.error(e, "Bad bind username or password");
-                    } catch (ServiceUnavailableException e) {
-                        return FormValidation.error(e, "Domain Controller is reachable but the service on the specified port is not reachable");
-                    } catch (Exception e) {
-                        return FormValidation.error(e, e.getMessage());
+                    } finally {
+                        context.close();
                     }
-                } else {
-                    // just some connection test
-                    // try to connect to LDAP port to make sure this machine has LDAP service
-                    IOException error = null;
-                    for (SocketInfo si : obtainerServers) {
-                        try {
-                            si.connect().close();
-                            break; // looks good
-                        } catch (IOException e) {
-                            LOGGER.log(Level.FINE, String.format("Failed to connect to %s", si), e);
-                            error = e;
-                            // try the next server in the list
-                        }
+                } catch (BadCredentialsException e) {
+                    Throwable t = e.getCause();
+                    if (t instanceof CommunicationException) {
+                        return FormValidation.error(e, "Any Domain Controller is reachable");
                     }
-                    if (error != null) {
-                        LOGGER.log(Level.WARNING, String.format("Failed to connect to %s", servers), error);
-                        return FormValidation.error(error, "Failed to connect to " + servers);
-                    }
+                    return FormValidation.error(e, "Bad bind username or password");
+                } catch (javax.naming.AuthenticationException e) {
+                    return FormValidation.error(e, "Bad bind username or password");
+                } catch (ServiceUnavailableException e) {
+                    return FormValidation.error(e, "Domain Controller is reachable but the service on the specified port is not reachable");
+                } catch (Exception e) {
+                    return FormValidation.error(e, e.getMessage());
                 }
                 // As per JENKINS-36148 looks good but warn that the DNS resolution does not work
                 if (domainAttribute == null) {
