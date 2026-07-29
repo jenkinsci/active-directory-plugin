@@ -25,7 +25,6 @@ package hudson.plugins.active_directory;
  */
 
 import hudson.Extension;
-import hudson.Functions;
 import hudson.model.AbstractDescribableImpl;
 import hudson.model.Descriptor;
 import hudson.util.FormValidation;
@@ -33,7 +32,6 @@ import hudson.util.ListBoxModel;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
 import jenkins.security.FIPS140;
-import org.apache.commons.lang.StringUtils;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -47,14 +45,12 @@ import javax.naming.ServiceUnavailableException;
 import javax.naming.directory.Attribute;
 import javax.naming.directory.Attributes;
 import javax.naming.directory.DirContext;
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.io.ObjectStreamException;
 
 import static hudson.plugins.active_directory.ActiveDirectoryUnixAuthenticationProvider.toDC;
 
@@ -154,7 +150,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
 
         this.name = name;
         // Gives exception if Password is set lees than 14 chars long in FIPS mode.
-        if(FIPS140.useCompliantAlgorithms() && StringUtils.length(bindPassword) < 14) {
+        if(FIPS140.useCompliantAlgorithms() && (bindName == null || bindPassword == null || bindPassword.length() < 14)) {
             throw new IllegalArgumentException(Messages.passwordTooShortFIPS());
         }
 
@@ -167,7 +163,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
                     serversArray[i] += ":3268";
                 }
             }
-            servers = StringUtils.join(serversArray, ",");
+            servers = String.join(",", serversArray);
         }
         this.servers = servers;
         this.site = fixEmpty(site);
@@ -212,7 +208,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
         }
 
         String bindPassword_ = Secret.toString(bindPassword);
-        if(FIPS140.useCompliantAlgorithms() && StringUtils.length(bindPassword_) < 14) {
+        if(FIPS140.useCompliantAlgorithms() && bindPassword_.length() < 14) {
             throw new IllegalArgumentException(Messages.passwordTooShortFIPS());
         }
 
@@ -294,7 +290,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
          */
         @RequirePOST
         public FormValidation doCheckBindPassword(@QueryParameter String bindPassword) {
-            if(FIPS140.useCompliantAlgorithms() && StringUtils.length(bindPassword) < 14) {
+            if(FIPS140.useCompliantAlgorithms() && bindPassword.length() < 14) {
                 return FormValidation.error(Messages.passwordTooShortFIPS());
             }
             return FormValidation.ok();
@@ -350,7 +346,7 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
                     return FormValidation.error("No domain was set");
                 }
 
-                if (StringUtils.isBlank(bindName)) {
+                if (bindName == null || bindName.isBlank()) {
                     return FormValidation.warningWithMarkup("Leaving blank <b>`Bind DN`</b> means that any operation performed will use anonymous binding. Keep in mind that this is not recommended as some servers <a href=\"https://support.microsoft.com/en-us/help/326690/anonymous-ldap-operations-to-active-directory-are-disabled-on-windows\">do not allow it by default.</a>");
                 }
 
@@ -374,51 +370,31 @@ public class ActiveDirectoryDomain extends AbstractDescribableImpl<ActiveDirecto
                     return FormValidation.error(e, msg);
                 }
 
-                if (bindName != null) {
-                    // Make sure the bind actually works
+                // Make sure the bind actually works
+                try {
+                    Hashtable<String, String> props = new Hashtable<>(0);
+                    DirContext context = activeDirectorySecurityRealm.getDescriptor().bind(bindName, Secret.toString(password), obtainerServers, props, tlsConfiguration, requireTLS, startTls);
                     try {
-                        Hashtable<String, String> props = new Hashtable<>(0);
-                        DirContext context = activeDirectorySecurityRealm.getDescriptor().bind(bindName, Secret.toString(password), obtainerServers, props, tlsConfiguration, requireTLS, startTls);
-                        try {
-                            // Actually do a search to make sure the credential is valid
-                            Attributes userAttributes = new LDAPSearchBuilder(context, toDC(name)).subTreeScope().searchOne("(objectClass=user)");
-                            if (userAttributes == null) {
-                                return FormValidation.error(Messages.ActiveDirectorySecurityRealm_NoUsers());
-                            }
-                        } finally {
-                            context.close();
+                        // Actually do a search to make sure the credential is valid
+                        Attributes userAttributes = new LDAPSearchBuilder(context, toDC(name)).subTreeScope().searchOne("(objectClass=user)");
+                        if (userAttributes == null) {
+                            return FormValidation.error(Messages.ActiveDirectorySecurityRealm_NoUsers());
                         }
-                    } catch (BadCredentialsException e) {
-                        Throwable t = e.getCause();
-                        if (t instanceof CommunicationException) {
-                            return FormValidation.error(e, "Any Domain Controller is reachable");
-                        }
-                        return FormValidation.error(e, "Bad bind username or password");
-                    } catch (javax.naming.AuthenticationException e) {
-                        return FormValidation.error(e, "Bad bind username or password");
-                    } catch (ServiceUnavailableException e) {
-                        return FormValidation.error(e, "Domain Controller is reachable but the service on the specified port is not reachable");
-                    } catch (Exception e) {
-                        return FormValidation.error(e, e.getMessage());
+                    } finally {
+                        context.close();
                     }
-                } else {
-                    // just some connection test
-                    // try to connect to LDAP port to make sure this machine has LDAP service
-                    IOException error = null;
-                    for (SocketInfo si : obtainerServers) {
-                        try {
-                            si.connect().close();
-                            break; // looks good
-                        } catch (IOException e) {
-                            LOGGER.log(Level.FINE, String.format("Failed to connect to %s", si), e);
-                            error = e;
-                            // try the next server in the list
-                        }
+                } catch (BadCredentialsException e) {
+                    Throwable t = e.getCause();
+                    if (t instanceof CommunicationException) {
+                        return FormValidation.error(e, "Any Domain Controller is reachable");
                     }
-                    if (error != null) {
-                        LOGGER.log(Level.WARNING, String.format("Failed to connect to %s", servers), error);
-                        return FormValidation.error(error, "Failed to connect to " + servers);
-                    }
+                    return FormValidation.error(e, "Bad bind username or password");
+                } catch (javax.naming.AuthenticationException e) {
+                    return FormValidation.error(e, "Bad bind username or password");
+                } catch (ServiceUnavailableException e) {
+                    return FormValidation.error(e, "Domain Controller is reachable but the service on the specified port is not reachable");
+                } catch (Exception e) {
+                    return FormValidation.error(e, e.getMessage());
                 }
                 // As per JENKINS-36148 looks good but warn that the DNS resolution does not work
                 if (domainAttribute == null) {
