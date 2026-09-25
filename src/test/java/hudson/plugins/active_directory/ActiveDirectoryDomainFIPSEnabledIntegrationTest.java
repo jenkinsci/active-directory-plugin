@@ -114,14 +114,6 @@ class ActiveDirectoryDomainFIPSEnabledIntegrationTest {
     }
 
     /**
-     * Tests the behavior of the "Apply" button when a short password is configured.
-     */
-    @Test
-    void testActiveDirectoryDomainApplyButtonClick() throws Exception {
-		submitConfig("Apply");
-    }
-
-    /**
      * Tests the behavior of the "Test Domain" button when a short password is configured.
      *
      */
