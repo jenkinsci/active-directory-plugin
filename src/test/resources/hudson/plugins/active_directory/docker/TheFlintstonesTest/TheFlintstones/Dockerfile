@@ -1,4 +1,4 @@
-FROM ubuntu:jammy
+FROM ubuntu:resolute
 
 ENV DEBIAN_FRONTEND noninteractive
 
